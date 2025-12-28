@@ -115,6 +115,11 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
     }
 
     struct ip* const ip_header = (struct ip*)(buffer + client_connection->prepend_size);
+
+    if (client_connection->addr_type == DLT_EN10MB) {
+        memcpy(client_connection->eth_header.ether_dhost, ((struct ether_header*)buffer)->ether_shost, sizeof(client_connection->eth_header.ether_dhost));
+    }
+
     struct SwiftNetPacketInfo* const packet_info = (struct SwiftNetPacketInfo*)(buffer + client_connection->prepend_size + sizeof(struct ip));
     struct SwiftNetServerInformation* const server_information = (struct SwiftNetServerInformation*)(buffer + client_connection->prepend_size + sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo));
 
