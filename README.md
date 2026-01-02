@@ -20,6 +20,13 @@
 
 ## Installation
 Follow these steps to install SwiftNet:
+
+## VCPKG
+```
+vcpkg install morcules-swiftnet
+```
+
+## From Source
 1. Clone the repository to your local machine:
 ```bash
 git clone https://github.com/deadlightreal/SwiftNet
