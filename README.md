@@ -45,6 +45,3 @@ cd SwiftNet/build
 
 ## License
 This project is licensed under the Apache License 2.0
-
-## Contact
-For any questions or support, feel free to open an issue or contact me at [https://t.me/deadlightreal].
