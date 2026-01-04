@@ -136,9 +136,9 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
         return;
     }
 
-    uint32_t owner_none = PACKET_CALLBACK_QUEUE_OWNER_NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, PACKET_CALLBACK_QUEUE_OWNER_PROCESS_PACKETS, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = PACKET_CALLBACK_QUEUE_OWNER_NONE;
+    enum PacketQueueOwner owner_none = NONE;
+    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
+        owner_none = NONE;
     }
 
     if(packet_queue->last_node == NULL) {
@@ -153,7 +153,7 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
         packet_queue->first_node = new_node;
     }
 
-    atomic_store_explicit(&packet_queue->owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 
     return;
 }
@@ -286,13 +286,13 @@ static inline struct SwiftNetPacketSending* const get_packet_sending(struct Swif
 }
 
 struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const packet_queue) {
-    uint32_t owner_none = PACKET_QUEUE_OWNER_NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, PACKET_QUEUE_OWNER_PROCESS_PACKETS, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = PACKET_QUEUE_OWNER_NONE;
+    enum PacketQueueOwner owner_none = NONE;
+    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
+        owner_none = NONE;
     }
 
     if(packet_queue->first_node == NULL) {
-        atomic_store(&packet_queue->owner, PACKET_QUEUE_OWNER_NONE);
+        atomic_store(&packet_queue->owner, NONE);
         return NULL;
     }
 
@@ -302,14 +302,14 @@ struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const pac
         packet_queue->first_node = NULL;
         packet_queue->last_node = NULL;
 
-        atomic_store(&packet_queue->owner, PACKET_QUEUE_OWNER_NONE);
+        atomic_store(&packet_queue->owner, NONE);
 
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
-    atomic_store_explicit(&packet_queue->owner, PACKET_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 
     return node_to_process;
 }
@@ -379,7 +379,7 @@ static inline void swiftnet_process_packets(
         if(memcmp(&ip_header.ip_src, &ip_header.ip_dst, sizeof(struct in_addr)) != 0 && is_private_ip(ip_header.ip_src) == false && is_private_ip(ip_header.ip_dst)) { 
             if(ip_header.ip_sum != 0 && packet_corrupted(checksum_received, node->data_read, packet_buffer) == true) {
                 #ifdef SWIFT_NET_DEBUG
-                    if (check_debug_flag(DEBUG_PACKETS_RECEIVING)) {
+                    if (check_debug_flag(PACKETS_RECEIVING)) {
                         send_debug_message("Received corrupted packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"received_checsum\": %d, \"real_checksum\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, checksum_received, crc16(packet_buffer, node->data_read));
                     }
                 #endif
@@ -391,19 +391,19 @@ static inline void swiftnet_process_packets(
         }
 
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_PACKETS_RECEIVING)) {
+            if (check_debug_flag(PACKETS_RECEIVING)) {
                 send_debug_message("Received packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"packet_type\": %d, \"packet_length\": %d, \"chunk_index\": %d, \"connection_type\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, packet_info.packet_type, packet_info.packet_length, packet_info.chunk_index, connection_type);
             }
         #endif
 
         switch(packet_info.packet_type) {
-            case PACKET_TYPE_REQUEST_INFORMATION:
+            case REQUEST_INFORMATION:
             {
                 const struct ip send_server_info_ip_header = construct_ip_header(node->sender_address, PACKET_HEADER_SIZE, rand());
 
                 const struct SwiftNetPacketInfo packet_info_new = construct_packet_info(
                     sizeof(struct SwiftNetServerInformation),
-                    PACKET_TYPE_REQUEST_INFORMATION,
+                    REQUEST_INFORMATION,
                     1,
                     0,
                     (struct SwiftNetPortInfo){
@@ -428,7 +428,7 @@ static inline void swiftnet_process_packets(
     
                 goto next_packet;
             }
-            case PACKET_TYPE_SEND_LOST_PACKETS_REQUEST:
+            case SEND_LOST_PACKETS_REQUEST:
             {
                 const uint32_t mtu = MIN(packet_info.maximum_transmission_unit, maximum_transmission_unit);
 
@@ -440,7 +440,7 @@ static inline void swiftnet_process_packets(
 
                         struct SwiftNetPacketInfo send_packet_info = construct_packet_info(
                             0x00,
-                            PACKET_TYPE_SUCCESSFULLY_RECEIVED_PACKET,
+                            SUCCESSFULLY_RECEIVED_PACKET,
                             1,
                             0,
                             (struct SwiftNetPortInfo){
@@ -469,7 +469,7 @@ static inline void swiftnet_process_packets(
 
                 struct SwiftNetPacketInfo packet_info_new = construct_packet_info(
                     0,
-                    PACKET_TYPE_SEND_LOST_PACKETS_RESPONSE,
+                    SEND_LOST_PACKETS_RESPONSE,
                     1,
                     0,
                     (struct SwiftNetPortInfo){
@@ -497,7 +497,7 @@ static inline void swiftnet_process_packets(
 
                 goto next_packet;
             }
-            case PACKET_TYPE_SEND_LOST_PACKETS_RESPONSE:
+            case SEND_LOST_PACKETS_RESPONSE:
             {
                 struct SwiftNetPacketSending* const target_packet_sending = get_packet_sending(packets_sending, ip_header.ip_id);
 
@@ -527,7 +527,7 @@ static inline void swiftnet_process_packets(
 
                 goto next_packet;
             }
-            case PACKET_TYPE_SUCCESSFULLY_RECEIVED_PACKET:
+            case SUCCESSFULLY_RECEIVED_PACKET:
             {
                 struct SwiftNetPacketSending* const target_packet_sending = get_packet_sending(packets_sending, ip_header.ip_id);
 
@@ -595,12 +595,12 @@ static inline void swiftnet_process_packets(
                         .data_length = packet_info.packet_length,
                         .packet_id = ip_header.ip_id
                         #ifdef SWIFT_NET_REQUESTS
-                            , .expecting_response = packet_info.packet_type == PACKET_TYPE_REQUEST
+                            , .expecting_response = packet_info.packet_type == REQUEST
                         #endif
                     };
 
                     #ifdef SWIFT_NET_REQUESTS
-                    if (packet_info.packet_type == PACKET_TYPE_RESPONSE) {
+                    if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, sender.sender_address, NULL, new_packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
                         pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
@@ -618,12 +618,12 @@ static inline void swiftnet_process_packets(
                         .data_length = packet_info.packet_length,
                         .packet_id = ip_header.ip_id
                         #ifdef SWIFT_NET_REQUESTS
-                            , .expecting_response = packet_info.packet_type == PACKET_TYPE_REQUEST
+                            , .expecting_response = packet_info.packet_type == REQUEST
                         #endif
                     };
 
                     #ifdef SWIFT_NET_REQUESTS
-                    if (packet_info.packet_type == PACKET_TYPE_RESPONSE) {
+                    if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, ((struct SwiftNetClientConnection*)connection)->server_addr, NULL, new_packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
                         pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
@@ -679,12 +679,12 @@ static inline void swiftnet_process_packets(
                         .data_length = packet_info.packet_length,
                         .packet_id = ip_header.ip_id
                         #ifdef SWIFT_NET_REQUESTS
-                            , .expecting_response = packet_info.packet_type == PACKET_TYPE_REQUEST
+                            , .expecting_response = packet_info.packet_type == REQUEST
                         #endif
                     };
 
                     #ifdef SWIFT_NET_REQUESTS
-                    if (packet_info.packet_type == PACKET_TYPE_RESPONSE) {
+                    if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, sender.sender_address, pending_message, packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
                         pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);
@@ -704,12 +704,12 @@ static inline void swiftnet_process_packets(
                         .data_length = packet_info.packet_length,
                         .packet_id = ip_header.ip_id
                         #ifdef SWIFT_NET_REQUESTS
-                            , .expecting_response = packet_info.packet_type == PACKET_TYPE_REQUEST
+                            , .expecting_response = packet_info.packet_type == REQUEST
                         #endif
                     };
 
                     #ifdef SWIFT_NET_REQUESTS
-                    if (packet_info.packet_type == PACKET_TYPE_RESPONSE) {
+                    if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, ((struct SwiftNetClientConnection*)connection)->server_addr, pending_message, packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
                         pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);

@@ -19,8 +19,10 @@
     #define LOOPBACK_INTERFACE_NAME "lo0\0"
 #endif
 
-#define REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY 0x00
-#define REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET 0x01
+typedef enum {
+    REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY = 0x00,
+    REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET  = 0x01
+} RequestLostPacketsReturnType;
 
 #define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
 #define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
@@ -41,15 +43,7 @@
     uint16_t checksum = htons(crc16(buffer, size)); \
     memcpy(buffer + prepend_size + offsetof(struct ip, ip_sum), &checksum, sizeof(checksum));
 
-#define PACKET_QUEUE_OWNER_NONE 0x00
-#define PACKET_QUEUE_OWNER_HANDLE_PACKETS 0x01
-#define PACKET_QUEUE_OWNER_PROCESS_PACKETS 0x02
-
-#define PACKET_CALLBACK_QUEUE_OWNER_NONE 0x00
-#define PACKET_CALLBACK_QUEUE_OWNER_PROCESS_PACKETS 0x01
-#define PACKET_CALLBACK_QUEUE_OWNER_EXECUTE_PACKET_CALLBACK 0x02
-
-#define PROTOCOL_NUMBER 253
+#define PROT_NUMBER 253
 
 #define SIZEOF_FIELD(type, field) sizeof(((type *)0)->field)
 
@@ -98,12 +92,21 @@ static inline uint16_t crc16(const uint8_t *data, size_t length) {
     
     for (size_t i = 0; i < length; i++) {
         uint8_t byte = data[i];
-
         crc = (crc >> 8) ^ crc16_table[(crc ^ byte) & 0xFF];
     }
 
     return crc ^ 0xFFFF;
 }
+
+enum StackCreatingState {
+    STACK_CREATING_LOCKED = 0,
+    STACK_CREATING_UNLOCKED = 1
+};
+
+enum AllocatorStackState {
+    ALLOCATOR_STACK_FREE = 0,
+    ALLOCATOR_STACK_OCCUPIED = 1
+};
 
 struct Listener {
     pcap_t* pcap;
@@ -256,7 +259,7 @@ static struct ip construct_ip_header(struct in_addr destination_addr, const uint
         .ip_v = 4, // Version (ipv4)
         .ip_hl = 5, // Header length
         .ip_tos = 0, // Type of service
-        .ip_p = PROTOCOL_NUMBER, // Protocol
+        .ip_p = PROT_NUMBER, // Protocol
         .ip_len = htons(packet_size), // Chunk size
         .ip_id = htons(packet_id), // Packet id
         .ip_off = htons(0), // Not used

@@ -11,14 +11,14 @@
 #include <stddef.h>
 
 static inline void lock_packet_queue(struct PacketQueue* const packet_queue) {
-    uint32_t owner_none = PACKET_QUEUE_OWNER_NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, PACKET_QUEUE_OWNER_HANDLE_PACKETS, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = PACKET_QUEUE_OWNER_NONE;
+    enum PacketQueueOwner owner_none = NONE;
+    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
+        owner_none = NONE;
     }
 }
 
 static inline void unlock_packet_queue(struct PacketQueue* const packet_queue) {
-    atomic_store_explicit(&packet_queue->owner, PACKET_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 }
 
 static inline void insert_queue_node(struct PacketQueueNode* const new_node, struct PacketQueue* const packet_queue, const enum ConnectionType contype) {
@@ -106,7 +106,7 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
     if(bytes_received != PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + client_connection->prepend_size) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_INITIALIZATION)) {
+            if (check_debug_flag(INITIALIZATION)) {
                 send_debug_message("Invalid packet received from server. Expected server information: {\"bytes_received\": %u, \"expected_bytes\": %u}\n", bytes_received, PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation));
             }
         #endif
@@ -125,7 +125,7 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
     if(packet_info->port_info.destination_port != client_connection->port_info.source_port || packet_info->port_info.source_port != client_connection->port_info.destination_port) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_INITIALIZATION)) {
+            if (check_debug_flag(INITIALIZATION)) {
                 send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", packet_info->port_info.destination_port, packet_info->port_info.source_port, inet_ntoa(ip_header->ip_src));
             }
         #endif
@@ -133,9 +133,9 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
         return;
     }
 
-    if(packet_info->packet_type != PACKET_TYPE_REQUEST_INFORMATION) {
+    if(packet_info->packet_type != REQUEST_INFORMATION) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_INITIALIZATION)) {
+            if (check_debug_flag(INITIALIZATION)) {
                 send_debug_message("Invalid packet type: {\"packet_type\": %d}\n", packet_info->packet_type);
             }
         #endif
