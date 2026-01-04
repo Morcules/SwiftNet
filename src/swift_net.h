@@ -67,6 +67,7 @@ struct SwiftNetClientAddrData {
     struct in_addr sender_address;
     uint32_t maximum_transmission_unit;
     uint16_t port;
+    uint8_t mac_address[6];
 };
 
 struct SwiftNetPacketClientMetadata {
@@ -127,7 +128,6 @@ struct SwiftNetPacketSending {
 
 struct SwiftNetPacketCompleted {
     uint16_t packet_id;
-    uint32_t packet_length;
 };
 
 struct SwiftNetPacketBuffer {

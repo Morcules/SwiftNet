@@ -82,10 +82,9 @@ static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chun
     return offset;
 }
 
-static inline void packet_completed(const uint16_t packet_id, const uint32_t packet_length, struct SwiftNetVector* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
+static inline void packet_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
     struct SwiftNetPacketCompleted* const new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
     new_packet_completed->packet_id = packet_id;
-    new_packet_completed->packet_length = packet_length;
 
     vector_lock(packets_completed_history);
 
@@ -100,7 +99,9 @@ static inline bool check_packet_already_completed(const uint16_t packet_id, stru
     vector_lock(packets_completed_history);
 
     for(uint32_t i = 0; i < packets_completed_history->size; i++) {
-        if(((const struct SwiftNetPacketCompleted* const)vector_get((struct SwiftNetVector*)packets_completed_history, i))->packet_id == packet_id) {
+        const struct SwiftNetPacketCompleted* const current = vector_get((struct SwiftNetVector*)packets_completed_history, i);
+
+        if(current->packet_id == packet_id) {
             vector_unlock(packets_completed_history);
 
             return true; 
@@ -222,6 +223,12 @@ static inline void pass_callback_execution(void* const packet_data, struct Packe
     insert_callback_queue_node(node, queue);
 }
 
+static inline bool chunk_already_received(uint8_t* const chunks_received, const uint32_t index) {
+    const uint32_t byte = index / 8;
+    const uint8_t bit = index % 8;
+
+    return (chunks_received[byte] & (1 << bit)) == 0x01;
+}
 
 static inline void chunk_received(uint8_t* const chunks_received, const uint32_t index) {
     const uint32_t byte = index / 8;
@@ -385,7 +392,7 @@ static inline void swiftnet_process_packets(
 
         #ifdef SWIFT_NET_DEBUG
             if (check_debug_flag(DEBUG_PACKETS_RECEIVING)) {
-                send_debug_message("Received packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"packet_type\": %d, \"packet_length\": %d, \"chunk_index\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, packet_info.packet_type, packet_info.packet_length, packet_info.chunk_index);
+                send_debug_message("Received packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"packet_type\": %d, \"packet_length\": %d, \"chunk_index\": %d, \"connection_type\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, packet_info.packet_type, packet_info.packet_length, packet_info.chunk_index, connection_type);
             }
         #endif
 
@@ -540,11 +547,20 @@ static inline void swiftnet_process_packets(
                 break;
         }
 
-        const struct SwiftNetClientAddrData sender = {
+        if (check_packet_already_completed(ip_header.ip_id, packets_completed_history)) {
+            allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+            goto next_packet;
+        }
+
+        struct SwiftNetClientAddrData sender = {
             .sender_address.s_addr = loopback == true ? inet_addr("127.0.0.1") : node->sender_address.s_addr,
             .maximum_transmission_unit = packet_info.maximum_transmission_unit,
-            .port = packet_info.port_info.source_port
+            .port = packet_info.port_info.source_port,
         };
+
+        if (addr_type == DLT_EN10MB) {
+            memcpy(&sender.mac_address, eth_hdr.ether_shost, sizeof(sender.mac_address));
+        }
 
         const uint32_t mtu = MIN(packet_info.maximum_transmission_unit, maximum_transmission_unit);
         const uint32_t chunk_data_size = mtu - PACKET_HEADER_SIZE;
@@ -566,7 +582,7 @@ static inline void swiftnet_process_packets(
 
                 goto next_packet;
             } else {
-                packet_completed(ip_header.ip_id, packet_info.packet_length, packets_completed_history, packets_completed_history_memory_allocator);
+                packet_completed(ip_header.ip_id, packets_completed_history, packets_completed_history_memory_allocator);
 
                 if(connection_type == CONNECTION_TYPE_SERVER) {
                     struct SwiftNetServerPacketData* const new_packet_data = allocator_allocate(&server_packet_data_memory_allocator) ;
@@ -620,6 +636,12 @@ static inline void swiftnet_process_packets(
                 goto next_packet;
             }
         } else {
+            if (chunk_already_received(pending_message->chunks_received, packet_info.chunk_index)) {
+                allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+
+                goto next_packet;
+            }
+
             const uint32_t bytes_to_write = (packet_info.chunk_index + 1) >= packet_info.chunk_amount ? packet_info.packet_length % chunk_data_size : chunk_data_size;
 
             if(pending_message->chunks_received_number + 1 >= packet_info.chunk_amount) {
@@ -642,7 +664,7 @@ static inline void swiftnet_process_packets(
                     }
                 #endif
 
-                packet_completed(ip_header.ip_id, packet_info.packet_length, packets_completed_history, packets_completed_history_memory_allocator);
+                packet_completed(ip_header.ip_id, packets_completed_history, packets_completed_history_memory_allocator);
 
                 if(connection_type == CONNECTION_TYPE_SERVER) {
                     uint8_t* const ptr = pending_message->packet_data_start;
