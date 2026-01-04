@@ -115,6 +115,11 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
     }
 
     struct ip* const ip_header = (struct ip*)(buffer + client_connection->prepend_size);
+
+    if (client_connection->addr_type == DLT_EN10MB) {
+        memcpy(client_connection->eth_header.ether_dhost, ((struct ether_header*)buffer)->ether_shost, sizeof(client_connection->eth_header.ether_dhost));
+    }
+
     struct SwiftNetPacketInfo* const packet_info = (struct SwiftNetPacketInfo*)(buffer + client_connection->prepend_size + sizeof(struct ip));
     struct SwiftNetServerInformation* const server_information = (struct SwiftNetServerInformation*)(buffer + client_connection->prepend_size + sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo));
 
@@ -181,8 +186,6 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
 }
 
 static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* const hdr, const uint8_t* const packet) {
-    printf("Received packet\n");
-
     struct Listener* const listener = (struct Listener*)user;
 
     struct SwiftNetPortInfo* const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, port_info));

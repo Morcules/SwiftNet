@@ -45,6 +45,7 @@ static inline uint8_t request_lost_packets_bitarray(const uint8_t* const raw_dat
                     return REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY;
                 case SUCCESSFULLY_RECEIVED:
                     atomic_store_explicit(&packet_sending->updated, NO_UPDATE, memory_order_release);
+
                     return REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET;
             }
 
@@ -370,7 +371,11 @@ void swiftnet_server_send_packet(struct SwiftNetServer* const server, struct Swi
         .source_port = server->server_port
     };
 
-    swiftnet_send_packet(server, target.maximum_transmission_unit, port_info, packet, packet_length, &target.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, server->eth_header, server->loopback, server->addr_type, server->prepend_size
+    struct ether_header eth_hdr;
+    memcpy(&eth_hdr, &server->eth_header, sizeof(eth_hdr));
+    memcpy(&eth_hdr.ether_dhost, &target.mac_address, sizeof(eth_hdr.ether_dhost));
+
+    swiftnet_send_packet(server, target.maximum_transmission_unit, port_info, packet, packet_length, &target.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, eth_hdr, server->loopback, server->addr_type, server->prepend_size
     #ifdef SWIFT_NET_REQUESTS
         , NULL, false, 0
     #endif
