@@ -391,7 +391,7 @@ static inline void swiftnet_process_packets(
         }
 
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_PACKETS_RECEIVING)) {
+            if (check_debug_flag(PACKETS_RECEIVING)) {
                 send_debug_message("Received packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"packet_type\": %d, \"packet_length\": %d, \"chunk_index\": %d, \"connection_type\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, packet_info.packet_type, packet_info.packet_length, packet_info.chunk_index, connection_type);
             }
         #endif
