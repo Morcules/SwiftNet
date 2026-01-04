@@ -269,201 +269,110 @@ struct SwiftNetServer {
     uint8_t prepend_size;
 };
 
-/**
- * @brief Set a custom message handler for the server.
- * @param server Pointer to the server.
- * @param new_handler Function pointer to the new message handler.
- */
+// Set a custom message (packet) handler for the server.
 extern void swiftnet_server_set_message_handler(
     struct SwiftNetServer* const server,
     void (* const new_handler)(struct SwiftNetServerPacketData* const, void* const),
     void* const user_arg
 );
 
-/**
- * @brief Set a custom message handler for the client connection.
- * @param client Pointer to the client connection.
- * @param new_handler Function pointer to the new message handler.
- */
+// Set a custom message (packet) handler for the client.
 extern void swiftnet_client_set_message_handler(
     struct SwiftNetClientConnection* const client,
     void (* const new_handler)(struct SwiftNetClientPacketData* const, void* const),
     void* const user_arg
 );
 
-/**
- * @brief Append data to a client packet buffer.
- * @param data Pointer to the data to append.
- * @param data_size Size of the data in bytes.
- * @param packet Pointer to the client packet buffer.
- */
+// Append data to a packet buffer.
 extern void swiftnet_client_append_to_packet(
     const void* const data,
     const uint32_t data_size,
     struct SwiftNetPacketBuffer* const packet
 );
 
-/**
- * @brief Append data to a server packet buffer.
- * @param data Pointer to the data to append.
- * @param data_size Size of the data in bytes.
- * @param packet Pointer to the server packet buffer.
- */
+
+// Append data to a packet buffer.
 extern void swiftnet_server_append_to_packet(
     const void* const data,
     const uint32_t data_size,
     struct SwiftNetPacketBuffer* const packet
 );
 
-/**
- * @brief Clean up and free resources for a client connection.
- * @param client Pointer to the client connection.
- */
+// Clean up and free resources for a client connection.
 extern void swiftnet_client_cleanup(struct SwiftNetClientConnection* const client);
 
-/**
- * @brief Clean up and free resources for a server.
- * @param server Pointer to the server.
- */
+// Clean up and free resources for a server.
 extern void swiftnet_server_cleanup(struct SwiftNetServer* const server);
 
-/**
- * @brief Initialize the SwiftNet library. Must be called before using any other functions.
- */
+// Initialize the SwiftNet library.
 extern void swiftnet_initialize();
 
-/**
- * @brief Send a packet from the client to its connected server.
- * @param client Pointer to the client connection.
- * @param packet Pointer to the packet buffer to send.
- */
+// Send a packet from the client to its connected server.
 extern void swiftnet_client_send_packet(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetPacketBuffer* const packet
 );
 
-/**
- * @brief Send a packet from the server to a specific client.
- * @param server Pointer to the server.
- * @param packet Pointer to the packet buffer to send.
- * @param target Target client address data.
- */
+// Send a packet from the server to a specified client.
 extern void swiftnet_server_send_packet(
     struct SwiftNetServer* const server,
     struct SwiftNetPacketBuffer* const packet,
     const struct SwiftNetClientAddrData target
 );
 
-/**
- * @brief Create a packet buffer for the server.
- * @param buffer_size Size of the buffer in bytes.
- * @return SwiftNetPacketBuffer Initialized packet buffer.
- */
+// Create a packet buffer for the server.
 extern struct SwiftNetPacketBuffer swiftnet_server_create_packet_buffer(const uint32_t buffer_size);
 
-/**
- * @brief Create a packet buffer for the client.
- * @param buffer_size Size of the buffer in bytes.
- * @return SwiftNetPacketBuffer Initialized packet buffer.
- */
+// Create a packet buffer for the client.
 extern struct SwiftNetPacketBuffer swiftnet_client_create_packet_buffer(const uint32_t buffer_size);
 
-/**
- * @brief Destroy a server packet buffer and free resources.
- * @param packet Pointer to the server packet buffer.
- */
+// Destroy a server packet buffer and free resources.
 extern void swiftnet_server_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
 
-/**
- * @brief Destroy a client packet buffer and free resources.
- * @param packet Pointer to the client packet buffer.
- */
+// Destroy a client packet buffer and free resources.
 extern void swiftnet_client_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
 
-/**
- * @brief Create and initialize a server.
- * @param port Port number to bind the server to.
- * @param loopback If true, server binds only to loopback interface.
- * @return Pointer to initialized SwiftNetServer, or NULL if unexpected error happened.
- */
+// Create and initialize a server.
 extern struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback);
 
-/**
- * @brief Create and initialize a client connection.
- * @param ip_address IP address of the server to connect to.
- * @param port Server port to connect to.
- * @param timeout_ms Connection timeout in milliseconds.
- * @return Pointer to initialized SwiftNetClientConnection, or NULL if server failed to respond.
- */
+// Create and initialize a client connection.
 extern struct SwiftNetClientConnection* swiftnet_create_client(
     const char* const ip_address,
     const uint16_t port,
     const uint32_t timeout_ms
 );
 
-/**
- * @brief Read data from a client packet.
- * @param packet_data Pointer to client packet data.
- * @param data_size Number of bytes to read.
- * @return Pointer to the read data, or NULL if read more data than there is.
- */
+// Read data from a client packet.
 extern void* swiftnet_client_read_packet(struct SwiftNetClientPacketData* const packet_data, const uint32_t data_size);
 
-/**
- * @brief Read data from a server packet.
- * @param packet_data Pointer to server packet data.
- * @param data_size Number of bytes to read.
- * @return Pointer to the read data, or NULL if read more data than there is.
- */
+// Read data from a server packet.
 extern void* swiftnet_server_read_packet(struct SwiftNetServerPacketData* const packet_data, const uint32_t data_size);
 
-/**
- * @brief Destroy client packet data and release memory.
- * @param packet_data Pointer to client packet data.
- * @param client_conn Pointer to the client connection.
- */
+// Destroy client packet data and release memory.
 extern void swiftnet_client_destroy_packet_data(
     struct SwiftNetClientPacketData* const packet_data,
     struct SwiftNetClientConnection* const client_conn
 );
 
-/**
- * @brief Destroy server packet data and release memory.
- * @param packet_data Pointer to server packet data.
- * @param server Pointer to the server.
- */
+// Destroy server packet data and release memory.
 extern void swiftnet_server_destroy_packet_data(
     struct SwiftNetServerPacketData* const packet_data,
     struct SwiftNetServer* const server
 );
 
-/**
- * @brief Clean up the entire SwiftNet library.
- */
+// Clean up the entire SwiftNet library.
 extern void swiftnet_cleanup();
 
 #ifdef SWIFT_NET_REQUESTS
-/**
- * @brief Make a request from a client and wait for a response.
- * @param client Pointer to the client connection.
- * @param packet Pointer to the packet buffer containing the request.
- * @param timeout_ms Timeout in milliseconds.
- * @return Pointer to client packet data containing the response, or NULL if server failed to respond.
- */
+
+// Make a request from a client and wait for a response.
 extern struct SwiftNetClientPacketData* swiftnet_client_make_request(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetPacketBuffer* const packet,
     const uint32_t timeout_ms
 );
 
-/**
- * @brief Make a request from the server to a specific client and wait for response.
- * @param server Pointer to the server.
- * @param packet Pointer to the packet buffer containing the request.
- * @param addr_data Target client address.
- * @param timeout_ms Timeout in milliseconds.
- * @return Pointer to server packet data containing the response, or NULL if client failed to respond.
- */
+// Make a request from the server to a specific client and wait for response.
 extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
     struct SwiftNetServer* const server,
     struct SwiftNetPacketBuffer* const packet,
@@ -471,24 +380,14 @@ extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
     const uint32_t timeout_ms
 );
 
-/**
- * @brief Send a response from a client.
- * @param client Pointer to the client connection.
- * @param packet_data Pointer to the request packet data.
- * @param buffer Packet buffer containing the response.
- */
+// Send a response from a client.
 extern void swiftnet_client_make_response(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetClientPacketData* const packet_data,
     struct SwiftNetPacketBuffer* const buffer
 );
 
-/**
- * @brief Send a response from the server.
- * @param server Pointer to the server.
- * @param packet_data Pointer to the request packet data.
- * @param buffer Packet buffer containing the response.
-*/
+// Send a response from the server.
 extern void swiftnet_server_make_response(
     struct SwiftNetServer* const server,
     struct SwiftNetServerPacketData* const packet_data,
@@ -497,16 +396,7 @@ extern void swiftnet_server_make_response(
 #endif
 
 #ifdef SWIFT_NET_DEBUG
-    /**
-    * @brief Adds one or more debug flags to the global debugger state.
-    *
-    * This function performs a bitwise OR on the existing debugger flags,
-    * enabling any debug options specified in @p flags while leaving the
-    * previously enabled flags untouched.
-    *
-    * @param flags Bitmask of debug flags to enable. Multiple flags may be
-    * combined using bitwise OR.
-    */
+    // Adds one or more debug flags to the global debugger state.
     extern void swiftnet_add_debug_flags(const uint32_t flags);
 #endif
 

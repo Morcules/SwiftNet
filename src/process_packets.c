@@ -36,7 +36,7 @@ static inline void unlock_packet_sending(struct SwiftNetPacketSending* const pac
     atomic_store_explicit(&packet_sending->locked, false, memory_order_release);
 }
 
-// Returns an array of 4 byte uint32_tegers, that contain indexes of lost chunks
+// Returns an array of 4 byte uint32_t, that contain indexes of lost chunks
 static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chunks_received, const uint32_t chunk_amount, const uint32_t buffer_size, uint32_t* const buffer) {
     uint32_t byte = 0;
 
