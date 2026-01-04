@@ -6,6 +6,7 @@
 - [Installation](#installation)
 - [Example](#example)
 - [Contributing](#contributing)
+- [Goals](#goals)
 - [License](#license)
 
 ## Supported Platforms
@@ -20,6 +21,14 @@
 - **Straightforward API:** Get up and running with minimal setup.
 - **Open Source and Collaborative:** Contributions are welcome to make it even better.
 - **Compile time feature choosing** Compile only specific features of the library.
+
+## Goals
+
+### Upcoming goals
+- Switch from pcap to raw BPF
+- Add performance benchmarks
+- Optimize the most obvious parts of the codebase
+- Stabilize the API to avoid breaking changes in future releases
 
 ## Installation
 Follow these steps to install SwiftNet:
