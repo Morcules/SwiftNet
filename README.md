@@ -46,6 +46,10 @@ cd SwiftNet/build
 - Include the SwiftNet.h header from the `src` directory in your main source file (e.g., `main.c`).
 - Link against the static library `libswiftnet.a` using your compiler.
 
+## Important note
+- To run the library successfully, you're required to run the app with sudo.
+- Pcap requires sudo
+
 ## Example
 ```
 struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 1000);
