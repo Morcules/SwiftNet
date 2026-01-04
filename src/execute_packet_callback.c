@@ -8,9 +8,9 @@
 #include <pthread.h>
 
 static inline void lock_packet_queue(struct PacketCallbackQueue* const packet_queue) {
-    uint32_t owner_none = PACKET_CALLBACK_QUEUE_OWNER_NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, PACKET_CALLBACK_QUEUE_OWNER_EXECUTE_PACKET_CALLBACK, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = PACKET_CALLBACK_QUEUE_OWNER_NONE;
+    enum PacketQueueOwner owner_none = NONE;
+    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
+        owner_none = NONE;
     }
 }
 
@@ -18,7 +18,7 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
     lock_packet_queue(packet_queue);
 
     if(packet_queue->first_node == NULL) {
-        atomic_store_explicit(&packet_queue->owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
         return NULL;
     }
 
@@ -28,14 +28,14 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
         packet_queue->first_node = NULL;
         packet_queue->last_node = NULL;
 
-        atomic_store_explicit(&packet_queue->owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
-    atomic_store_explicit(&packet_queue->owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 
     return node_to_process;
 }

@@ -36,8 +36,8 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 
     memset(&new_server->packet_callback_queue, 0x00, sizeof(struct PacketCallbackQueue));
 
-    atomic_store_explicit(&new_server->packet_queue.owner, PACKET_QUEUE_OWNER_NONE, memory_order_release);
-    atomic_store_explicit(&new_server->packet_callback_queue.owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&new_server->packet_queue.owner, NONE, memory_order_release);
+    atomic_store_explicit(&new_server->packet_callback_queue.owner, NONE, memory_order_release);
     atomic_store_explicit(&new_server->packet_handler, NULL, memory_order_release);
     atomic_store_explicit(&new_server->packet_handler_user_arg, NULL, memory_order_release);
     atomic_store_explicit(&new_server->closing, false, memory_order_release);
@@ -69,7 +69,7 @@ struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool lo
     pthread_create(&new_server->execute_callback_thread, NULL, execute_packet_callback_server, new_server);
 
     #ifdef SWIFT_NET_DEBUG
-        if (check_debug_flag(DEBUG_INITIALIZATION)) {
+        if (check_debug_flag(INITIALIZATION)) {
             send_debug_message("Successfully initialized server\n");
         }
     #endif

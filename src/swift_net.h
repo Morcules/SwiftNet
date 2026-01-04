@@ -28,34 +28,36 @@
     #define SWIFT_NET_DEBUG
 #endif
 
-#typedef enum {
-    PACKET_TYPE_MESSAGE = 0x01,
-    PACKET_TYPE_REQUEST_INFORMATION = 0x02,
-    PACKET_TYPE_SEND_LOST_PACKETS_REQUEST = 0x03,
-    PACKET_TYPE_SEND_LOST_PACKETS_RESPONSE = 0x04,
-    PACKET_TYPE_SUCCESSFULLY_RECEIVED_PACKET = 0x05,
-    PACKET_TYPE_REQUEST = 0x06,
-#ifdef SWIFT_NET_REQUESTS
-    PACKET_TYPE_RESPONSE = 0x07,
-#endif
-} PacketType;
+enum PacketQueueOwner {
+    NONE = 0x00,
+    SOME = 0xFF
+};
 
-typedef enum {
-    PACKET_INFO_ID_NONE = 0xFFFF
-} PacketInfoID;
+enum PacketType {
+    MESSAGE = 0x01,
+    REQUEST_INFORMATION = 0x02,
+    SEND_LOST_PACKETS_REQUEST = 0x03,
+    SEND_LOST_PACKETS_RESPONSE = 0x04,
+    SUCCESSFULLY_RECEIVED_PACKET = 0x05,
+    REQUEST = 0x06,
+#ifdef SWIFT_NET_REQUESTS
+    RESPONSE = 0x07,
+#endif
+};
+
+#define PACKET_INFO_ID_NONE 0xFFFF
 
 #define unlikely(x) __builtin_expect((x), 0x00)
 #define likely(x) __builtin_expect((x), 0x01)
-
 
 extern uint32_t maximum_transmission_unit;
 
 #ifdef SWIFT_NET_DEBUG
 enum SwiftNetDebugFlags {
-    DEBUG_PACKETS_SENDING = 1u << 0,
-    DEBUG_PACKETS_RECEIVING = 1u << 1,
-    DEBUG_INITIALIZATION = 1u << 2,
-    DEBUG_LOST_PACKETS = 1u << 3
+    PACKETS_SENDING = 1u << 0,
+    PACKETS_RECEIVING = 1u << 1,
+    INITIALIZATION = 1u << 2,
+    LOST_PACKETS = 1u << 3
 };
 
 struct SwiftNetDebugger {
@@ -149,7 +151,7 @@ struct PacketQueueNode {
 };
 
 struct PacketQueue {
-    _Atomic uint32_t owner;
+    _Atomic enum PacketQueueOwner owner;
     struct PacketQueueNode* first_node;
     struct PacketQueueNode* last_node;
 };
@@ -176,7 +178,7 @@ struct SwiftNetClientPacketData {
 };
 
 struct PacketCallbackQueue {
-    _Atomic uint32_t owner;
+    _Atomic enum PacketQueueOwner owner;
     struct PacketCallbackQueueNode* first_node;
     struct PacketCallbackQueueNode* last_node;
 };

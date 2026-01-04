@@ -51,7 +51,7 @@ void* request_server_information(void* const request_server_information_args_voi
         }
 
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(DEBUG_INITIALIZATION)) {
+            if (check_debug_flag(INITIALIZATION)) {
                 send_debug_message("Requested server information: {\"server_ip_address\": \"%s\"}\n", inet_ntoa(request_server_information_args->server_addr));
             }
         #endif
@@ -95,13 +95,13 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
         .last_node = NULL
     };
 
-    atomic_store_explicit(&new_connection->packet_queue.owner, PACKET_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&new_connection->packet_queue.owner, NONE, memory_order_release);
     atomic_store_explicit(&new_connection->closing, false, memory_order_release);
     atomic_store_explicit(&new_connection->initialized, false, memory_order_release);
     atomic_store_explicit(&new_connection->packet_handler_user_arg, NULL, memory_order_release);
     
     memset(&new_connection->packet_callback_queue, 0x00, sizeof(struct PacketCallbackQueue));
-    atomic_store_explicit(&new_connection->packet_callback_queue.owner, PACKET_CALLBACK_QUEUE_OWNER_NONE, memory_order_release);
+    atomic_store_explicit(&new_connection->packet_callback_queue.owner, NONE, memory_order_release);
 
     return new_connection;
 }
@@ -135,7 +135,7 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     // Request the server information, and proccess it
     const struct SwiftNetPacketInfo request_server_information_packet_info = construct_packet_info(
         0x00,
-        PACKET_TYPE_REQUEST_INFORMATION,
+        REQUEST_INFORMATION,
         1,
         0,
         new_connection->port_info
@@ -180,7 +180,7 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     pthread_create(&new_connection->execute_callback_thread, NULL, execute_packet_callback_client, new_connection);
 
     #ifdef SWIFT_NET_DEBUG
-        if (check_debug_flag(DEBUG_INITIALIZATION)) {
+        if (check_debug_flag(INITIALIZATION)) {
             send_debug_message("Successfully initialized client\n");
         }
     #endif
