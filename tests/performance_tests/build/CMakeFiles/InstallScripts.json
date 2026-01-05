@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/dev/Repositories/SwiftNet/tests/performance_tests/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
