@@ -398,7 +398,10 @@ extern void swiftnet_server_make_response(
 #ifdef SWIFT_NET_DEBUG
     // Adds one or more debug flags to the global debugger state.
     extern void swiftnet_add_debug_flags(const uint32_t flags);
+// Removes one or more debug flags from the global debugger state.
+    extern void swiftnet_remove_debug_flags(const uint32_t flags);
 #endif
+
 
 #ifdef __cplusplus
     }
