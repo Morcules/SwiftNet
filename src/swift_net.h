@@ -71,7 +71,7 @@ struct SwiftNetPortInfo {
 };
 
 struct SwiftNetClientAddrData {
-    struct in_addr sender_address;
+    
     uint32_t maximum_transmission_unit;
     uint16_t port;
     uint8_t mac_address[6];
@@ -99,7 +99,7 @@ struct SwiftNetPendingMessage {
     uint8_t* packet_data_start;
     struct SwiftNetPacketInfo packet_info;
     uint16_t packet_id;
-    struct in_addr sender_address;
+    
     uint8_t* chunks_received;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
@@ -147,7 +147,7 @@ struct PacketQueueNode {
     struct PacketQueueNode* next;
     uint8_t* data;
     uint32_t data_read;
-    struct in_addr sender_address;
+    
 };
 
 struct PacketQueue {

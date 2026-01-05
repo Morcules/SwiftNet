@@ -45,7 +45,7 @@ static inline void insert_queue_node(struct PacketQueueNode* const new_node, str
     return;
 }
 
-static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* const data, const uint32_t sender_address) {
+static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* const datas) {
     struct PacketQueueNode* const node = allocator_allocate(&packet_queue_node_memory_allocator);
     if (unlikely(node == NULL)) {
         return NULL;
@@ -53,7 +53,7 @@ static inline struct PacketQueueNode* construct_node(const uint32_t data_read, v
 
     node->data = data;
     node->data_read = data_read;
-    node->sender_address.s_addr = sender_address;
+    
     node->next = NULL;
 
     return node;
@@ -73,7 +73,7 @@ static inline void swiftnet_handle_packets(const uint16_t source_port, pthread_t
         return;
     }
 
-    uint32_t sender_address = 0;
+    
 
     if (addr_type == DLT_EN10MB) {
         struct ether_header* const eth = (struct ether_header *)packet_buffer;
@@ -81,14 +81,14 @@ static inline void swiftnet_handle_packets(const uint16_t source_port, pthread_t
         if (ntohs(eth->ether_type) == ETHERTYPE_IP) {
             struct ip *ip_header = (struct ip *)(packet_buffer + sizeof(struct ether_header));
 
-            sender_address = ip_header->ip_src.s_addr;
+            
         } else {
             allocator_free(&packet_buffer_memory_allocator, packet_buffer);
             return;
         }
     }
 
-    struct PacketQueueNode* const node = construct_node(len, packet_buffer, sender_address);
+    struct PacketQueueNode* const node = construct_node(len, packet_buffer);
 
     atomic_thread_fence(memory_order_release);
 
