@@ -63,7 +63,7 @@ struct SwiftNetClientPacketData* swiftnet_client_make_request(struct SwiftNetCli
 }
 
 struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetServer* const server, struct SwiftNetPacketBuffer* const packet, const struct SwiftNetClientAddrData addr_data, const uint32_t timeout_ms) {
-    struct RequestSent* const request_sent = construct_request_sent();
+    struct RequestSent* const request_sent = construct_request_sent(addr_data.sender_address);
 
     const uint32_t packet_length = packet->packet_append_pointer - packet->packet_data_start;
 
@@ -72,7 +72,7 @@ struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetSer
         .source_port = server->server_port
     };
 
-    swiftnet_send_packet(server, addr_data.maximum_transmission_unit, port_info, packet, packet_length, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, server->eth_header, server->loopback, server->addr_type, server->prepend_size, request_sent, false, 0);
+    swiftnet_send_packet(server, addr_data.maximum_transmission_unit, port_info, packet, packet_length, &addr_data.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, server->eth_header, server->loopback, server->addr_type, server->prepend_size, request_sent, false, 0);
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
