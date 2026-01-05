@@ -45,7 +45,7 @@ static inline void insert_queue_node(struct PacketQueueNode* const new_node, str
     return;
 }
 
-static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* const data, uint32_t sender_address) {
+static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* const data, const uint32_t sender_address) {
     struct PacketQueueNode* const node = allocator_allocate(&packet_queue_node_memory_allocator);
     if (unlikely(node == NULL)) {
         return NULL;
@@ -74,7 +74,7 @@ static inline void swiftnet_handle_packets(const uint16_t source_port, pthread_t
         return;
     }
 
-    uint32_t sender_address;
+    uint32_t sender_address = 0;
 
     if (addr_type == DLT_EN10MB) {
         struct ether_header* const eth = (struct ether_header *)packet_buffer;
