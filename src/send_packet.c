@@ -375,7 +375,7 @@ void swiftnet_server_send_packet(struct SwiftNetServer* const server, struct Swi
     memcpy(&eth_hdr, &server->eth_header, sizeof(eth_hdr));
     memcpy(&eth_hdr.ether_dhost, &target.mac_address, sizeof(eth_hdr.ether_dhost));
 
-    swiftnet_send_packet(server, target.maximum_transmission_unit, port_info, packet, packet_length, NULL, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, eth_hdr, server->loopback, server->addr_type, server->prepend_size
+    swiftnet_send_packet(server, target.maximum_transmission_unit, port_info, packet, packet_length, &target.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->pcap, eth_hdr, server->loopback, server->addr_type, server->prepend_size
     #ifdef SWIFT_NET_REQUESTS
         , NULL, false, 0
     #endif
