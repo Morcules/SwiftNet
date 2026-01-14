@@ -1,8 +1,7 @@
-#include "../config.h"
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "../../src/swift_net.h"
+#include "../../../src/swift_net.h"
 #include <stdatomic.h>
 #include <unistd.h>
 #include <stdlib.h>

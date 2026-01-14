@@ -3,14 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#define PRINT_ERROR(error, ...) \
-    printf("\033[31m" error "\033[0m\n", ##__VA_ARGS__)
-
-enum ConnectionType {
-    Server,
-    Client
-};
+#include "../../shared.h"
 
 struct TestSendingPacketArgs {
     const char* ip_address;
@@ -38,5 +31,5 @@ struct Test {
     const char* test_name;
 };
 
-int test_sending_packet(const union Args* args_ptr);
-int test_making_request(const union Args* args_ptr);
+extern int test_sending_packet(const union Args* args_ptr);
+extern int test_making_request(const union Args* args_ptr);

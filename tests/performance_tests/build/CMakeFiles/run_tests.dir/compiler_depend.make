@@ -73,7 +73,10 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_string.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_strings.h \
+<<<<<<< HEAD
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h \
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdint.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdlib.h \
@@ -175,6 +178,7 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/wait.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/time.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/unistd.h \
+<<<<<<< HEAD
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_header_macro.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_max_align_t.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_null.h \
@@ -187,6 +191,11 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdatomic.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdbool.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h \
+=======
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/inttypes.h \
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h \
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdbool.h \
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Users/dev/Repositories/SwiftNet/src/swift_net.h \
   /Users/dev/Repositories/SwiftNet/tests/shared.h
@@ -196,6 +205,7 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h:
 
+<<<<<<< HEAD
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdatomic.h:
@@ -210,6 +220,10 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_header_macro.h:
 
+=======
+/Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h:
+
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/wait.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/types.h:
@@ -280,8 +294,11 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_in_port_t.h:
 
+<<<<<<< HEAD
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_offsetof.h:
 
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_in_addr_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/time.h:
@@ -338,8 +355,11 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/__endian.h:
 
+<<<<<<< HEAD
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h:
 
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdlib.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h:
@@ -404,8 +424,11 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_ptrcheck.h:
 
+<<<<<<< HEAD
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_null.h:
 
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_pthread/_pthread_condattr_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_string.h:
@@ -518,8 +541,11 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/netinet/in.h:
 
+<<<<<<< HEAD
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_max_align_t.h:
 
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libkern/_OSByteOrder.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/gethostuuid.h:

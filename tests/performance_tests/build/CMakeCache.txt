@@ -22,7 +22,11 @@ CMAKE_AR:FILEPATH=/usr/bin/ar
 
 //Choose the type of build, options are: None Debug Release RelWithDebInfo
 // MinSizeRel ...
+<<<<<<< HEAD
 CMAKE_BUILD_TYPE:STRING=Release
+=======
+CMAKE_BUILD_TYPE:STRING=Debug
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
@@ -202,7 +206,11 @@ CMAKE_TAPI:FILEPATH=/Library/Developer/CommandLineTools/usr/bin/tapi
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //No help, variable specified on the command line.
+<<<<<<< HEAD
 SANITIZER:UNINITIALIZED=false
+=======
+SANITIZER:UNINITIALIZED=thread
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 
 //Value Computed by CMake
 SwiftNetPerformanceTests_BINARY_DIR:STATIC=/Users/dev/Repositories/SwiftNet/tests/performance_tests/build

@@ -137,7 +137,7 @@ extern void* swiftnet_client_process_packets(void* const void_client);
 extern void* execute_packet_callback_client(void* const void_client);
 extern void* execute_packet_callback_server(void* const void_server);
 
-extern struct in_addr private_ip_address;
+extern struct in_addr private_ip_address_testing;
 extern uint8_t mac_address[6];
 extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
 extern pcap_t* swiftnet_pcap_open(const char* interface);
@@ -265,7 +265,7 @@ static struct ip construct_ip_header(struct in_addr destination_addr, const uint
         .ip_off = htons(0), // Not used
         .ip_ttl = 64,// Time to live
         .ip_sum = htons(0), // Checksum
-        .ip_src = private_ip_address, // Source ip
+        .ip_src = private_ip_address_testing, // Source ip
         .ip_dst = destination_addr // Destination ip
     };
 

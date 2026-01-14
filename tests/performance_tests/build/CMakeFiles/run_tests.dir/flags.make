@@ -6,7 +6,13 @@ C_DEFINES =
 
 C_INCLUDES = 
 
+<<<<<<< HEAD
 C_FLAGSarm64 =  -O3 -O3 -DNDEBUG -arch arm64
 
 C_FLAGS =  -O3 -O3 -DNDEBUG -arch arm64
+=======
+C_FLAGSarm64 =  -g -O0 -g -arch arm64 -fsanitize=thread -fno-omit-frame-pointer
+
+C_FLAGS =  -g -O0 -g -arch arm64 -fsanitize=thread -fno-omit-frame-pointer
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
 

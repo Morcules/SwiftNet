@@ -19,7 +19,7 @@
 #endif
 
 uint32_t maximum_transmission_unit = 0x00;
-struct in_addr private_ip_address;
+struct in_addr private_ip_address_testing;
 uint8_t mac_address[6];
 char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
 
@@ -77,7 +77,7 @@ void swiftnet_initialize() {
         exit(EXIT_FAILURE);
     }
 
-    private_ip_address = ((struct sockaddr_in *)&private_sockaddr)->sin_addr;
+    private_ip_address_testing = ((struct sockaddr_in *)&private_sockaddr)->sin_addr;
 
     const int got_default_interface = get_default_interface_and_mac(default_network_interface, sizeof(default_network_interface), mac_address, temp_socket);
     if(unlikely(got_default_interface != 0)) {

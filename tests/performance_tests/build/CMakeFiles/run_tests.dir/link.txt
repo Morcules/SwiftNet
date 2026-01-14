@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 /usr/bin/cc  -O3 -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -O3 CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests/src/main.c.o -o /Users/dev/Repositories/SwiftNet/tests/performance_tests/output/run_tests   -L/Users/dev/Repositories/SwiftNet/tests/performance_tests/build/../../../build/output  -Wl,-rpath,/Users/dev/Repositories/SwiftNet/tests/performance_tests/build/../../../build/output -lswiftnet -lpcap
+=======
+/usr/bin/cc  -g -O0 -g -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -fsanitize=thread -g -O0 CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests/src/main.c.o -o /Users/dev/Repositories/SwiftNet/tests/performance_tests/output/run_tests   -L/Users/dev/Repositories/SwiftNet/tests/performance_tests/build/../../../build/output  -Wl,-rpath,/Users/dev/Repositories/SwiftNet/tests/performance_tests/build/../../../build/output -lswiftnet -lpcap
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)

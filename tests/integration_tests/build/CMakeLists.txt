@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(SwiftNetTests C)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../output)
 
 if(SANITIZER STREQUAL "address")
     message(STATUS "Using AddressSanitizer")
@@ -19,11 +19,11 @@ else()
     message(STATUS "No sanitizer enabled")
 endif()
 
-link_directories(${CMAKE_SOURCE_DIR}/../build/output)
+link_directories(${CMAKE_SOURCE_DIR}/../../../build/output)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0")
 
-file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.c")
+file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/../src/*.c")
 
 add_executable(run_tests ${SRC_FILES})
 

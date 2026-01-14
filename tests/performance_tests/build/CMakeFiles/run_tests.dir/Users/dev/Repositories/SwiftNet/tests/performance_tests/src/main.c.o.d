@@ -1,5 +1,6 @@
 CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests/src/main.c.o: \
   /Users/dev/Repositories/SwiftNet/tests/performance_tests/src/main.c \
+<<<<<<< HEAD
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdatomic.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h \
@@ -10,6 +11,9 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_null.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_max_align_t.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_offsetof.h \
+=======
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdbool.h \
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdint.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_int8_t.h \
@@ -32,7 +36,10 @@ CMakeFiles/run_tests.dir/Users/dev/Repositories/SwiftNet/tests/performance_tests
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_uintptr_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_types/_intmax_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_types/_uintmax_t.h \
+<<<<<<< HEAD
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdbool.h \
+=======
+>>>>>>> e67ddd4 (Created performance_tests dir, basic testing)
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h \
