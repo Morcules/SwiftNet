@@ -4,6 +4,7 @@
 
 - [Features](#features)
 - [Installation](#installation)
+- [Future Version Goals](#future-version-goals)
 - [Example](#example)
 - [Contributing](#contributing)
 - [Goals](#goals)
@@ -21,6 +22,10 @@
 - **Straightforward API:** Get up and running with minimal setup.
 - **Open Source and Collaborative:** Contributions are welcome to make it even better.
 - **Compile time feature choosing** Compile only specific features of the library.
+
+## Future Version Goals
+- **0.4.0:** Somewhat stable version (no data races, almost final API, major internal changes)
+- **0.5.0:** Performance improvements in critical paths, ready for some real world usage
 
 ## Goals
 
