@@ -153,7 +153,7 @@ extern void* check_existing_listener(const char* interface_name, void* const con
 #ifdef SWIFT_NET_DEBUG
     extern struct SwiftNetDebugger debugger;
 
-    static inline bool check_debug_flag(enum SwiftNetDebugFlags flag) {
+    static inline bool check_debug_flag(const enum SwiftNetDebugFlags flag) {
         return (debugger.flags & flag) != 0;
     }
 
