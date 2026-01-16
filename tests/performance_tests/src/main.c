@@ -86,7 +86,7 @@ void send_large_packets(const bool loopback) {
 int main() {
     swiftnet_initialize();
 
-    swiftnet_add_debug_flags(PACKETS_SENDING | PACKETS_RECEIVING | INITIALIZATION | LOST_PACKETS);
+    swiftnet_add_debug_flags((enum SwiftNetDebugFlags)(PACKETS_SENDING | PACKETS_RECEIVING | INITIALIZATION | LOST_PACKETS));
 
     send_large_packets(false);
 
