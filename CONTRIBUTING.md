@@ -47,3 +47,5 @@ If you’re unsure about anything, feel free to message me on telegram, open an 
 
 Everyone who has contributed code, documentation, or fixes to SwiftNet 
 is listed here as a thank-you.
+- sandy191020
+- gab-dev-7
