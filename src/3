@@ -72,7 +72,6 @@ struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool lo
     pthread_mutex_init(&new_server->execute_callback_mtx, NULL);
 
     pthread_cond_init(&new_server->process_packets_cond, NULL);
-    pthread_cond_init(&new_server->execute_callback_cond, NULL);
 
     #ifdef SWIFT_NET_DEBUG
         if (check_debug_flag(INITIALIZATION)) {

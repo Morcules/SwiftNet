@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <net/ethernet.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <netinet/ip.h>
 #include <stdbool.h>
 #include <pcap/pcap.h>
@@ -235,7 +236,11 @@ struct SwiftNetClientConnection {
     uint16_t addr_type;
     bool loopback;
     pthread_t process_packets_thread;
+    pthread_mutex_t process_packets_mtx;
+    pthread_cond_t process_packets_cond;
     pthread_t execute_callback_thread;
+    pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t execute_callback_cond;
     uint32_t maximum_transmission_unit;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
@@ -258,7 +263,11 @@ struct SwiftNetServer {
     uint16_t addr_type;
     bool loopback;
     pthread_t process_packets_thread;
+    pthread_mutex_t process_packets_mtx;
+    pthread_cond_t process_packets_cond;
     pthread_t execute_callback_thread;
+    pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t execute_callback_cond;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetVector packets_sending;

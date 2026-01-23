@@ -204,7 +204,7 @@ static inline void handle_request_response(const uint16_t packet_id, struct Swif
 
 #endif
 
-static inline void pass_callback_execution(void* const packet_data, struct PacketCallbackQueue* const queue, struct SwiftNetPendingMessage* const pending_message, const uint16_t packet_id) {
+static inline void pass_callback_execution(void* const packet_data, struct PacketCallbackQueue* const queue, struct SwiftNetPendingMessage* const pending_message, const uint16_t packet_id, pthread_mutex_t* const execute_callback_mtx, pthread_cond_t* const execute_callback_cond) {
     struct PacketCallbackQueueNode* const node = allocator_allocate(&packet_callback_queue_node_memory_allocator);
     node->packet_data = packet_data;
     node->next = NULL;
@@ -213,7 +213,13 @@ static inline void pass_callback_execution(void* const packet_data, struct Packe
 
     atomic_thread_fence(memory_order_release);
 
+    pthread_mutex_lock(execute_callback_mtx);
+
     insert_callback_queue_node(node, queue);
+
+    pthread_cond_signal(execute_callback_cond);
+
+    pthread_mutex_unlock(execute_callback_mtx);
 }
 
 static inline bool chunk_already_received(uint8_t* const chunks_received, const uint32_t index) {
@@ -325,17 +331,29 @@ static inline void swiftnet_process_packets(
     struct PacketCallbackQueue* const packet_callback_queue,
     void* const connection,
     _Atomic bool* closing,
-    const uint8_t prepend_size 
+    const uint8_t prepend_size,
+    pthread_mutex_t* const process_packets_mtx,
+    pthread_cond_t* const process_packets_cond,
+    pthread_mutex_t* const execute_callback_mtx,
+    pthread_cond_t* const execute_callback_cond
 ) {
     while(1) {
         if (atomic_load(closing) == true) {
             break;
         }
 
+        pthread_mutex_lock(process_packets_mtx);
+
         struct PacketQueueNode* const node = wait_for_next_packet(packet_queue);
         if(node == NULL) {
+            pthread_cond_wait(process_packets_cond, process_packets_mtx);
+
+            pthread_mutex_unlock(process_packets_mtx);
+
             continue;
         }
+
+        pthread_mutex_unlock(process_packets_mtx);
 
         atomic_thread_fence(memory_order_acquire);
 
@@ -592,10 +610,10 @@ static inline void swiftnet_process_packets(
                     if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, NULL, new_packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
-                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
+                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     }
                     #else
-                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
+                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     #endif
                 } else {
                     struct SwiftNetClientPacketData* const new_packet_data = allocator_allocate(&client_packet_data_memory_allocator) ;
@@ -615,10 +633,10 @@ static inline void swiftnet_process_packets(
                     if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, NULL, new_packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
-                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
+                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     }
                     #else
-                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id);
+                        pass_callback_execution(new_packet_data, packet_callback_queue, NULL, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     #endif
                 }
 
@@ -676,10 +694,10 @@ static inline void swiftnet_process_packets(
                     if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, pending_message, packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
-                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);
+                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     }
                     #else
-                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);
+                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     #endif
                 } else {
                     uint8_t* const ptr = pending_message->packet_data_start;
@@ -701,10 +719,10 @@ static inline void swiftnet_process_packets(
                     if (packet_info.packet_type == RESPONSE) {
                         handle_request_response(ip_header.ip_id, pending_message, packet_data, pending_messages, pending_messages_memory_allocator, connection_type, loopback);
                     } else {
-                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);
+                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     }
                     #else
-                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id);
+                        pass_callback_execution(packet_data, packet_callback_queue, pending_message, ip_header.ip_id, execute_callback_mtx, execute_callback_cond);
                     #endif
                 }
 
@@ -738,7 +756,7 @@ static inline void swiftnet_process_packets(
 void* swiftnet_server_process_packets(void* const void_server) {
     struct SwiftNetServer* const server = (struct SwiftNetServer*)void_server;
 
-    swiftnet_process_packets((void*)&server->packet_handler, server->pcap, server->eth_header, server->server_port, server->loopback, server->addr_type, &server->packets_sending, &server->packets_sending_memory_allocator, &server->pending_messages, &server->pending_messages_memory_allocator, &server->packets_completed, &server->packets_completed_memory_allocator, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->packet_callback_queue, server, &server->closing, server->prepend_size);
+    swiftnet_process_packets((void*)&server->packet_handler, server->pcap, server->eth_header, server->server_port, server->loopback, server->addr_type, &server->packets_sending, &server->packets_sending_memory_allocator, &server->pending_messages, &server->pending_messages_memory_allocator, &server->packets_completed, &server->packets_completed_memory_allocator, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->packet_callback_queue, server, &server->closing, server->prepend_size, &server->process_packets_mtx, &server->process_packets_cond, &server->execute_callback_mtx, &server->execute_callback_cond);
 
     return NULL;
 }
@@ -746,7 +764,7 @@ void* swiftnet_server_process_packets(void* const void_server) {
 void* swiftnet_client_process_packets(void* const void_client) {
     struct SwiftNetClientConnection* const client = (struct SwiftNetClientConnection*)void_client;
 
-    swiftnet_process_packets((void*)&client->packet_handler, client->pcap, client->eth_header, client->port_info.source_port, client->loopback, client->addr_type, &client->packets_sending, &client->packets_sending_memory_allocator, &client->pending_messages, &client->pending_messages_memory_allocator, &client->packets_completed, &client->packets_completed_memory_allocator, CONNECTION_TYPE_CLIENT, &client->packet_queue, &client->packet_callback_queue, client, &client->closing, client->prepend_size);
+    swiftnet_process_packets((void*)&client->packet_handler, client->pcap, client->eth_header, client->port_info.source_port, client->loopback, client->addr_type, &client->packets_sending, &client->packets_sending_memory_allocator, &client->pending_messages, &client->pending_messages_memory_allocator, &client->packets_completed, &client->packets_completed_memory_allocator, CONNECTION_TYPE_CLIENT, &client->packet_queue, &client->packet_callback_queue, client, &client->closing, client->prepend_size, &client->process_packets_mtx, &client->process_packets_cond, &client->execute_callback_mtx, &client->execute_callback_cond);
 
     return NULL;
 }

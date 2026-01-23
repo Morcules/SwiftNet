@@ -21,7 +21,12 @@ static inline void unlock_packet_queue(struct PacketQueue* const packet_queue) {
     atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
 }
 
-static inline void insert_queue_node(struct PacketQueueNode* const new_node, struct PacketQueue* const packet_queue, const enum ConnectionType contype) {
+static inline void insert_queue_node(
+    struct PacketQueueNode* const new_node,
+    struct PacketQueue* const packet_queue,
+    const enum ConnectionType contype
+
+) {
     if(new_node == NULL) {
         return;
     }
@@ -60,7 +65,21 @@ static inline struct PacketQueueNode* construct_node(const uint32_t data_read, v
     return node;
 }
 
-static inline void swiftnet_handle_packets(const uint16_t source_port, pthread_t* const process_packets_thread, void* connection, const enum ConnectionType connection_type, struct PacketQueue* const packet_queue, const _Atomic bool* closing, const bool loopback, const uint16_t addr_type, const struct pcap_pkthdr* hdr, const uint8_t* packet) {
+static inline void swiftnet_handle_packets(
+    const uint16_t source_port,
+	pthread_t* const process_packets_thread,
+	void* connection,
+	const enum ConnectionType connection_type,
+	struct PacketQueue* const packet_queue,
+	const _Atomic bool* closing,
+	const bool loopback,
+	const uint16_t addr_type,
+	const struct pcap_pkthdr* hdr,
+	const uint8_t* packet,
+    pthread_mutex_t* const process_packets_mtx,
+    pthread_cond_t* const process_packets_cond
+
+) {
     uint8_t* const packet_buffer = allocator_allocate(&packet_buffer_memory_allocator);
     if (unlikely(packet_buffer == NULL)) {
         return;
@@ -94,7 +113,13 @@ static inline void swiftnet_handle_packets(const uint16_t source_port, pthread_t
 
     atomic_thread_fence(memory_order_release);
 
+    pthread_mutex_lock(process_packets_mtx);
+
     insert_queue_node(node, packet_queue, connection_type);
+
+    pthread_cond_signal(process_packets_cond);
+
+    pthread_mutex_unlock(process_packets_mtx);
 }
 
 static void handle_client_init(struct SwiftNetClientConnection* user, const struct pcap_pkthdr* hdr, const uint8_t* buffer) {
@@ -161,7 +186,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
                 if (client_connection->initialized == false) {
                     handle_client_init(client_connection, hdr, packet);
                 } else {
-                    swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet);
+                    swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond);
                 }
 
                 return;
@@ -177,7 +202,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
             if (server->server_port == port_info->destination_port) {
                 vector_unlock(&listener->servers);
 
-                swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet);
+                swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond);
 
                 return;
             }
