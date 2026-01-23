@@ -179,6 +179,12 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     pthread_create(&new_connection->process_packets_thread, NULL, swiftnet_client_process_packets, new_connection);
     pthread_create(&new_connection->execute_callback_thread, NULL, execute_packet_callback_client, new_connection);
 
+    pthread_mutex_init(&new_connection->process_packets_mtx, NULL);
+    pthread_mutex_init(&new_connection->execute_callback_mtx, NULL);
+
+    pthread_cond_init(&new_connection->process_packets_cond, NULL);
+    pthread_cond_init(&new_connection->execute_callback_cond, NULL);
+
     #ifdef SWIFT_NET_DEBUG
         if (check_debug_flag(INITIALIZATION)) {
             send_debug_message("Successfully initialized client\n");

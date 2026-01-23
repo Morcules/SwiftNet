@@ -184,6 +184,8 @@ extern void* check_existing_listener(const char* interface_name, void* const con
 #define ALLOCATOR_STACK_OCCUPIED 1
 #define ALLOCATOR_STACK_FREE 0
 
+extern uint32_t semaphore_counter;
+
 extern struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const uint32_t chunk_item_amount);
 extern void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator);
 extern void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location);

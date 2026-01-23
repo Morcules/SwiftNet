@@ -2,6 +2,7 @@
 #include "swift_net.h"
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 static inline void cleanup_connection_resources(const enum ConnectionType connection_type, void* const connection) {
@@ -83,15 +84,43 @@ static inline void close_threads(const enum ConnectionType connection_type, void
 
         atomic_store_explicit(&client->closing, true, memory_order_release);
 
+        pthread_mutex_lock(&client->process_packets_mtx);
+        pthread_cond_signal(&client->process_packets_cond);
+        pthread_mutex_unlock(&client->process_packets_mtx);
+
+        pthread_mutex_lock(&client->execute_callback_mtx);
+        pthread_cond_signal(&client->execute_callback_cond);
+        pthread_mutex_unlock(&client->execute_callback_mtx);
+
         pthread_join(client->process_packets_thread, NULL);
         pthread_join(client->execute_callback_thread, NULL);
+
+        pthread_mutex_destroy(&client->process_packets_mtx);
+        pthread_mutex_destroy(&client->execute_callback_mtx);
+
+        pthread_cond_destroy(&client->process_packets_cond);
+        pthread_cond_destroy(&client->execute_callback_cond);
     } else {
         struct SwiftNetServer* const server = connection;
 
         atomic_store_explicit(&server->closing, true, memory_order_release);
 
+        pthread_mutex_lock(&server->process_packets_mtx);
+        pthread_cond_signal(&server->process_packets_cond);
+        pthread_mutex_unlock(&server->process_packets_mtx);
+
+        pthread_mutex_lock(&server->execute_callback_mtx);
+        pthread_cond_signal(&server->execute_callback_cond);
+        pthread_mutex_unlock(&server->execute_callback_mtx);
+
         pthread_join(server->process_packets_thread, NULL);
         pthread_join(server->execute_callback_thread, NULL);
+
+        pthread_mutex_destroy(&server->process_packets_mtx);
+        pthread_mutex_destroy(&server->execute_callback_mtx);
+        
+        pthread_cond_destroy(&server->process_packets_cond);
+        pthread_cond_destroy(&server->execute_callback_cond);
     }
 }
 

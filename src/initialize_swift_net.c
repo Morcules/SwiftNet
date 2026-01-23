@@ -18,6 +18,8 @@
     uint32_t items_leaked = 0;
 #endif
 
+uint32_t semaphore_counter = 0x00;
+
 uint32_t maximum_transmission_unit = 0x00;
 struct in_addr private_ip_address;
 uint8_t mac_address[6];
