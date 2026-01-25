@@ -32,6 +32,7 @@
 ### Upcoming goals
 - Optimize the most obvious parts of the codebase
 - Stabilize the API to avoid breaking changes in future releases
+- AF_XDP Linux support
 
 ## Installation
 Follow these steps to install SwiftNet:
