@@ -34,6 +34,8 @@
 - Stabilize the API to avoid breaking changes in future releases
 - AF_XDP Linux support
 
+- Long-term: optional hardware acceleration (FPGA/ASIC) with external NIC to bypass OS overhead for server side processing
+
 ## Installation
 Follow these steps to install SwiftNet:
 
