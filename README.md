@@ -1,6 +1,6 @@
 # SwiftNet - Networking Library
 
-## SwiftNet is a simple and easy to use networking library built using pcap working on ip layer 2. It is designed for developers who value simplicity, readability, and good performance.
+## SwiftNet is a simple and easy to use networking library built using pcap working on layer 2. It is designed for developers who value simplicity, readability, and good performance.
 
 - [Features](#features)
 - [Installation](#installation)
@@ -30,7 +30,7 @@
 ## Goals
 
 ### Upcoming goals
-- Switch from pcap to raw BPF
+- Switch from pcap to AF_XDP
 - Add performance benchmarks
 - Optimize the most obvious parts of the codebase
 - Stabilize the API to avoid breaking changes in future releases
