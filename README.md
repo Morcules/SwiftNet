@@ -30,8 +30,6 @@
 ## Goals
 
 ### Upcoming goals
-- Switch from pcap to AF_XDP
-- Add performance benchmarks
 - Optimize the most obvious parts of the codebase
 - Stabilize the API to avoid breaking changes in future releases
 
