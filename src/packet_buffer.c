@@ -1,7 +1,5 @@
 #include "internal/internal.h"
 #include "swift_net.h"
-#include <stdint.h>
-#include <stdlib.h>
 
 static inline struct SwiftNetPacketBuffer create_packet_buffer(const uint32_t buffer_size) {
     uint8_t* const mem = malloc(buffer_size + PACKET_HEADER_SIZE + sizeof(struct ether_header));
@@ -21,4 +19,12 @@ struct SwiftNetPacketBuffer swiftnet_server_create_packet_buffer(const uint32_t 
 
 struct SwiftNetPacketBuffer swiftnet_client_create_packet_buffer(const uint32_t buffer_size) {
     return create_packet_buffer(buffer_size);
+}
+
+void swiftnet_server_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet) {
+    free(packet->packet_buffer_start);
+}
+
+void swiftnet_client_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet) {
+    free(packet->packet_buffer_start);
 }

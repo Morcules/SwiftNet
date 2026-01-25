@@ -8,20 +8,18 @@ set(CMAKE_C_STANDARD 99)
 option(SWIFT_NET_INTERNAL_TESTING "Enable internal testing features" OFF)
 
 set(SOURCE_FILES
-    initialize_swift_net.c
+    initialize_swiftnet.c
     send_packet.c
     handle_packets.c
-    append_to_packet.c
     generic_functions.c
-    initialize_client_socket.c
-    initialize_server_socket.c
+    initialize_client_connection.c
+    initialize_server.c
     cleanup_connection.c
     process_packets.c
     execute_packet_callback.c
-    create_packet_buffer.c
-    add_debug_flags.c
-    destroy_packet_buffer.c
-    cleanup.c
+    packet_buffer.c
+    manipulate_debug_flags.c
+    cleanup_swiftnet.c
     make_response.c
     make_request.c
     internal/get_mtu.c
