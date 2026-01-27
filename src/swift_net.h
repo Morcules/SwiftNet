@@ -1,12 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#ifdef __cplusplus
-    extern "C" {
-
-    #define restrict __restrict__
-#endif
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -17,16 +11,22 @@
 #include <stdbool.h>
 #include <pcap/pcap.h>
 
+#ifdef __cplusplus
+extern "C" {
+
+#define restrict __restrict__
+#endif
+
 #ifndef SWIFT_NET_DISABLE_ERROR_CHECKING
-    #define SWIFT_NET_ERROR
+#define SWIFT_NET_ERROR
 #endif
 
 #ifndef SWIFT_NET_DISABLE_REQUESTS
-    #define SWIFT_NET_REQUESTS
+#define SWIFT_NET_REQUESTS
 #endif
 
 #ifndef SWIFT_NET_DISABLE_DEBUGGING
-    #define SWIFT_NET_DEBUG
+#define SWIFT_NET_DEBUG
 #endif
 
 enum PacketQueueOwner {
@@ -39,11 +39,11 @@ enum PacketType {
     REQUEST_INFORMATION = 0x02,
     SEND_LOST_PACKETS_REQUEST = 0x03,
     SEND_LOST_PACKETS_RESPONSE = 0x04,
-    SUCCESSFULLY_RECEIVED_PACKET = 0x05,
-#ifdef SWIFT_NET_REQUESTS
+    SUCCESSFULLY_RECEIVED_PACKET = 0x05,    
+    #ifdef SWIFT_NET_REQUESTS
     REQUEST = 0x06,
     RESPONSE = 0x07,
-#endif
+    #endif
 };
 
 #define PACKET_INFO_ID_NONE 0xFFFF
@@ -54,15 +54,14 @@ enum PacketType {
 extern uint32_t maximum_transmission_unit;
 
 #ifdef SWIFT_NET_DEBUG
+#define SWIFTNET_DEBUG_FLAGS(num) ((enum SwiftNetDebugFlags)(num))
+
 enum SwiftNetDebugFlags {
     PACKETS_SENDING = 1u << 1,
     PACKETS_RECEIVING = 1u << 2,
     INITIALIZATION = 1u << 3,
     LOST_PACKETS = 1u << 4
 };
-
-#define SWIFTNET_DEBUG_FLAGS(num) \
-    ((enum SwiftNetDebugFlags)(num))
 
 struct SwiftNetDebugger {
     int flags;
@@ -75,8 +74,8 @@ struct SwiftNetPortInfo {
 };
 
 struct SwiftNetClientAddrData {
-    struct in_addr sender_address;   
     uint32_t maximum_transmission_unit;
+    struct in_addr sender_address;   
     uint16_t port;
     uint8_t mac_address[6];
 };
@@ -86,35 +85,35 @@ struct SwiftNetPacketClientMetadata {
     struct SwiftNetPortInfo port_info;
     uint16_t packet_id;
     #ifdef SWIFT_NET_REQUESTS
-        bool expecting_response;
+    bool expecting_response;
     #endif
 };
 
 struct SwiftNetPacketInfo {
     uint32_t packet_length;
-    struct SwiftNetPortInfo port_info;
-    uint8_t packet_type;
     uint32_t chunk_amount;
     uint32_t chunk_index;
     uint32_t maximum_transmission_unit;
+    struct SwiftNetPortInfo port_info;
+    uint8_t packet_type;
 };
 
 struct SwiftNetPendingMessage {
+    uint8_t* chunks_received;
     uint8_t* packet_data_start;
     struct SwiftNetPacketInfo packet_info;
-    uint16_t packet_id;
-    uint8_t* chunks_received;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
+    uint16_t packet_id;
 };
 
 struct SwiftNetPacketServerMetadata {
+    struct SwiftNetClientAddrData sender;
     uint32_t data_length;
     struct SwiftNetPortInfo port_info;
-    struct SwiftNetClientAddrData sender;
     uint16_t packet_id;
     #ifdef SWIFT_NET_REQUESTS
-        bool expecting_response;
+    bool expecting_response;
     #endif
 };
 
@@ -129,10 +128,10 @@ enum PacketSendingUpdated {
 };
 
 struct SwiftNetPacketSending {
-    uint16_t packet_id;
     uint32_t* lost_chunks;
-    uint32_t lost_chunks_size;
     _Atomic enum PacketSendingUpdated updated;
+    uint32_t lost_chunks_size;
+    uint16_t packet_id;
     _Atomic bool locked;
 };
 
@@ -154,36 +153,36 @@ struct PacketQueueNode {
 };
 
 struct PacketQueue {
-    _Atomic enum PacketQueueOwner owner;
     struct PacketQueueNode* first_node;
     struct PacketQueueNode* last_node;
+    _Atomic enum PacketQueueOwner owner;
 };
 
 struct PacketCallbackQueueNode {
-    void* packet_data;
     struct SwiftNetPendingMessage* pending_message;
-    uint16_t packet_id;
     struct PacketCallbackQueueNode* next;
+    void* packet_data;
+    uint16_t packet_id;
 };
 
 struct SwiftNetServerPacketData {
+    struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
     uint8_t* current_pointer;
     struct SwiftNetPacketServerMetadata metadata;
-    struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
 };
 
 struct SwiftNetClientPacketData {
+    struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
     uint8_t* current_pointer;
     struct SwiftNetPacketClientMetadata metadata;
-    struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
 };
 
 struct PacketCallbackQueue {
-    _Atomic enum PacketQueueOwner owner;
     struct PacketCallbackQueueNode* first_node;
     struct PacketCallbackQueueNode* last_node;
+    _Atomic enum PacketQueueOwner owner;
 };
 
 struct SwiftNetSentSuccessfullyCompletedPacketSignal {
@@ -192,15 +191,15 @@ struct SwiftNetSentSuccessfullyCompletedPacketSignal {
 };
 
 struct SwiftNetMemoryAllocatorStack {
-    _Atomic uint32_t size;
-    void* pointers;
-    void* data;
     _Atomic(void*) next;
     _Atomic(void*) previous;
+    void* pointers;
+    void* data;
+    _Atomic uint32_t size;
     _Atomic uint8_t owner;
     #ifdef SWIFT_NET_INTERNAL_TESTING 
-    uint8_t* ptr_status;
     _Atomic bool accessing_ptr_status;
+    uint8_t* ptr_status;
     #endif
 };
 
@@ -226,58 +225,58 @@ struct SwiftNetVector {
 // Connection data
 struct SwiftNetClientConnection {
     pcap_t* pcap;
-    struct ether_header eth_header;
-    struct SwiftNetPortInfo port_info;
-    struct in_addr server_addr;
     _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    _Atomic bool closing;
-    _Atomic bool initialized;
-    uint16_t addr_type;
-    bool loopback;
-    pthread_t process_packets_thread;
+    struct SwiftNetVector packets_completed;
+    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
+    struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
-    pthread_t execute_callback_thread;
-    pthread_mutex_t execute_callback_mtx;
-    pthread_cond_t execute_callback_cond;
-    uint32_t maximum_transmission_unit;
+    pthread_t process_packets_thread;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetVector packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
-    struct SwiftNetVector packets_completed;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct PacketQueue packet_queue;
     struct PacketCallbackQueue packet_callback_queue;
+    pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t execute_callback_cond;
+    pthread_t execute_callback_thread;
+    struct SwiftNetPortInfo port_info;
+    uint16_t addr_type; 
+    struct in_addr server_addr;
+    struct ether_header eth_header; 
+    uint32_t maximum_transmission_unit;
     uint8_t prepend_size;
+    bool loopback;
+    _Atomic bool closing;
+    _Atomic bool initialized;
 };
 
 struct SwiftNetServer {
     pcap_t* pcap;
-    struct ether_header eth_header;
-    uint16_t server_port;
     _Atomic(void (*)(struct SwiftNetServerPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    _Atomic bool closing;
-    uint16_t addr_type;
-    bool loopback;
-    pthread_t process_packets_thread;
+    uint8_t* current_read_pointer;
+    struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
-    pthread_t execute_callback_thread;
-    pthread_mutex_t execute_callback_mtx;
-    pthread_cond_t execute_callback_cond;
+    pthread_t process_packets_thread;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetVector packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetVector packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    uint8_t* current_read_pointer;
-    struct PacketQueue packet_queue;
     struct PacketCallbackQueue packet_callback_queue;
+    pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t execute_callback_cond;
+    pthread_t execute_callback_thread;
+    struct ether_header eth_header; 
+    uint16_t server_port;        
+    uint16_t addr_type;
     uint8_t prepend_size;
+    bool loopback;
+    _Atomic bool closing;
 };
 
 // Set a custom message (packet) handler for the server.
@@ -407,13 +406,13 @@ extern void swiftnet_server_make_response(
 #endif
 
 #ifdef SWIFT_NET_DEBUG
-    // Adds one or more debug flags to the global debugger state.
-    extern void swiftnet_add_debug_flags(const enum SwiftNetDebugFlags flags);
-    // Removes one or more debug flags from the global debugger state.
-    extern void swiftnet_remove_debug_flags(const enum SwiftNetDebugFlags flags);
+// Adds one or more debug flags to the global debugger state.
+extern void swiftnet_add_debug_flags(const enum SwiftNetDebugFlags flags);
+// Removes one or more debug flags from the global debugger state.
+extern void swiftnet_remove_debug_flags(const enum SwiftNetDebugFlags flags);
 #endif
 
 
 #ifdef __cplusplus
-    }
+}
 #endif

@@ -20,11 +20,11 @@
 #include <net/ethernet.h>
 
 struct RequestServerInformationArgs {
-    pcap_t* pcap;
-    const void* const data;
     const uint32_t size;
     const struct in_addr server_addr;
+    pcap_t* pcap;
     const uint32_t timeout_ms;
+    const void* const data;
     struct SwiftNetClientConnection* const connection;
 };
 
