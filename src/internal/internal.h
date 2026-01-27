@@ -7,16 +7,16 @@
 #include <netinet/in.h>
 #include <stdatomic.h>
 #include <stdlib.h>
-#include "../swift_net.h"
 #include <sys/socket.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <net/if.h>
+#include "../swift_net.h"
 
 #ifdef __linux__
-    #define LOOPBACK_INTERFACE_NAME "lo\0"
+#define LOOPBACK_INTERFACE_NAME "lo\0"
 #elif defined(__APPLE__)
-    #define LOOPBACK_INTERFACE_NAME "lo0\0"
+#define LOOPBACK_INTERFACE_NAME "lo0\0"
 #endif
 
 typedef enum {
@@ -146,36 +146,36 @@ extern int swiftnet_pcap_send(pcap_t *pcap, const uint8_t *data, int len);
 extern void* check_existing_listener(const char* interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
-    extern uint32_t bytes_leaked;
-    extern uint32_t items_leaked;
+extern uint32_t bytes_leaked;
+extern uint32_t items_leaked;
 #endif
 
 #ifdef SWIFT_NET_DEBUG
-    extern struct SwiftNetDebugger debugger;
+extern struct SwiftNetDebugger debugger;
 
-    static inline bool check_debug_flag(const enum SwiftNetDebugFlags flag) {
-        return (debugger.flags & flag) != 0;
-    }
+static inline bool check_debug_flag(const enum SwiftNetDebugFlags flag) {
+    return (debugger.flags & flag) != 0;
+}
 
-    static inline void send_debug_message(const char* message, ...) {
-        va_list args;
-        va_start(args, message);
+static inline void send_debug_message(const char* message, ...) {
+    va_list args;
+    va_start(args, message);
 
-        char* prefix = "[DEBUG] ";
+    char* prefix = "[DEBUG] ";
 
-        const uint32_t prefix_length = strlen(prefix);
-        const uint32_t message_length = strlen(message);
+    const uint32_t prefix_length = strlen(prefix);
+    const uint32_t message_length = strlen(message);
 
-        char full_message[prefix_length + message_length + 1];
+    char full_message[prefix_length + message_length + 1];
 
-        memcpy(full_message, prefix, prefix_length);
-        memcpy(full_message + prefix_length, message, message_length);
-        full_message[prefix_length + message_length] = '\0';
+    memcpy(full_message, prefix, prefix_length);
+    memcpy(full_message + prefix_length, message, message_length);
+    full_message[prefix_length + message_length] = '\0';
 
-        vprintf(full_message, args);
+    vprintf(full_message, args);
 
-        va_end(args);
-    }
+    va_end(args);
+}
 #endif
 
 #define STACK_CREATING_LOCKED 0
@@ -214,14 +214,14 @@ extern void* server_start_pcap(void* server_void);
 extern void* client_start_pcap(void* client_void);
 
 #ifdef SWIFT_NET_REQUESTS
-    struct RequestSent {
-        _Atomic(void*) packet_data;
-        struct in_addr address;
-        uint16_t packet_id;
-    };
+struct RequestSent {
+    _Atomic(void*) packet_data;
+    struct in_addr address;
+    uint16_t packet_id;
+};
 
-    extern struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
-    extern struct SwiftNetVector requests_sent;
+extern struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
+extern struct SwiftNetVector requests_sent;
 #endif
 
 extern void swiftnet_send_packet(
@@ -239,9 +239,9 @@ extern void swiftnet_send_packet(
     const uint16_t addr_type,
     const uint8_t prepend_size
     #ifdef SWIFT_NET_REQUESTS
-        , struct RequestSent* const request_sent
-        , const bool response
-        , const uint16_t request_packet_id
+    , struct RequestSent* const request_sent
+    , const bool response
+    , const uint16_t request_packet_id
     #endif
 );
 

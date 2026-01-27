@@ -1,12 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#ifdef __cplusplus
-    extern "C" {
-
-    #define restrict __restrict__
-#endif
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -17,16 +11,22 @@
 #include <stdbool.h>
 #include <pcap/pcap.h>
 
+#ifdef __cplusplus
+extern "C" {
+
+#define restrict __restrict__
+#endif
+
 #ifndef SWIFT_NET_DISABLE_ERROR_CHECKING
-    #define SWIFT_NET_ERROR
+#define SWIFT_NET_ERROR
 #endif
 
 #ifndef SWIFT_NET_DISABLE_REQUESTS
-    #define SWIFT_NET_REQUESTS
+#define SWIFT_NET_REQUESTS
 #endif
 
 #ifndef SWIFT_NET_DISABLE_DEBUGGING
-    #define SWIFT_NET_DEBUG
+#define SWIFT_NET_DEBUG
 #endif
 
 enum PacketQueueOwner {
@@ -39,11 +39,11 @@ enum PacketType {
     REQUEST_INFORMATION = 0x02,
     SEND_LOST_PACKETS_REQUEST = 0x03,
     SEND_LOST_PACKETS_RESPONSE = 0x04,
-    SUCCESSFULLY_RECEIVED_PACKET = 0x05,
-#ifdef SWIFT_NET_REQUESTS
+    SUCCESSFULLY_RECEIVED_PACKET = 0x05,    
+    #ifdef SWIFT_NET_REQUESTS
     REQUEST = 0x06,
     RESPONSE = 0x07,
-#endif
+    #endif
 };
 
 #define PACKET_INFO_ID_NONE 0xFFFF
@@ -54,15 +54,14 @@ enum PacketType {
 extern uint32_t maximum_transmission_unit;
 
 #ifdef SWIFT_NET_DEBUG
+#define SWIFTNET_DEBUG_FLAGS(num) ((enum SwiftNetDebugFlags)(num))
+
 enum SwiftNetDebugFlags {
     PACKETS_SENDING = 1u << 1,
     PACKETS_RECEIVING = 1u << 2,
     INITIALIZATION = 1u << 3,
     LOST_PACKETS = 1u << 4
 };
-
-#define SWIFTNET_DEBUG_FLAGS(num) \
-    ((enum SwiftNetDebugFlags)(num))
 
 struct SwiftNetDebugger {
     int flags;
@@ -114,7 +113,7 @@ struct SwiftNetPacketServerMetadata {
     struct SwiftNetPortInfo port_info;
     uint16_t packet_id;
     #ifdef SWIFT_NET_REQUESTS
-        bool expecting_response;
+    bool expecting_response;
     #endif
 };
 
@@ -226,7 +225,7 @@ struct SwiftNetVector {
 // Connection data
 struct SwiftNetClientConnection {
     pcap_t* pcap;
-   _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
+    _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
     struct SwiftNetVector packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
@@ -407,13 +406,13 @@ extern void swiftnet_server_make_response(
 #endif
 
 #ifdef SWIFT_NET_DEBUG
-    // Adds one or more debug flags to the global debugger state.
-    extern void swiftnet_add_debug_flags(const enum SwiftNetDebugFlags flags);
-    // Removes one or more debug flags from the global debugger state.
-    extern void swiftnet_remove_debug_flags(const enum SwiftNetDebugFlags flags);
+// Adds one or more debug flags to the global debugger state.
+extern void swiftnet_add_debug_flags(const enum SwiftNetDebugFlags flags);
+// Removes one or more debug flags from the global debugger state.
+extern void swiftnet_remove_debug_flags(const enum SwiftNetDebugFlags flags);
 #endif
 
 
 #ifdef __cplusplus
-    }
+}
 #endif
