@@ -110,12 +110,12 @@ enum AllocatorStackState {
 
 struct Listener {
     pcap_t* pcap;
-    char interface_name[IFNAMSIZ];
+    pthread_t listener_thread;
     struct SwiftNetVector servers;
     struct SwiftNetVector client_connections;
-    pthread_t listener_thread;
-    bool loopback;
+    char interface_name[IFNAMSIZ];
     uint16_t addr_type;
+    bool loopback;
 };
 
 enum ConnectionType {
@@ -215,9 +215,9 @@ extern void* client_start_pcap(void* client_void);
 
 #ifdef SWIFT_NET_REQUESTS
     struct RequestSent {
-        uint16_t packet_id;
-        struct in_addr address;
         _Atomic(void*) packet_data;
+        struct in_addr address;
+        uint16_t packet_id;
     };
 
     extern struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
