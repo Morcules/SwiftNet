@@ -1,3 +1,5 @@
+# OUTDATED!!!!!!!!
+
 # Explanation of every single function
 
 ## SWIFT_NET_SERVER AND SWIFT_NET_CLIENT
