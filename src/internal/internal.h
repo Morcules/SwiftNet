@@ -47,6 +47,8 @@ typedef enum {
 
 #define SIZEOF_FIELD(type, field) sizeof(((type *)0)->field)
 
+#define PACKET_HISTORY_STORE_TIME 5
+
 #define PRINT_ERROR(fmt, ...) \
     do { fprintf(stderr, fmt " | function: %s | line: %d\n", ##__VA_ARGS__, __FUNCTION__, __LINE__); } while (0)
 
@@ -124,6 +126,11 @@ enum ConnectionType {
 };
 
 extern struct SwiftNetVector listeners;
+
+extern pthread_t memory_cleanup_thread;
+extern _Atomic bool swiftnet_closing;
+
+extern void* memory_cleanup_background_service();
 
 extern int get_default_interface_and_mac(char *restrict interface_name, uint32_t interface_name_length, uint8_t mac_out[6], int sockfd);
 extern const uint32_t get_mtu(const char* restrict const interface, const int sockfd);

@@ -41,6 +41,10 @@ struct SwiftNetMemoryAllocator listener_memory_allocator;
 
 struct SwiftNetVector listeners;
 
+pthread_t memory_cleanup_thread;
+
+_Atomic bool swiftnet_closing;
+
 static inline void initialize_allocators() {
     packet_queue_node_memory_allocator = allocator_create(sizeof(struct PacketQueueNode), 100);
     packet_callback_queue_node_memory_allocator = allocator_create(sizeof(struct PacketCallbackQueueNode), 100);
@@ -50,9 +54,28 @@ static inline void initialize_allocators() {
     server_memory_allocator = allocator_create(sizeof(struct SwiftNetServer), 10);
     client_connection_memory_allocator = allocator_create(sizeof(struct SwiftNetClientConnection), 10);
     listener_memory_allocator = allocator_create(sizeof(struct Listener), 100);
+    
+    #ifdef SWIFT_NET_REQUESTS
+    requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 100);
+    #endif
+
+}
+
+static inline void initialize_vectors() {
+    #ifdef SWIFT_NET_REQUESTS
+    requests_sent = vector_create(100);
+    #endif
+
+    listeners = vector_create(10);
+}
+
+static inline void initialize_memory_cleanup_thread() {
+    pthread_create(&memory_cleanup_thread, NULL, memory_cleanup_background_service, NULL);
 }
 
 void swiftnet_initialize() {
+    atomic_store_explicit(&swiftnet_closing, false, memory_order_release);
+
     const int temp_socket = socket(AF_INET, SOCK_DGRAM, 0);
     if (temp_socket < 0) {
         PRINT_ERROR("Failed to create temp socket");
@@ -98,14 +121,9 @@ void swiftnet_initialize() {
     close(temp_socket);
 
     initialize_allocators();
+    initialize_vectors();
 
-    #ifdef SWIFT_NET_REQUESTS
-        requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 100);
-
-        requests_sent = vector_create(100);
-    #endif
-
-    listeners = vector_create(10);
+    initialize_memory_cleanup_thread();
 
     return;
 }

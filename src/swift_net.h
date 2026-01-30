@@ -137,6 +137,7 @@ struct SwiftNetPacketSending {
 
 struct SwiftNetPacketCompleted {
     uint16_t packet_id;
+    bool marked_cleanup;
 };
 
 struct SwiftNetPacketBuffer {

@@ -85,6 +85,7 @@ static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chun
 static inline void packet_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
     struct SwiftNetPacketCompleted* const new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
     new_packet_completed->packet_id = packet_id;
+    new_packet_completed->marked_cleanup = false;
 
     vector_lock(packets_completed_history);
 

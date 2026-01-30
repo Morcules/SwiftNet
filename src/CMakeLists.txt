@@ -21,6 +21,7 @@ set(SOURCE_FILES
     manipulate_debug_flags.c
     cleanup_swiftnet.c
     make_response.c
+    memory_cleanup_background_service.c
     make_request.c
     internal/get_mtu.c
     internal/get_default_interface_and_mac.c

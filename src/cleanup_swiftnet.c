@@ -1,5 +1,6 @@
 #include "internal/internal.h"
 #include "swift_net.h"
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -20,6 +21,12 @@ static inline void close_listeners() {
     }
 
     vector_destroy(&listeners);
+}
+
+static inline void close_background_service() {
+    atomic_store_explicit(&swiftnet_closing, true, memory_order_release);
+
+    pthread_join(memory_cleanup_thread, NULL);
 }
 
 void swiftnet_cleanup() {
@@ -45,4 +52,6 @@ void swiftnet_cleanup() {
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);
     #endif
+
+    close_background_service();
 }
