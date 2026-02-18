@@ -52,18 +52,14 @@ void vector_push(struct SwiftNetVector* const vector, void* const data) {
         vector->data = new_data_ptr;
     }
 
-    ((void**)vector->data)[size] = data;
+    *((vector->data) + size) = data;
 
     vector->size++;
 }
 
 void vector_remove(struct SwiftNetVector* const vector, const uint32_t index) {
     if (index < vector->size - 1) {
-        memmove(
-            ((void**)vector->data) + index,
-            ((void**)vector->data) + index + 1,
-            (vector->size - index - 1) * sizeof(void*)
-        );
+        memcpy(vector->data + index, vector->data + vector->size - 1, sizeof(void*));
     }
 
     vector->size--;

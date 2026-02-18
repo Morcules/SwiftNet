@@ -217,7 +217,7 @@ struct SwiftNetMemoryAllocator {
 };
 
 struct SwiftNetVector {
-    void* data;
+    void** data;
     uint32_t size;
     uint32_t capacity;
     _Atomic uint8_t locked;
