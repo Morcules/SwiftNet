@@ -82,36 +82,23 @@ static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chun
     return offset;
 }
 
-static inline void packet_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
+static inline void packet_completed(uint16_t packet_id, struct SwiftNetHashMap* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
     struct SwiftNetPacketCompleted* const new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
     new_packet_completed->packet_id = packet_id;
     new_packet_completed->marked_cleanup = false;
 
-    vector_lock(packets_completed_history);
+    uint16_t* heap_key_data_location = allocator_allocate(&uint16_memory_allocator);
+    *heap_key_data_location = packet_id;
 
-    vector_push(packets_completed_history, new_packet_completed);
-
-    vector_unlock(packets_completed_history);
+    hashmap_insert(heap_key_data_location, sizeof(uint16_t), new_packet_completed, packets_completed_history);
 
     return;
 }
 
-static inline bool check_packet_already_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history) {
-    vector_lock(packets_completed_history);
+static inline bool check_packet_already_completed(uint16_t packet_id, struct SwiftNetHashMap* const packets_completed_history) {
+    const struct SwiftNetPacketCompleted* const item = hashmap_get(&packet_id, sizeof(packet_id), packets_completed_history);
 
-    for(uint32_t i = 0; i < packets_completed_history->size; i++) {
-        const struct SwiftNetPacketCompleted* const current = vector_get((struct SwiftNetVector*)packets_completed_history, i);
-
-        if(current->packet_id == packet_id) {
-            vector_unlock(packets_completed_history);
-
-            return true; 
-        }
-    }
-
-    vector_unlock(packets_completed_history);
-
-    return false;
+    return item != NULL;
 }
 
 static inline struct SwiftNetPendingMessage* const get_pending_message(struct SwiftNetVector* const pending_messages_vector, const enum ConnectionType connection_type, const uint16_t packet_id) {
@@ -325,7 +312,7 @@ static inline void swiftnet_process_packets(
     struct SwiftNetMemoryAllocator* const packets_sending_messages_memory_allocator,
     struct SwiftNetVector* const pending_messages,
     struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator,
-    struct SwiftNetVector* const packets_completed_history,
+    struct SwiftNetHashMap* const packets_completed_history,
     struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator,
     enum ConnectionType connection_type,
     struct PacketQueue* const packet_queue,

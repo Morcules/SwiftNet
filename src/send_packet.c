@@ -26,7 +26,7 @@ static inline void unlock_packet_sending(struct SwiftNetPacketSending* const pac
     atomic_store_explicit(&packet_sending->locked, false, memory_order_release);
 }
 
-static inline uint8_t request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
+static inline enum RequestLostPacketsReturnType request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
     while(1) {
         if(check_debug_flag(LOST_PACKETS)) {
             send_debug_message("Requested list of lost packets: {\"packet_id\": %d}\n", packet_sending->packet_id);
@@ -112,7 +112,7 @@ static inline void handle_lost_packets(
     HANDLE_PACKET_CONSTRUCTION(&resend_chunk_ip_header, &resend_chunk_packet_info, addr_type, &eth_hdr, mtu + prepend_size, resend_chunk_buffer)
 
     while(1) {
-        const uint8_t request_lost_packets_bitarray_response = request_lost_packets_bitarray(request_lost_packets_buffer, PACKET_HEADER_SIZE + prepend_size, (const struct sockaddr*)destination_address, pcap, packet_sending);
+        const enum RequestLostPacketsReturnType request_lost_packets_bitarray_response = request_lost_packets_bitarray(request_lost_packets_buffer, PACKET_HEADER_SIZE + prepend_size, (const struct sockaddr*)destination_address, pcap, packet_sending);
 
         lock_packet_sending(packet_sending);
 

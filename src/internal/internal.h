@@ -19,10 +19,10 @@
 #define LOOPBACK_INTERFACE_NAME "lo0\0"
 #endif
 
-typedef enum {
+enum RequestLostPacketsReturnType {
     REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY = 0x00,
     REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET  = 0x01
-} RequestLostPacketsReturnType;
+};
 
 #define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
 #define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
@@ -195,6 +195,8 @@ static inline void send_debug_message(const char* message, ...) {
 
 extern uint32_t semaphore_counter;
 
+extern struct SwiftNetMemoryAllocator uint16_memory_allocator;
+
 extern struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const uint32_t chunk_item_amount);
 extern void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator);
 extern void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location);
@@ -219,6 +221,12 @@ extern void vector_destroy(struct SwiftNetVector* const vector);
 extern struct SwiftNetVector vector_create(const uint32_t starting_amount);
 extern void vector_lock(struct SwiftNetVector* const vector);
 extern void vector_unlock(struct SwiftNetVector* const vector);
+
+extern struct SwiftNetHashMap hashmap_create();
+extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);
+extern void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
+extern void hashmap_destroy(struct SwiftNetHashMap* const hashmap);
+extern void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap);
 
 extern void* server_start_pcap(void* server_void);
 extern void* client_start_pcap(void* client_void);

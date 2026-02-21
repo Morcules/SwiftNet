@@ -88,7 +88,7 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
     new_connection->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
     new_connection->packets_sending = vector_create(100);
     new_connection->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
-    new_connection->packets_completed = vector_create(100);
+    new_connection->packets_completed = hashmap_create();
     
     new_connection->packet_queue = (struct PacketQueue){
         .first_node = NULL,

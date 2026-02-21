@@ -15,7 +15,8 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
 
         vector_destroy(&client->packets_sending);
         vector_destroy(&client->pending_messages);
-        vector_destroy(&client->packets_completed);
+
+        hashmap_destroy(&client->packets_completed);
     } else {
         struct SwiftNetServer* const server = (struct SwiftNetServer*)connection;
 
@@ -25,7 +26,8 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
 
         vector_destroy(&server->packets_sending);
         vector_destroy(&server->pending_messages);
-        vector_destroy(&server->packets_completed);
+
+        hashmap_destroy(&server->packets_completed);
     }
 }
 

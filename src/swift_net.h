@@ -241,7 +241,7 @@ struct SwiftNetClientConnection {
     pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    struct SwiftNetVector packets_completed;
+    struct SwiftNetHashMap packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
@@ -279,7 +279,7 @@ struct SwiftNetServer {
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetVector packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
-    struct SwiftNetVector packets_completed;
+    struct SwiftNetHashMap packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;

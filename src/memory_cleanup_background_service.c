@@ -41,13 +41,13 @@ void* memory_cleanup_background_service() {
             for (uint32_t client_connection_index = 0; client_connection_index < client_connections->size; client_connection_index++) {
                 struct SwiftNetClientConnection* const current_con = vector_get(client_connections, client_connection_index);
 
-                cleanup_packets_completed(&current_con->packets_completed, &current_con->packets_completed_memory_allocator);
+                //cleanup_packets_completed(&current_con->packets_completed, &current_con->packets_completed_memory_allocator);
             }
 
             for (uint32_t server_index = 0; server_index < servers->size; server_index++) {
                 struct SwiftNetServer* const current_server = vector_get(servers, server_index);
 
-                cleanup_packets_completed(&current_server->packets_completed, &current_server->packets_completed_memory_allocator);
+                //cleanup_packets_completed(&current_server->packets_completed, &current_server->packets_completed_memory_allocator);
             }
 
             vector_unlock(client_connections);

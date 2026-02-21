@@ -47,7 +47,7 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
     new_server->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
     new_server->packets_sending = vector_create(100);
     new_server->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
-    new_server->packets_completed = vector_create(100);
+    new_server->packets_completed = hashmap_create();
 
     return new_server;
 }
