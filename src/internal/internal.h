@@ -125,6 +125,8 @@ enum ConnectionType {
     CONNECTION_TYPE_CLIENT
 };
 
+extern uint64_t seed;
+
 extern struct SwiftNetVector listeners;
 
 extern pthread_t memory_cleanup_thread;
@@ -206,6 +208,7 @@ extern struct SwiftNetMemoryAllocator packet_buffer_memory_allocator;
 extern struct SwiftNetMemoryAllocator server_memory_allocator;
 extern struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 extern struct SwiftNetMemoryAllocator listener_memory_allocator;
+extern struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
 
 extern void* interface_start_listening(void* listener_void);
 

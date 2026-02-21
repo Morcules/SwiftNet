@@ -223,6 +223,19 @@ struct SwiftNetVector {
     _Atomic uint8_t locked;
 };
 
+struct SwiftNetHashMapItem {
+    struct SwiftNetHashMapItem* next;
+    void* key_original_data;
+    uint32_t key_original_data_size;
+    void* value;
+};
+
+struct SwiftNetHashMap {
+    struct SwiftNetHashMapItem* items;
+    uint32_t capacity;
+    uint32_t size;
+};
+
 // Connection data
 struct SwiftNetClientConnection {
     pcap_t* pcap;
