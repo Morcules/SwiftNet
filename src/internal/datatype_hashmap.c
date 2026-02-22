@@ -89,14 +89,17 @@ struct SwiftNetHashMap hashmap_create() {
     };
 }
 
-void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap) {
+void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
     const uint64_t key = get_key(key_data, data_size, hashmap);
 
     struct SwiftNetHashMapItem* current_item = hashmap->items + key;
 
-    if (current_item->next == NULL) {
+    /*if (current_item->next == NULL) {
+        printf("%p\n", key_data);
+        printf("no next\n");
+        printf("%p\n", current_item->value);
         return current_item->value;
-    }
+    }*/
 
     while (current_item != NULL) {
         if (data_size == current_item->key_original_data_size && memcmp(current_item->key_original_data, key_data, data_size) == 0) {
@@ -105,13 +108,14 @@ void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNe
 
         current_item = current_item->next;
 
+        printf("collision\n");
         continue;
     }
 
     return NULL;
 }
 
-void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap) {
+void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* const hashmap) {
     const uint64_t key = get_key(key_data, data_size, hashmap);
 
     struct SwiftNetHashMapItem* current_target_item = hashmap->items + key;
@@ -168,6 +172,7 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
             memcpy(current_target_item, next, sizeof(struct SwiftNetHashMapItem));
 
             next->value = NULL;
+            next->next = NULL;
 
             allocator_free(&hashmap_item_memory_allocator, next);
         }

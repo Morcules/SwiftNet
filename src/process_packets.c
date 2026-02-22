@@ -90,13 +90,19 @@ static inline void packet_completed(uint16_t packet_id, struct SwiftNetHashMap* 
     uint16_t* heap_key_data_location = allocator_allocate(&uint16_memory_allocator);
     *heap_key_data_location = packet_id;
 
+    printf("completing packet: %d\n", packet_id);
+
     hashmap_insert(heap_key_data_location, sizeof(uint16_t), new_packet_completed, packets_completed_history);
 
     return;
 }
 
 static inline bool check_packet_already_completed(uint16_t packet_id, struct SwiftNetHashMap* const packets_completed_history) {
+    printf("packet completed id: %d\n", packet_id);
     const struct SwiftNetPacketCompleted* const item = hashmap_get(&packet_id, sizeof(packet_id), packets_completed_history);
+    if(item != NULL) {
+        printf("id: %d\n", item->packet_id);
+    }
 
     return item != NULL;
 }
@@ -543,12 +549,12 @@ static inline void swiftnet_process_packets(
         }
 
         if (check_packet_already_completed(ip_header.ip_id, packets_completed_history)) {
+            printf("PACKET COMPLETED\n");
             allocator_free(&packet_buffer_memory_allocator, packet_buffer);
             goto next_packet;
         }
 
         struct SwiftNetClientAddrData sender = {
-            
             .maximum_transmission_unit = packet_info.maximum_transmission_unit,
             .port = packet_info.port_info.source_port,
         };
