@@ -24,6 +24,39 @@ enum RequestLostPacketsReturnType {
     REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET  = 0x01
 };
 
+// in body use variables "hashmap_item" and "hashmap_data"
+// "hashmap_item" contains pointer to current struct SwiftNetHashMapItem 
+// "hashmap_data" contains data stored inside struct SwiftNetHashMapItem
+#define LOOP_HASHMAP(hashmap, loop_body) \
+    for(uint32_t i = 0; i < (hashmap->capacity + 31) / 32; i++) { \
+        uint32_t current_index = *(hashmap->item_occupation + i); \
+        if(current_index == 0x00) { \
+            continue; \
+        } \
+        uint32_t inverted = ~(current_index); \
+        while(inverted != UINT32_MAX) { \
+            uint32_t bit_index = __builtin_ctz(inverted); \
+            inverted |= 1 << bit_index; \
+            for(struct SwiftNetHashMapItem* hashmap_item = hashmap->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
+                void* const hashmap_data = hashmap_item->value; \
+                loop_body \
+            } \
+        } \
+    }
+
+#define LOCK_ATOMIC_DATA_TYPE(atomic_field) \
+    do { \
+        bool locked = false; \
+        while(!atomic_compare_exchange_strong_explicit(atomic_field, &locked, true, memory_order_acquire, memory_order_relaxed)) { \
+            locked = false; \
+        } \
+    } while(0);
+
+#define UNLOCK_ATOMIC_DATA_TYPE(atomic_field) \
+    atomic_store_explicit(atomic_field, false, memory_order_release);
+
+// Size of memory allocated before ip header.
+// Memory should contain either an eth hdr or any specific data depending on addr type (loopback or real interface)
 #define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
 #define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
 #define HANDLE_PACKET_CONSTRUCTION(ip_header, packet_info, addr_type, eth_hdr, buffer_size, buffer_name) \
@@ -39,14 +72,18 @@ enum RequestLostPacketsReturnType {
         memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
     } \
 
+// Simple crc16 call with proper memory order
 #define HANDLE_CHECKSUM(buffer, size, prepend_size) \
     uint16_t checksum = htons(crc16(buffer, size)); \
     memcpy(buffer + prepend_size + offsetof(struct ip, ip_sum), &checksum, sizeof(checksum));
 
+// Number used in ip.proto
 #define PROT_NUMBER 253
 
+// Size of struct field
 #define SIZEOF_FIELD(type, field) sizeof(((type *)0)->field)
 
+// How many seconds between each memory cleanup.
 #define PACKET_HISTORY_STORE_TIME 5
 
 #define PRINT_ERROR(fmt, ...) \
@@ -219,8 +256,6 @@ extern void vector_remove(struct SwiftNetVector* const vector, const uint32_t in
 extern void vector_push(struct SwiftNetVector* const vector, void* const data);
 extern void vector_destroy(struct SwiftNetVector* const vector);
 extern struct SwiftNetVector vector_create(const uint32_t starting_amount);
-extern void vector_lock(struct SwiftNetVector* const vector);
-extern void vector_unlock(struct SwiftNetVector* const vector);
 
 extern struct SwiftNetHashMap hashmap_create();
 extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);

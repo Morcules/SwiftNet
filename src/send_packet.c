@@ -15,17 +15,6 @@
 #include "internal/internal.h"
 #include <netinet/in.h>
 
-static inline void lock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    bool locked = false;
-    while(!atomic_compare_exchange_strong_explicit(&packet_sending->locked, &locked, true, memory_order_acquire, memory_order_relaxed)) {
-        locked = false;
-    }
-}
-
-static inline void unlock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    atomic_store_explicit(&packet_sending->locked, false, memory_order_release);
-}
-
 static inline enum RequestLostPacketsReturnType request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
     while(1) {
         if(check_debug_flag(LOST_PACKETS)) {
@@ -114,15 +103,13 @@ static inline void handle_lost_packets(
     while(1) {
         const enum RequestLostPacketsReturnType request_lost_packets_bitarray_response = request_lost_packets_bitarray(request_lost_packets_buffer, PACKET_HEADER_SIZE + prepend_size, (const struct sockaddr*)destination_address, pcap, packet_sending);
 
-        lock_packet_sending(packet_sending);
+        LOCK_ATOMIC_DATA_TYPE(&packets_sending->locked);
 
         switch (request_lost_packets_bitarray_response) {
             case REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY:
                 break;
             case REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET:
                 free((void*)packet_sending->lost_chunks);
-
-                vector_lock(packets_sending);
 
                 for (uint32_t i = 0; i < packets_sending->size; i++) {
                     if (((struct SwiftNetPacketSending*)vector_get(packets_sending, i))->packet_id == packet_sending->packet_id) {
@@ -132,9 +119,7 @@ static inline void handle_lost_packets(
                     }
                 }
 
-                vector_unlock(packets_sending);
-
-                unlock_packet_sending(packet_sending);
+                UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->locked);
 
                 allocator_free(packets_sending_memory_allocator, packet_sending);
 
@@ -175,7 +160,7 @@ static inline void handle_lost_packets(
             }
         }
 
-        unlock_packet_sending(packet_sending);
+        UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->locked);
     }
 }
 
@@ -218,11 +203,11 @@ inline void swiftnet_send_packet(
         if (request_sent != NULL) {
             request_sent->packet_id = packet_id;
 
-            vector_lock(&requests_sent);
+            LOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
 
             vector_push(&requests_sent, request_sent);
 
-            vector_unlock(&requests_sent);
+            UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
         }
     #else
         const uint16_t packet_id = rand();
@@ -255,11 +240,11 @@ inline void swiftnet_send_packet(
             return;
         }
 
-        vector_lock(packets_sending);
+        LOCK_ATOMIC_DATA_TYPE(&packets_sending->locked);
 
         vector_push((struct SwiftNetVector*)packets_sending, (struct SwiftNetPacketSending*)new_packet_sending);
 
-        vector_unlock(packets_sending);
+        UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->locked);
 
         new_packet_sending->lost_chunks = NULL;
         new_packet_sending->locked = false;

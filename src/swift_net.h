@@ -29,10 +29,9 @@ extern "C" {
 #define SWIFT_NET_DEBUG
 #endif
 
-enum PacketQueueOwner {
-    NONE = 0x00,
-    SOME = 0xFF
-};
+// Multiplication of memory pre allocated.
+// More memory = better performance
+#define SWIFT_NET_MEMORY_USAGE 5
 
 enum PacketType {
     MESSAGE = 0x01,
@@ -156,7 +155,7 @@ struct PacketQueueNode {
 struct PacketQueue {
     struct PacketQueueNode* first_node;
     struct PacketQueueNode* last_node;
-    _Atomic enum PacketQueueOwner owner;
+    _Atomic bool locked;
 };
 
 struct PacketCallbackQueueNode {
@@ -183,7 +182,7 @@ struct SwiftNetClientPacketData {
 struct PacketCallbackQueue {
     struct PacketCallbackQueueNode* first_node;
     struct PacketCallbackQueueNode* last_node;
-    _Atomic enum PacketQueueOwner owner;
+    _Atomic bool locked;
 };
 
 struct SwiftNetSentSuccessfullyCompletedPacketSignal {
@@ -220,20 +219,23 @@ struct SwiftNetVector {
     void* data;
     uint32_t size;
     uint32_t capacity;
-    _Atomic uint8_t locked;
+    _Atomic bool locked;
 };
 
 struct SwiftNetHashMapItem {
-    struct SwiftNetHashMapItem* next;
-    void* key_original_data;
     uint32_t key_original_data_size;
-    void* value;
+    struct SwiftNetHashMapItem* next; // Contains next element with same key.
+    void* key_original_data; // Dynamically allocated original key data
+    void* value; // Data stored in item
 };
 
+// Custom implementation of a hashmap
 struct SwiftNetHashMap {
-    struct SwiftNetHashMapItem* items;
+    _Atomic bool atomic_lock;
     uint32_t capacity;
     uint32_t size;
+    struct SwiftNetHashMapItem* items;
+    uint32_t* item_occupation; // Bitset tracking which indexes of items array are occupied for looping through items without many cycles.
 };
 
 // Connection data

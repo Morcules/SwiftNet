@@ -7,18 +7,11 @@
 #include <unistd.h>
 #include <pthread.h>
 
-static inline void lock_packet_queue(struct PacketCallbackQueue* const packet_queue) {
-    enum PacketQueueOwner owner_none = NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = NONE;
-    }
-}
-
 static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struct PacketCallbackQueue* const packet_queue) {
-    lock_packet_queue(packet_queue);
+    LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->first_node == NULL) {
-        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
         return NULL;
     }
 
@@ -28,20 +21,20 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
         packet_queue->first_node = NULL;
         packet_queue->last_node = NULL;
 
-        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
-    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     return node_to_process;
 }
 
 static inline void remove_pending_message_from_vector(struct SwiftNetVector* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
-    vector_lock(pending_messages);
+    LOCK_ATOMIC_DATA_TYPE(&pending_messages->locked);
 
     for (uint32_t i = 0; i < pending_messages->size; i++) {
         const struct SwiftNetPendingMessage* const current_pending_message = vector_get(pending_messages, i);
@@ -50,7 +43,7 @@ static inline void remove_pending_message_from_vector(struct SwiftNetVector* con
         }
     }
 
-    vector_unlock(pending_messages);
+    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->locked);
 }
 
 void execute_packet_callback(

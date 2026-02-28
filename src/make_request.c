@@ -8,7 +8,7 @@
 #ifdef SWIFT_NET_REQUESTS
 
 static inline void delete_request_sent(struct RequestSent* request_sent) {
-    vector_lock(&requests_sent);
+    LOCK_ATOMIC_DATA_TYPE(&requests_sent.locked)
 
     for (uint32_t i = 0; i < requests_sent.size; i++) {
         if (vector_get(&requests_sent, i) == request_sent) {
@@ -16,7 +16,7 @@ static inline void delete_request_sent(struct RequestSent* request_sent) {
         }
     }
 
-    vector_unlock(&requests_sent);
+    UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.locked)
 
     allocator_free(&requests_sent_memory_allocator, request_sent);
 }

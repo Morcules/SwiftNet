@@ -32,13 +32,13 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
 }
 
 static inline void remove_listener(const enum ConnectionType connection_type, const char* interface_name, void* const connection) {
-    vector_lock(&listeners);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
     for (uint16_t i = 0; i < listeners.size; i++) {
         struct Listener* const current_listener = vector_get(&listeners, i);
         if (strcmp(interface_name, current_listener->interface_name) == 0) {
             if (connection_type == CONNECTION_TYPE_CLIENT) {
-                vector_lock(&current_listener->client_connections);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
 
                 for (uint16_t inx = 0; inx < current_listener->client_connections.size; inx++) {
                     struct SwiftNetClientConnection* const current_connection = vector_get(&current_listener->client_connections, i);
@@ -51,9 +51,9 @@ static inline void remove_listener(const enum ConnectionType connection_type, co
                     break;
                 }
 
-                vector_unlock(&current_listener->client_connections);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
             } else {
-                vector_lock(&current_listener->servers);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
 
                 for (uint16_t inx = 0; inx < current_listener->servers.size; inx++) {
                     struct SwiftNetClientConnection* const current_connection = vector_get(&current_listener->servers, i);
@@ -66,14 +66,14 @@ static inline void remove_listener(const enum ConnectionType connection_type, co
                     break;
                 }
 
-                vector_unlock(&current_listener->servers);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
             }
 
             break;
         }
     }
 
-    vector_unlock(&listeners);
+    UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 }
 
 static inline const char* get_interface_name(const bool loopback) {

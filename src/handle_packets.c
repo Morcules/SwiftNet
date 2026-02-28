@@ -10,17 +10,6 @@
 #include "internal/internal.h"
 #include <stddef.h>
 
-static inline void lock_packet_queue(struct PacketQueue* const packet_queue) {
-    enum PacketQueueOwner owner_none = NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = NONE;
-    }
-}
-
-static inline void unlock_packet_queue(struct PacketQueue* const packet_queue) {
-    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
-}
-
 static inline void insert_queue_node(
     struct PacketQueueNode* const new_node,
     struct PacketQueue* const packet_queue,
@@ -31,7 +20,7 @@ static inline void insert_queue_node(
         return;
     }
 
-    lock_packet_queue(packet_queue);
+    LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->last_node == NULL) {
         packet_queue->last_node = new_node;
@@ -45,7 +34,7 @@ static inline void insert_queue_node(
         packet_queue->first_node = new_node;
     }
 
-    unlock_packet_queue(packet_queue);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     return;
 }
@@ -176,12 +165,12 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
 static inline void handle_correct_receiver(const enum ConnectionType connection_type, struct Listener* const listener, const struct pcap_pkthdr* const hdr, const uint8_t* const packet, const struct SwiftNetPortInfo* const port_info) {
     if (connection_type == CONNECTION_TYPE_CLIENT) {
-        vector_lock(&listener->client_connections);
+        LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
 
         for (uint16_t i = 0; i < listener->client_connections.size; i++) {
             struct SwiftNetClientConnection* const client_connection = vector_get(&listener->client_connections, i);
             if (client_connection->port_info.source_port == port_info->destination_port) {
-                vector_unlock(&listener->client_connections);
+                UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
 
                 if (client_connection->initialized == false) {
                     handle_client_init(client_connection, hdr, packet);
@@ -193,14 +182,14 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
             }
         }
 
-        vector_unlock(&listener->client_connections);
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
     } else {
-        vector_lock(&listener->servers);
+        LOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
 
         for (uint16_t i = 0; i < listener->servers.size; i++) {
             struct SwiftNetServer* const server = vector_get(&listener->servers, i);
             if (server->server_port == port_info->destination_port) {
-                vector_unlock(&listener->servers);
+                UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
 
                 swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond);
 
@@ -208,7 +197,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
             }
         }
 
-        vector_unlock(&listener->servers);
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
     }
 }
 

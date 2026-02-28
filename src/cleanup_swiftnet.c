@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 static inline void close_listeners() {
-    vector_lock(&listeners);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
     for (uint16_t i = 0; i < listeners.size; i++) {
         struct Listener* const current_listener = vector_get(&listeners, i);

@@ -1,26 +1,26 @@
 #include "internal.h"
            
 void* check_existing_listener(const char* interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback) {
-    vector_lock(&listeners);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
     for (uint16_t i = 0; i < listeners.size; i++) {
         struct Listener* const current_listener = vector_get(&listeners, i);
         if (strcmp(interface_name, current_listener->interface_name) == 0) {
             if (connection_type == CONNECTION_TYPE_CLIENT) {
-                vector_lock(&current_listener->client_connections);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
 
                 vector_push(&current_listener->client_connections, connection);
 
-                vector_unlock(&current_listener->client_connections);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
             } else {
-                vector_lock(&current_listener->servers);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
 
                 vector_push(&current_listener->servers, connection);
 
-                vector_unlock(&current_listener->servers);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
             }
 
-            vector_unlock(&listeners);
+            UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
             return current_listener;
         }
@@ -42,7 +42,7 @@ void* check_existing_listener(const char* interface_name, void* const connection
 
     vector_push(&listeners, new_listener);
 
-    vector_unlock(&listeners);
+    UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
     pthread_create(&new_listener->listener_thread, NULL, interface_start_listening, new_listener);
 

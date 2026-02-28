@@ -1,25 +1,24 @@
 #include "swift_net.h"
 #include "internal/internal.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-static inline void cleanup_packets_completed(struct SwiftNetVector* packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
-    vector_lock(packets_completed);
+static inline void cleanup_packets_completed(struct SwiftNetHashMap* packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
+    LOCK_ATOMIC_DATA_TYPE(&packets_completed->atomic_lock);
 
-    for (uint32_t i = 0; i < packets_completed->size; i++) {
-        struct SwiftNetPacketCompleted* const current_packet_completed = vector_get(packets_completed, i);
+    LOOP_HASHMAP(packets_completed, 
+        if (((struct SwiftNetPacketCompleted*)hashmap_data)->marked_cleanup == true) {
+            hashmap_remove(hashmap_item->key_original_data, hashmap_item->key_original_data_size, packets_completed);
 
-        if (current_packet_completed->marked_cleanup == true) {
-            vector_remove(packets_completed, i);
-
-            allocator_free(packets_completed_allocator, current_packet_completed);
+            allocator_free(packets_completed_allocator, hashmap_data);
         } else {
-            current_packet_completed->marked_cleanup = true;
+            ((struct SwiftNetPacketCompleted*)hashmap_data)->marked_cleanup = true;
         }
-    }
+    )
 
-    vector_unlock(packets_completed);
+    UNLOCK_ATOMIC_DATA_TYPE(&packets_completed->atomic_lock);
 }
 
 void* memory_cleanup_background_service() {
@@ -27,7 +26,7 @@ void* memory_cleanup_background_service() {
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        vector_lock(&listeners);
+        LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
         for (uint32_t i = 0; i < listeners.size; i++) {
             struct Listener* const current_listener = vector_get(&listeners, i);
@@ -35,26 +34,26 @@ void* memory_cleanup_background_service() {
             struct SwiftNetVector* const client_connections = &current_listener->client_connections;
             struct SwiftNetVector* const servers = &current_listener->servers;
 
-            vector_lock(servers);
-            vector_lock(client_connections);
+            LOCK_ATOMIC_DATA_TYPE(&servers->locked);
+            LOCK_ATOMIC_DATA_TYPE(&client_connections->locked);
 
             for (uint32_t client_connection_index = 0; client_connection_index < client_connections->size; client_connection_index++) {
                 struct SwiftNetClientConnection* const current_con = vector_get(client_connections, client_connection_index);
 
-                //cleanup_packets_completed(&current_con->packets_completed, &current_con->packets_completed_memory_allocator);
+                cleanup_packets_completed(&current_con->packets_completed, &current_con->packets_completed_memory_allocator);
             }
 
             for (uint32_t server_index = 0; server_index < servers->size; server_index++) {
                 struct SwiftNetServer* const current_server = vector_get(servers, server_index);
 
-                //cleanup_packets_completed(&current_server->packets_completed, &current_server->packets_completed_memory_allocator);
+                cleanup_packets_completed(&current_server->packets_completed, &current_server->packets_completed_memory_allocator);
             }
 
-            vector_unlock(client_connections);
-            vector_unlock(servers);
+            UNLOCK_ATOMIC_DATA_TYPE(&servers->locked);
+            UNLOCK_ATOMIC_DATA_TYPE(&client_connections->locked);
         }
 
-        vector_unlock(&listeners);
+        UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
 
         gettimeofday(&end, NULL);
 

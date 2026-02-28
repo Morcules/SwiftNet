@@ -3,6 +3,7 @@
 #include "internal.h"
 #include <arm_neon.h>
 #include <string.h>
+#include <sys/types.h>
 
 // Initialized in swiftnet_initialize function with rand
 uint64_t seed;
@@ -39,6 +40,10 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
     // Realloc doesn't make sense here bcs we have to rehash and copy rehashed keys.
     hashmap->items = calloc(sizeof(struct SwiftNetHashMapItem), new_capacity);
 
+    free(hashmap->item_occupation);
+
+    hashmap->item_occupation = calloc(sizeof(uint32_t), (new_capacity + 31) / 32);
+
     for (uint32_t i = 0; i < old_capacity; i++) {
         struct SwiftNetHashMapItem* const current_hashmap_item = old_data_location + i;
         if (current_hashmap_item->value == NULL) {
@@ -52,6 +57,12 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
             const uint64_t new_key = get_key(key_original_data, key_original_data_size, hashmap);
 
             struct SwiftNetHashMapItem* new_mem_hashmap_item = hashmap->items + new_key;
+
+            const uint32_t byte = new_key / 32;
+            const uint8_t bit = new_key % 32;
+
+            *(hashmap->item_occupation + byte) |= 1 << bit;
+
             if (new_mem_hashmap_item->value != NULL) {
                 // Get last item
                 while (new_mem_hashmap_item->next != NULL) {
@@ -67,7 +78,6 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
                 };
 
                 new_mem_hashmap_item->next = hashmap_item_new_allocation;
-
             } else {
                 *new_mem_hashmap_item = (struct SwiftNetHashMapItem){
                     .key_original_data = key_original_data,
@@ -84,8 +94,10 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
 
 struct SwiftNetHashMap hashmap_create() {
     return (struct SwiftNetHashMap){
-        .capacity = 0xFF,
-        .items = calloc(sizeof(struct SwiftNetHashMapItem), 0xFF)
+        .capacity = 0x40 * SWIFT_NET_MEMORY_USAGE,
+        .items = calloc(sizeof(struct SwiftNetHashMapItem), 0x40 * SWIFT_NET_MEMORY_USAGE),
+        .size = 0,
+        .item_occupation = calloc(sizeof(uint32_t), ((0x40 * SWIFT_NET_MEMORY_USAGE) + 31) / 32)
     };
 }
 
@@ -94,13 +106,6 @@ void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNe
 
     struct SwiftNetHashMapItem* current_item = hashmap->items + key;
 
-    /*if (current_item->next == NULL) {
-        printf("%p\n", key_data);
-        printf("no next\n");
-        printf("%p\n", current_item->value);
-        return current_item->value;
-    }*/
-
     while (current_item != NULL) {
         if (data_size == current_item->key_original_data_size && memcmp(current_item->key_original_data, key_data, data_size) == 0) {
             return current_item->value;
@@ -108,7 +113,6 @@ void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNe
 
         current_item = current_item->next;
 
-        printf("collision\n");
         continue;
     }
 
@@ -127,6 +131,8 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
             current_target_item->next = new_item;
 
             current_target_item = new_item;
+
+            break;
         } else {
             current_target_item = current_target_item->next;
         }
@@ -141,6 +147,11 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
 
     hashmap->size++;
 
+    const uint32_t byte = key / 32;
+    const uint8_t bit = key % 32;
+
+    *(hashmap->item_occupation + byte) |= 0 << bit;
+
     if (hashmap->size >= hashmap->capacity) {
         hashmap_resize(hashmap);
     }
@@ -151,6 +162,13 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
 
     struct SwiftNetHashMapItem* previous_target_item = hashmap->items + key;
     struct SwiftNetHashMapItem* current_target_item = hashmap->items + key;
+
+    if (current_target_item->next == NULL) {
+        const uint32_t byte = key / 32;
+        const uint8_t bit = key % 32;
+
+        *(hashmap->item_occupation + byte) &= ~(0 << bit);
+    }
 
     while (current_target_item != NULL) {
         if (data_size == current_target_item->key_original_data_size && memcmp(current_target_item->key_original_data, key_data, data_size) == 0) {
