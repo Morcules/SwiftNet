@@ -47,7 +47,7 @@ static inline void handle_lost_packets(
     struct SwiftNetPacketSending* const packet_sending,
     const uint32_t mtu,
     const struct SwiftNetPacketBuffer* const packet, 
-    pcap_t* pcap,
+    pcap_t* const pcap,
     const struct ether_header eth_hdr,
     const struct in_addr* const destination_address,
     const uint16_t source_port,

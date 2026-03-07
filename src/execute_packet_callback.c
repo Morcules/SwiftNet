@@ -33,17 +33,12 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
     return node_to_process;
 }
 
-static inline void remove_pending_message_from_vector(struct SwiftNetVector* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
-    LOCK_ATOMIC_DATA_TYPE(&pending_messages->locked);
+static inline void remove_pending_message_from_vector(struct SwiftNetHashMap* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
+    LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    for (uint32_t i = 0; i < pending_messages->size; i++) {
-        const struct SwiftNetPendingMessage* const current_pending_message = vector_get(pending_messages, i);
-        if (current_pending_message == pending_message) {
-            vector_remove(pending_messages, i);
-        }
-    }
+    hashmap_remove(&pending_message->packet_id, sizeof(uint16_t), pending_messages);
 
-    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->locked);
+    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 }
 
 void execute_packet_callback(
@@ -54,7 +49,7 @@ void execute_packet_callback(
 	struct SwiftNetMemoryAllocator* const pending_message_memory_allocator,
 	_Atomic bool* closing,
 	void* const connection,
-	struct SwiftNetVector* const pending_messages,
+	struct SwiftNetHashMap* const pending_messages,
 	_Atomic(void*)* user_data,
     pthread_mutex_t* const execute_callback_mtx,
     pthread_cond_t* const execute_callback_cond

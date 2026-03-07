@@ -249,7 +249,7 @@ struct SwiftNetClientConnection {
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
     pthread_t process_packets_thread;
-    struct SwiftNetVector pending_messages;
+    struct SwiftNetHashMap pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
@@ -277,7 +277,7 @@ struct SwiftNetServer {
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
     pthread_t process_packets_thread;
-    struct SwiftNetVector pending_messages;
+    struct SwiftNetHashMap pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
