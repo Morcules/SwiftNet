@@ -251,7 +251,7 @@ struct SwiftNetClientConnection {
     pthread_t process_packets_thread;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetVector packets_sending;
+    struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;
@@ -279,7 +279,7 @@ struct SwiftNetServer {
     pthread_t process_packets_thread;
     struct SwiftNetVector pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetVector packets_sending;
+    struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetHashMap packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;

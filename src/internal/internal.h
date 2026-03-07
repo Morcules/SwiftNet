@@ -284,7 +284,7 @@ extern void swiftnet_send_packet(
     const struct SwiftNetPacketBuffer* const packet,
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
-    struct SwiftNetVector* const packets_sending,
+    struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     pcap_t* const pcap,
     const struct ether_header eth_hdr,
