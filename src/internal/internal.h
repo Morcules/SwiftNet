@@ -150,8 +150,8 @@ enum AllocatorStackState {
 struct Listener {
     pcap_t* pcap;
     pthread_t listener_thread;
-    struct SwiftNetVector servers;
-    struct SwiftNetVector client_connections;
+    struct SwiftNetHashMap servers;
+    struct SwiftNetHashMap client_connections;
     char interface_name[IFNAMSIZ];
     uint16_t addr_type;
     bool loopback;

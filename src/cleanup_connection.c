@@ -36,35 +36,17 @@ static inline void remove_listener(const enum ConnectionType connection_type, co
         struct Listener* const current_listener = vector_get(&listeners, i);
         if (strcmp(interface_name, current_listener->interface_name) == 0) {
             if (connection_type == CONNECTION_TYPE_CLIENT) {
-                LOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.atomic_lock);
 
-                for (uint16_t inx = 0; inx < current_listener->client_connections.size; inx++) {
-                    struct SwiftNetClientConnection* const current_connection = vector_get(&current_listener->client_connections, i);
-                    if (current_connection != connection) {
-                        continue;
-                    }
+                hashmap_remove(&((struct SwiftNetClientConnection*)connection)->port_info.source_port, sizeof(uint16_t), &current_listener->client_connections);
 
-                    vector_remove(&current_listener->client_connections, inx);
-
-                    break;
-                }
-
-                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.locked);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.atomic_lock);
             } else {
-                LOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
+                LOCK_ATOMIC_DATA_TYPE(&current_listener->servers.atomic_lock);
 
-                for (uint16_t inx = 0; inx < current_listener->servers.size; inx++) {
-                    struct SwiftNetClientConnection* const current_connection = vector_get(&current_listener->servers, i);
-                    if (current_connection != connection) {
-                        continue;
-                    }
+                hashmap_remove(&((struct SwiftNetServer*)connection)->server_port, sizeof(uint16_t), &current_listener->servers);
 
-                    vector_remove(&current_listener->servers, inx);
-
-                    break;
-                }
-
-                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->servers.locked);
+                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->servers.atomic_lock);
             }
 
             break;

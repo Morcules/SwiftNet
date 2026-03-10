@@ -163,41 +163,33 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
     atomic_store_explicit(&client_connection->initialized, true, memory_order_release);
 }
 
-static inline void handle_correct_receiver(const enum ConnectionType connection_type, struct Listener* const listener, const struct pcap_pkthdr* const hdr, const uint8_t* const packet, const struct SwiftNetPortInfo* const port_info) {
+static inline void handle_correct_receiver(const enum ConnectionType connection_type, struct Listener* const listener, const struct pcap_pkthdr* const hdr, const uint8_t* const packet, struct SwiftNetPortInfo* const port_info) {
     if (connection_type == CONNECTION_TYPE_CLIENT) {
-        LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
+        LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 
-        for (uint16_t i = 0; i < listener->client_connections.size; i++) {
-            struct SwiftNetClientConnection* const client_connection = vector_get(&listener->client_connections, i);
-            if (client_connection->port_info.source_port == port_info->destination_port) {
-                UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
+        struct SwiftNetClientConnection* const client_connection = hashmap_get(&port_info->destination_port, sizeof(uint16_t), &listener->client_connections);
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 
-                if (client_connection->initialized == false) {
-                    handle_client_init(client_connection, hdr, packet);
-                } else {
-                    swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond);
-                }
-
-                return;
-            }
+        if (client_connection == NULL) {
+            return;
         }
 
-        UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
+        if (client_connection->initialized == false) {
+            handle_client_init(client_connection, hdr, packet);
+        } else {
+            swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond);
+        }
     } else {
-        LOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
+        LOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
 
-        for (uint16_t i = 0; i < listener->servers.size; i++) {
-            struct SwiftNetServer* const server = vector_get(&listener->servers, i);
-            if (server->server_port == port_info->destination_port) {
-                UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
+        struct SwiftNetServer* const server = hashmap_get(&port_info->destination_port, sizeof(uint16_t), &listener->servers);
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
 
-                swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond);
-
-                return;
-            }
+        if (server == NULL) {
+            return;
         }
 
-        UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.locked);
+        swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond);
     }
 }
 

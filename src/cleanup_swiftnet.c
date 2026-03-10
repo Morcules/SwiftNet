@@ -16,8 +16,8 @@ static inline void close_listeners() {
 
         pcap_close(current_listener->pcap);
 
-        vector_destroy(&current_listener->client_connections);
-        vector_destroy(&current_listener->servers);
+        hashmap_destroy(&current_listener->client_connections);
+        hashmap_destroy(&current_listener->servers);
     }
 
     vector_destroy(&listeners);

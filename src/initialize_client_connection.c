@@ -107,17 +107,12 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
     return new_connection;
 }
 
-static inline void remove_con_from_listener(const struct SwiftNetClientConnection* const con, struct Listener* const listener) {
-    LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
+static inline void remove_con_from_listener(struct SwiftNetClientConnection* const con, struct Listener* const listener) {
+    LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 
-    for (uint16_t i = 0; i < listener->client_connections.size; i++) {
-        struct SwiftNetClientConnection* const client_connection = vector_get(&listener->client_connections, i);
-        if (client_connection == con) {
-            vector_remove(&listener->client_connections, i);
-        }
-    }
+    hashmap_remove(&con->port_info.source_port, sizeof(uint16_t), &listener->client_connections);
 
-    UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.locked);
+    UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 }
 
 struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_address, const uint16_t port, const uint32_t timeout_ms) {

@@ -31,26 +31,24 @@ void* memory_cleanup_background_service() {
         for (uint32_t i = 0; i < listeners.size; i++) {
             struct Listener* const current_listener = vector_get(&listeners, i);
 
-            struct SwiftNetVector* const client_connections = &current_listener->client_connections;
-            struct SwiftNetVector* const servers = &current_listener->servers;
+            struct SwiftNetHashMap* const client_connections = &current_listener->client_connections;
+            struct SwiftNetHashMap* const servers = &current_listener->servers;
 
-            LOCK_ATOMIC_DATA_TYPE(&servers->locked);
-            LOCK_ATOMIC_DATA_TYPE(&client_connections->locked);
+            LOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
+            LOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
 
-            for (uint32_t client_connection_index = 0; client_connection_index < client_connections->size; client_connection_index++) {
-                struct SwiftNetClientConnection* const current_con = vector_get(client_connections, client_connection_index);
+            LOOP_HASHMAP(client_connections,
+                struct SwiftNetClientConnection* const client_connection = hashmap_data;
+                cleanup_packets_completed(&client_connection->packets_completed, &client_connection->packets_completed_memory_allocator);
+            )
 
-                cleanup_packets_completed(&current_con->packets_completed, &current_con->packets_completed_memory_allocator);
-            }
+            LOOP_HASHMAP(servers,
+                struct SwiftNetServer* const server = hashmap_data;
+                cleanup_packets_completed(&server->packets_completed, &server->packets_completed_memory_allocator);
+            )
 
-            for (uint32_t server_index = 0; server_index < servers->size; server_index++) {
-                struct SwiftNetServer* const current_server = vector_get(servers, server_index);
-
-                cleanup_packets_completed(&current_server->packets_completed, &current_server->packets_completed_memory_allocator);
-            }
-
-            UNLOCK_ATOMIC_DATA_TYPE(&servers->locked);
-            UNLOCK_ATOMIC_DATA_TYPE(&client_connections->locked);
+            UNLOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
+            UNLOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
         }
 
         UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
