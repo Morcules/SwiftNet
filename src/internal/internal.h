@@ -257,7 +257,7 @@ extern void vector_push(struct SwiftNetVector* const vector, void* const data);
 extern void vector_destroy(struct SwiftNetVector* const vector);
 extern struct SwiftNetVector vector_create(const uint32_t starting_amount);
 
-extern struct SwiftNetHashMap hashmap_create();
+extern struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory_allocator);
 extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);
 extern void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
 extern void hashmap_destroy(struct SwiftNetHashMap* const hashmap);

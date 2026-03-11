@@ -67,10 +67,10 @@ static inline void initialize_allocators() {
 
 static inline void initialize_vectors() {
     #ifdef SWIFT_NET_REQUESTS
-    requests_sent = hashmap_create();
+    requests_sent = hashmap_create(&uint16_memory_allocator);
     #endif
 
-    listeners = hashmap_create();
+    listeners = hashmap_create(NULL);
 }
 
 static inline void initialize_memory_cleanup_thread() {

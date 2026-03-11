@@ -235,6 +235,7 @@ struct SwiftNetHashMap {
     uint32_t capacity;
     uint32_t size;
     struct SwiftNetHashMapItem* items;
+    struct SwiftNetMemoryAllocator* key_memory_allocator;
     uint32_t* item_occupation; // Bitset tracking which indexes of items array are occupied for looping through items without many cycles.
 };
 

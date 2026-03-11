@@ -37,8 +37,8 @@ void* check_existing_listener(const char* interface_name, void* const connection
     }
 
     struct Listener* const new_listener = allocator_allocate(&listener_memory_allocator);
-    new_listener->servers = hashmap_create();
-    new_listener->client_connections = hashmap_create();
+    new_listener->servers = hashmap_create(&uint16_memory_allocator);
+    new_listener->client_connections = hashmap_create(&uint16_memory_allocator);
     new_listener->pcap = swiftnet_pcap_open(interface_name);
     new_listener->addr_type = pcap_datalink(new_listener->pcap);
     memcpy(new_listener->interface_name, interface_name, interface_len + 1);

@@ -93,12 +93,13 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
     free(old_data_location);
 }
 
-struct SwiftNetHashMap hashmap_create() {
+struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory_allocator) {
     return (struct SwiftNetHashMap){
         .capacity = 0x40 * SWIFT_NET_MEMORY_USAGE,
         .items = calloc(sizeof(struct SwiftNetHashMapItem), 0x40 * SWIFT_NET_MEMORY_USAGE),
         .size = 0,
-        .item_occupation = calloc(sizeof(uint32_t), ((0x40 * SWIFT_NET_MEMORY_USAGE) + 31) / 32)
+        .item_occupation = calloc(sizeof(uint32_t), ((0x40 * SWIFT_NET_MEMORY_USAGE) + 31) / 32),
+        .key_memory_allocator = key_memory_allocator
     };
 }
 
@@ -158,7 +159,15 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
     }
 }
 
-void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
+void free_hashmap_item_key(struct SwiftNetHashMap* const restrict hashmap, struct SwiftNetHashMapItem* const restrict hashmap_item) {
+    if (hashmap->key_memory_allocator == NULL) {
+        free(hashmap_item->key_original_data);
+    } else {
+        allocator_free(hashmap->key_memory_allocator, hashmap_item->key_original_data);
+    }
+}
+
+void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const restrict hashmap) {
     const uint64_t key = get_key(key_data, data_size, hashmap);
 
     struct SwiftNetHashMapItem* previous_target_item = hashmap->items + key;
@@ -188,6 +197,8 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
         struct SwiftNetHashMapItem* const next = current_target_item->next;
 
         if (next != NULL) {
+            free_hashmap_item_key(hashmap, current_target_item);
+
             memcpy(current_target_item, next, sizeof(struct SwiftNetHashMapItem));
 
             next->value = NULL;
@@ -200,6 +211,8 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
 
         current_target_item->value = NULL;
         current_target_item->next = NULL;
+
+        free_hashmap_item_key(hashmap, current_target_item);
 
         allocator_free(&hashmap_item_memory_allocator, current_target_item);
     }
@@ -217,6 +230,8 @@ void hashmap_destroy(struct SwiftNetHashMap* const hashmap) {
         // Dealloc all ->next
         for (struct SwiftNetHashMapItem* current_linked_item = current_item->next; current_linked_item != NULL;) {
             struct SwiftNetHashMapItem* const next_item = current_linked_item->next;
+
+            free_hashmap_item_key(hashmap, current_linked_item);
 
             allocator_free(&hashmap_item_memory_allocator, current_linked_item);
 
