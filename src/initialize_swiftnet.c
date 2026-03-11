@@ -33,13 +33,15 @@ struct SwiftNetMemoryAllocator packet_buffer_memory_allocator;
 struct SwiftNetMemoryAllocator server_memory_allocator;
 struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 struct SwiftNetMemoryAllocator listener_memory_allocator;
+struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
+struct SwiftNetMemoryAllocator uint16_memory_allocator;
 
 #ifdef SWIFT_NET_REQUESTS
     struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
-    struct SwiftNetVector requests_sent;
+    struct SwiftNetHashMap requests_sent;
 #endif
 
-struct SwiftNetVector listeners;
+struct SwiftNetHashMap listeners;
 
 pthread_t memory_cleanup_thread;
 
@@ -54,6 +56,8 @@ static inline void initialize_allocators() {
     server_memory_allocator = allocator_create(sizeof(struct SwiftNetServer), 10);
     client_connection_memory_allocator = allocator_create(sizeof(struct SwiftNetClientConnection), 10);
     listener_memory_allocator = allocator_create(sizeof(struct Listener), 100);
+    hashmap_item_memory_allocator = allocator_create(sizeof(struct SwiftNetHashMapItem), 0xFF);
+    uint16_memory_allocator = allocator_create(sizeof(uint16_t), 0xFF);
     
     #ifdef SWIFT_NET_REQUESTS
     requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 100);
@@ -63,10 +67,10 @@ static inline void initialize_allocators() {
 
 static inline void initialize_vectors() {
     #ifdef SWIFT_NET_REQUESTS
-    requests_sent = vector_create(100);
+    requests_sent = hashmap_create(&uint16_memory_allocator);
     #endif
 
-    listeners = vector_create(10);
+    listeners = hashmap_create(NULL);
 }
 
 static inline void initialize_memory_cleanup_thread() {
@@ -74,6 +78,8 @@ static inline void initialize_memory_cleanup_thread() {
 }
 
 void swiftnet_initialize() {
+    seed = rand();
+
     atomic_store_explicit(&swiftnet_closing, false, memory_order_release);
 
     const int temp_socket = socket(AF_INET, SOCK_DGRAM, 0);

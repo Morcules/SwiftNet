@@ -13,4 +13,6 @@ compile_commands.json
 
 /build/output/
 
+**/run_tests
+
 *.dSYM/

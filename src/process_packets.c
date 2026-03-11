@@ -25,17 +25,6 @@ static inline bool is_private_ip(struct in_addr ip) {
     return !(octet1 == 192 && octet2 == 168) == false && (octet1 == 127 && octet2 == 0 && octet3 == 0); 
 }  
 
-static inline void lock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    bool locked = false;
-    while(!atomic_compare_exchange_strong_explicit(&packet_sending->locked, &locked, true, memory_order_acquire, memory_order_relaxed)) {
-        locked = false;
-    }
-}
-
-static inline void unlock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    atomic_store_explicit(&packet_sending->locked, false, memory_order_release);
-}
-
 // Returns an array of 4 byte uint32_t, that contain indexes of lost chunks
 static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chunks_received, const uint32_t chunk_amount, const uint32_t buffer_size, uint32_t* const buffer) {
     uint32_t byte = 0;
@@ -82,53 +71,37 @@ static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chun
     return offset;
 }
 
-static inline void packet_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
+static inline void packet_completed(uint16_t packet_id, struct SwiftNetHashMap* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
     struct SwiftNetPacketCompleted* const new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
     new_packet_completed->packet_id = packet_id;
     new_packet_completed->marked_cleanup = false;
 
-    vector_lock(packets_completed_history);
+    uint16_t* heap_key_data_location = allocator_allocate(&uint16_memory_allocator);
+    *heap_key_data_location = packet_id;
 
-    vector_push(packets_completed_history, new_packet_completed);
+    LOCK_ATOMIC_DATA_TYPE(&packets_completed_history->atomic_lock);
 
-    vector_unlock(packets_completed_history);
+    hashmap_insert(heap_key_data_location, sizeof(uint16_t), new_packet_completed, packets_completed_history);
+    
+    UNLOCK_ATOMIC_DATA_TYPE(&packets_completed_history->atomic_lock);
 
     return;
 }
 
-static inline bool check_packet_already_completed(const uint16_t packet_id, struct SwiftNetVector* const packets_completed_history) {
-    vector_lock(packets_completed_history);
+static inline bool check_packet_already_completed(uint16_t packet_id, struct SwiftNetHashMap* const packets_completed_history) {
+    const struct SwiftNetPacketCompleted* const item = hashmap_get(&packet_id, sizeof(packet_id), packets_completed_history);
 
-    for(uint32_t i = 0; i < packets_completed_history->size; i++) {
-        const struct SwiftNetPacketCompleted* const current = vector_get((struct SwiftNetVector*)packets_completed_history, i);
-
-        if(current->packet_id == packet_id) {
-            vector_unlock(packets_completed_history);
-
-            return true; 
-        }
-    }
-
-    vector_unlock(packets_completed_history);
-
-    return false;
+    return item != NULL;
 }
 
-static inline struct SwiftNetPendingMessage* const get_pending_message(struct SwiftNetVector* const pending_messages_vector, const enum ConnectionType connection_type, const uint16_t packet_id) {
-    vector_lock(pending_messages_vector);
+static inline struct SwiftNetPendingMessage* const get_pending_message(struct SwiftNetHashMap* const pending_messages, const enum ConnectionType connection_type, uint16_t packet_id) {
+    LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    for(uint32_t i = 0; i < pending_messages_vector->size; i++) {
-        struct SwiftNetPendingMessage* const current_pending_message = vector_get((struct SwiftNetVector*)pending_messages_vector, i);
+    struct SwiftNetPendingMessage* const pending_message = hashmap_get(&packet_id, sizeof(uint16_t), pending_messages);
 
-        if(current_pending_message->packet_id == packet_id) {
-            vector_unlock((struct SwiftNetVector*)pending_messages_vector);
-            return current_pending_message;
-        }
-    }
+    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    vector_unlock((struct SwiftNetVector*)pending_messages_vector);
-
-    return NULL;
+    return pending_message;
 }
 
 static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* const new_node, struct PacketCallbackQueue* const packet_queue) {
@@ -136,10 +109,7 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
         return;
     }
 
-    enum PacketQueueOwner owner_none = NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = NONE;
-    }
+    LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->last_node == NULL) {
         packet_queue->last_node = new_node;
@@ -153,50 +123,39 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
         packet_queue->first_node = new_node;
     }
 
-    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     return;
 }
 
 #ifdef SWIFT_NET_REQUESTS
 
-static inline void handle_request_response(const uint16_t packet_id, struct SwiftNetPendingMessage* const pending_message, void* const packet_data, struct SwiftNetVector* const pending_messages, struct SwiftNetMemoryAllocator* const pending_message_memory_allocator, const enum ConnectionType connection_type, const bool loopback) {
+static inline void handle_request_response(uint16_t packet_id, struct SwiftNetPendingMessage* const pending_message, void* const packet_data, struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_message_memory_allocator, const enum ConnectionType connection_type, const bool loopback) {
     bool is_valid_response = false;
 
-    vector_lock(&requests_sent);
+    LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-    for (uint32_t i = 0; i < requests_sent.size; i++) {
-        struct RequestSent* const current_request_sent = vector_get(&requests_sent, i);
-
-        if (current_request_sent == NULL) {
-            continue;
-        }
-
-        if (current_request_sent->packet_id == packet_id) {
-            atomic_store_explicit(&current_request_sent->packet_data, packet_data, memory_order_release);
-
-            vector_remove(&requests_sent, i);
-
-            is_valid_response = true;
-
-            break;
-        }
+    struct RequestSent* const request_sent = hashmap_get(&packet_id, sizeof(uint16_t), &requests_sent);
+    if (request_sent == NULL) {
+        UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
+        return;
     }
 
-    vector_unlock(&requests_sent);
+    atomic_store_explicit(&request_sent->packet_data, packet_data, memory_order_release);
+
+    hashmap_remove(&packet_id, sizeof(uint16_t), &requests_sent);
+
+    is_valid_response = true;
+
+    UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
     if (is_valid_response == true) {
         if (pending_message != NULL) {
-            vector_lock(pending_messages);
+            LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-            for (uint32_t i = 0; i < pending_messages->size; i++) {
-                const struct SwiftNetPendingMessage* const current_pending_message = vector_get(pending_messages, i);
-                if (current_pending_message == pending_message) {
-                    vector_remove(pending_messages, i);
-                }
-            }
+            hashmap_remove(&packet_id, sizeof(uint16_t), pending_messages);
 
-            vector_unlock(pending_messages);
+            UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
         }
 
         return;
@@ -237,7 +196,7 @@ static inline void chunk_received(uint8_t* const chunks_received, const uint32_t
     chunks_received[byte] |= 1 << bit;
 }
 
-static inline struct SwiftNetPendingMessage* const create_new_pending_message(struct SwiftNetVector* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetPacketInfo* const packet_info, const enum ConnectionType connection_type, const uint16_t packet_id) {
+static inline struct SwiftNetPendingMessage* const create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetPacketInfo* const packet_info, const enum ConnectionType connection_type, const uint16_t packet_id) {
     struct SwiftNetPendingMessage* const new_pending_message = allocator_allocate(pending_messages_memory_allocator);
 
     uint8_t* const allocated_memory = malloc(packet_info->packet_length);
@@ -254,41 +213,33 @@ static inline struct SwiftNetPendingMessage* const create_new_pending_message(st
 
     new_pending_message->packet_id = packet_id;
 
-    vector_lock(pending_messages);
+    LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    vector_push((struct SwiftNetVector*)pending_messages, new_pending_message);
+    uint16_t* const packet_id_mem = allocator_allocate(&uint16_memory_allocator);
+    *packet_id_mem = packet_id;
 
-    vector_unlock(pending_messages);
+    hashmap_insert(packet_id_mem, sizeof(uint16_t), new_pending_message, pending_messages);
+
+    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
     return new_pending_message;
 }
 
-static inline struct SwiftNetPacketSending* const get_packet_sending(struct SwiftNetVector* const packet_sending_array, const uint16_t target_id) {
-    vector_lock(packet_sending_array);
+static inline struct SwiftNetPacketSending* const get_packet_sending(struct SwiftNetHashMap* const packet_sending_array, uint16_t target_id) {
+    LOCK_ATOMIC_DATA_TYPE(&packet_sending_array->atomic_lock);
 
-    for(uint32_t i = 0; i < packet_sending_array->size; i++) {
-        struct SwiftNetPacketSending* const current_packet_sending = vector_get((struct SwiftNetVector*)packet_sending_array, i);
+    struct SwiftNetPacketSending* const result = hashmap_get(&target_id, sizeof(target_id), packet_sending_array);
 
-        if(current_packet_sending->packet_id == target_id) {
-            vector_unlock(packet_sending_array);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_sending_array->atomic_lock);
 
-            return current_packet_sending;
-        }
-    }
-
-    vector_unlock(packet_sending_array);
-
-    return NULL;
+    return result;
 }
 
 struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const packet_queue) {
-    enum PacketQueueOwner owner_none = NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = NONE;
-    }
+    LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->first_node == NULL) {
-        atomic_store(&packet_queue->owner, NONE);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
         return NULL;
     }
 
@@ -298,14 +249,14 @@ struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const pac
         packet_queue->first_node = NULL;
         packet_queue->last_node = NULL;
 
-        atomic_store(&packet_queue->owner, NONE);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
-    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     return node_to_process;
 }
@@ -321,11 +272,11 @@ static inline void swiftnet_process_packets(
     const uint16_t source_port,
     const bool loopback,
     const uint16_t addr_type,
-    struct SwiftNetVector* const packets_sending,
+    struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_messages_memory_allocator,
-    struct SwiftNetVector* const pending_messages,
+    struct SwiftNetHashMap* const pending_messages,
     struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator,
-    struct SwiftNetVector* const packets_completed_history,
+    struct SwiftNetHashMap* const packets_completed_history,
     struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator,
     enum ConnectionType connection_type,
     struct PacketQueue* const packet_queue,
@@ -515,7 +466,7 @@ static inline void swiftnet_process_packets(
                     goto next_packet;
                 }
 
-                lock_packet_sending(target_packet_sending);
+                LOCK_ATOMIC_DATA_TYPE(&target_packet_sending->locked);
 
                 if(target_packet_sending->lost_chunks == NULL) {
                     target_packet_sending->lost_chunks = malloc(maximum_transmission_unit - PACKET_HEADER_SIZE);
@@ -531,7 +482,7 @@ static inline void swiftnet_process_packets(
 
                 allocator_free(&packet_buffer_memory_allocator, packet_buffer);
 
-                unlock_packet_sending(target_packet_sending);
+                UNLOCK_ATOMIC_DATA_TYPE(&target_packet_sending->locked);
 
                 goto next_packet;
             }
@@ -561,7 +512,6 @@ static inline void swiftnet_process_packets(
         }
 
         struct SwiftNetClientAddrData sender = {
-            
             .maximum_transmission_unit = packet_info.maximum_transmission_unit,
             .port = packet_info.port_info.source_port,
         };

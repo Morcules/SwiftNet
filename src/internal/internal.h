@@ -19,11 +19,44 @@
 #define LOOPBACK_INTERFACE_NAME "lo0\0"
 #endif
 
-typedef enum {
+enum RequestLostPacketsReturnType {
     REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY = 0x00,
     REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET  = 0x01
-} RequestLostPacketsReturnType;
+};
 
+// in body use variables "hashmap_item" and "hashmap_data"
+// "hashmap_item" contains pointer to current struct SwiftNetHashMapItem 
+// "hashmap_data" contains data stored inside struct SwiftNetHashMapItem
+#define LOOP_HASHMAP(hashmap, loop_body) \
+    for(uint32_t i = 0; i < (hashmap->capacity + 31) / 32; i++) { \
+        uint32_t current_index = *(hashmap->item_occupation + i); \
+        if(current_index == 0x00) { \
+            continue; \
+        } \
+        uint32_t inverted = ~(current_index); \
+        while(inverted != UINT32_MAX) { \
+            uint32_t bit_index = __builtin_ctz(inverted); \
+            inverted |= 1 << bit_index; \
+            for(struct SwiftNetHashMapItem* hashmap_item = hashmap->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
+                void* const hashmap_data = hashmap_item->value; \
+                loop_body \
+            } \
+        } \
+    }
+
+#define LOCK_ATOMIC_DATA_TYPE(atomic_field) \
+    do { \
+        bool locked = false; \
+        while(!atomic_compare_exchange_strong_explicit(atomic_field, &locked, true, memory_order_acquire, memory_order_relaxed)) { \
+            locked = false; \
+        } \
+    } while(0);
+
+#define UNLOCK_ATOMIC_DATA_TYPE(atomic_field) \
+    atomic_store_explicit(atomic_field, false, memory_order_release);
+
+// Size of memory allocated before ip header.
+// Memory should contain either an eth hdr or any specific data depending on addr type (loopback or real interface)
 #define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
 #define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
 #define HANDLE_PACKET_CONSTRUCTION(ip_header, packet_info, addr_type, eth_hdr, buffer_size, buffer_name) \
@@ -39,14 +72,18 @@ typedef enum {
         memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
     } \
 
+// Simple crc16 call with proper memory order
 #define HANDLE_CHECKSUM(buffer, size, prepend_size) \
     uint16_t checksum = htons(crc16(buffer, size)); \
     memcpy(buffer + prepend_size + offsetof(struct ip, ip_sum), &checksum, sizeof(checksum));
 
+// Number used in ip.proto
 #define PROT_NUMBER 253
 
+// Size of struct field
 #define SIZEOF_FIELD(type, field) sizeof(((type *)0)->field)
 
+// How many seconds between each memory cleanup.
 #define PACKET_HISTORY_STORE_TIME 5
 
 #define PRINT_ERROR(fmt, ...) \
@@ -113,8 +150,8 @@ enum AllocatorStackState {
 struct Listener {
     pcap_t* pcap;
     pthread_t listener_thread;
-    struct SwiftNetVector servers;
-    struct SwiftNetVector client_connections;
+    struct SwiftNetHashMap servers;
+    struct SwiftNetHashMap client_connections;
     char interface_name[IFNAMSIZ];
     uint16_t addr_type;
     bool loopback;
@@ -125,7 +162,9 @@ enum ConnectionType {
     CONNECTION_TYPE_CLIENT
 };
 
-extern struct SwiftNetVector listeners;
+extern uint64_t seed;
+
+extern struct SwiftNetHashMap listeners;
 
 extern pthread_t memory_cleanup_thread;
 extern _Atomic bool swiftnet_closing;
@@ -193,6 +232,8 @@ static inline void send_debug_message(const char* message, ...) {
 
 extern uint32_t semaphore_counter;
 
+extern struct SwiftNetMemoryAllocator uint16_memory_allocator;
+
 extern struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const uint32_t chunk_item_amount);
 extern void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator);
 extern void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location);
@@ -206,6 +247,7 @@ extern struct SwiftNetMemoryAllocator packet_buffer_memory_allocator;
 extern struct SwiftNetMemoryAllocator server_memory_allocator;
 extern struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 extern struct SwiftNetMemoryAllocator listener_memory_allocator;
+extern struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
 
 extern void* interface_start_listening(void* listener_void);
 
@@ -214,8 +256,12 @@ extern void vector_remove(struct SwiftNetVector* const vector, const uint32_t in
 extern void vector_push(struct SwiftNetVector* const vector, void* const data);
 extern void vector_destroy(struct SwiftNetVector* const vector);
 extern struct SwiftNetVector vector_create(const uint32_t starting_amount);
-extern void vector_lock(struct SwiftNetVector* const vector);
-extern void vector_unlock(struct SwiftNetVector* const vector);
+
+extern struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory_allocator);
+extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);
+extern void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
+extern void hashmap_destroy(struct SwiftNetHashMap* const hashmap);
+extern void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap);
 
 extern void* server_start_pcap(void* server_void);
 extern void* client_start_pcap(void* client_void);
@@ -228,7 +274,7 @@ struct RequestSent {
 };
 
 extern struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
-extern struct SwiftNetVector requests_sent;
+extern struct SwiftNetHashMap requests_sent;
 #endif
 
 extern void swiftnet_send_packet(
@@ -238,7 +284,7 @@ extern void swiftnet_send_packet(
     const struct SwiftNetPacketBuffer* const packet,
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
-    struct SwiftNetVector* const packets_sending,
+    struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     pcap_t* const pcap,
     const struct ether_header eth_hdr,

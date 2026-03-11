@@ -5,10 +5,12 @@
 #include <stdio.h>
 
 static inline void close_listeners() {
-    vector_lock(&listeners);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-    for (uint16_t i = 0; i < listeners.size; i++) {
-        struct Listener* const current_listener = vector_get(&listeners, i);
+    struct SwiftNetHashMap* const listeners_map = &listeners;
+
+    LOOP_HASHMAP(listeners_map,
+        struct Listener* const current_listener = hashmap_data;
 
         pcap_breakloop(current_listener->pcap);
 
@@ -16,11 +18,11 @@ static inline void close_listeners() {
 
         pcap_close(current_listener->pcap);
 
-        vector_destroy(&current_listener->client_connections);
-        vector_destroy(&current_listener->servers);
-    }
+        hashmap_destroy(&current_listener->client_connections);
+        hashmap_destroy(&current_listener->servers);
+    )
 
-    vector_destroy(&listeners);
+    hashmap_destroy(&listeners);
 }
 
 static inline void close_background_service() {
@@ -35,11 +37,12 @@ void swiftnet_cleanup() {
     allocator_destroy(&server_packet_data_memory_allocator);
     allocator_destroy(&client_packet_data_memory_allocator);
     allocator_destroy(&packet_buffer_memory_allocator);
+    allocator_destroy(&hashmap_item_memory_allocator);
     
     #ifdef SWIFT_NET_REQUESTS
         allocator_destroy(&requests_sent_memory_allocator);
 
-        vector_destroy(&requests_sent);
+        hashmap_destroy(&requests_sent);
     #endif
 
     close_listeners();
@@ -48,6 +51,7 @@ void swiftnet_cleanup() {
     allocator_destroy(&client_connection_memory_allocator);
 
     allocator_destroy(&listener_memory_allocator);
+    allocator_destroy(&uint16_memory_allocator);
 
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);

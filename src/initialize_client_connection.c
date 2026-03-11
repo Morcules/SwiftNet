@@ -84,39 +84,35 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
     new_connection->prepend_size = PACKET_PREPEND_SIZE(new_connection->addr_type);
 
     new_connection->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 100);
-    new_connection->pending_messages = vector_create(100);
     new_connection->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
-    new_connection->packets_sending = vector_create(100);
     new_connection->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
-    new_connection->packets_completed = vector_create(100);
+    new_connection->packets_completed = hashmap_create(&uint16_memory_allocator);
+    new_connection->packets_sending = hashmap_create(&uint16_memory_allocator);
+    new_connection->pending_messages = hashmap_create(&uint16_memory_allocator);
     
     new_connection->packet_queue = (struct PacketQueue){
         .first_node = NULL,
         .last_node = NULL
     };
 
-    atomic_store_explicit(&new_connection->packet_queue.owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_queue.locked);
+    UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_callback_queue.locked);
+
     atomic_store_explicit(&new_connection->closing, false, memory_order_release);
     atomic_store_explicit(&new_connection->initialized, false, memory_order_release);
     atomic_store_explicit(&new_connection->packet_handler_user_arg, NULL, memory_order_release);
     
     memset(&new_connection->packet_callback_queue, 0x00, sizeof(struct PacketCallbackQueue));
-    atomic_store_explicit(&new_connection->packet_callback_queue.owner, NONE, memory_order_release);
 
     return new_connection;
 }
 
-static inline void remove_con_from_listener(const struct SwiftNetClientConnection* const con, struct Listener* const listener) {
-    vector_lock(&listener->client_connections);
+static inline void remove_con_from_listener(struct SwiftNetClientConnection* const con, struct Listener* const listener) {
+    LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 
-    for (uint16_t i = 0; i < listener->client_connections.size; i++) {
-        struct SwiftNetClientConnection* const client_connection = vector_get(&listener->client_connections, i);
-        if (client_connection == con) {
-            vector_remove(&listener->client_connections, i);
-        }
-    }
+    hashmap_remove(&con->port_info.source_port, sizeof(uint16_t), &listener->client_connections);
 
-    vector_unlock(&listener->client_connections);
+    UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 }
 
 struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_address, const uint16_t port, const uint32_t timeout_ms) {

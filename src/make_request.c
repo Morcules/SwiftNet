@@ -1,6 +1,7 @@
 #include "internal/internal.h"
 #include "swift_net.h"
 #include <stdatomic.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -8,15 +9,11 @@
 #ifdef SWIFT_NET_REQUESTS
 
 static inline void delete_request_sent(struct RequestSent* request_sent) {
-    vector_lock(&requests_sent);
+    LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock)
 
-    for (uint32_t i = 0; i < requests_sent.size; i++) {
-        if (vector_get(&requests_sent, i) == request_sent) {
-            vector_remove(&requests_sent, i);
-        }
-    }
+    hashmap_remove(&request_sent->packet_id, sizeof(uint16_t), &requests_sent);
 
-    vector_unlock(&requests_sent);
+    UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock)
 
     allocator_free(&requests_sent_memory_allocator, request_sent);
 }

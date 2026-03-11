@@ -36,18 +36,20 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 
     memset(&new_server->packet_callback_queue, 0x00, sizeof(struct PacketCallbackQueue));
 
-    atomic_store_explicit(&new_server->packet_queue.owner, NONE, memory_order_release);
-    atomic_store_explicit(&new_server->packet_callback_queue.owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&new_server->packet_queue.locked);
+    UNLOCK_ATOMIC_DATA_TYPE(&new_server->packet_callback_queue.locked);
+
     atomic_store_explicit(&new_server->packet_handler, NULL, memory_order_release);
     atomic_store_explicit(&new_server->packet_handler_user_arg, NULL, memory_order_release);
     atomic_store_explicit(&new_server->closing, false, memory_order_release);
 
     new_server->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 100);
-    new_server->pending_messages = vector_create(100);
     new_server->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
-    new_server->packets_sending = vector_create(100);
     new_server->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
-    new_server->packets_completed = vector_create(100);
+
+    new_server->packets_completed = hashmap_create(&uint16_memory_allocator);
+    new_server->packets_sending = hashmap_create(&uint16_memory_allocator);
+    new_server->pending_messages = hashmap_create(&uint16_memory_allocator);
 
     return new_server;
 }

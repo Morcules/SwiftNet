@@ -29,10 +29,9 @@ extern "C" {
 #define SWIFT_NET_DEBUG
 #endif
 
-enum PacketQueueOwner {
-    NONE = 0x00,
-    SOME = 0xFF
-};
+// Multiplication of memory pre allocated.
+// More memory = better performance
+#define SWIFT_NET_MEMORY_USAGE 5
 
 enum PacketType {
     MESSAGE = 0x01,
@@ -156,7 +155,7 @@ struct PacketQueueNode {
 struct PacketQueue {
     struct PacketQueueNode* first_node;
     struct PacketQueueNode* last_node;
-    _Atomic enum PacketQueueOwner owner;
+    _Atomic bool locked;
 };
 
 struct PacketCallbackQueueNode {
@@ -183,7 +182,7 @@ struct SwiftNetClientPacketData {
 struct PacketCallbackQueue {
     struct PacketCallbackQueueNode* first_node;
     struct PacketCallbackQueueNode* last_node;
-    _Atomic enum PacketQueueOwner owner;
+    _Atomic bool locked;
 };
 
 struct SwiftNetSentSuccessfullyCompletedPacketSignal {
@@ -220,7 +219,24 @@ struct SwiftNetVector {
     void** data;
     uint32_t size;
     uint32_t capacity;
-    _Atomic uint8_t locked;
+    _Atomic bool locked;
+};
+
+struct SwiftNetHashMapItem {
+    uint32_t key_original_data_size;
+    struct SwiftNetHashMapItem* next; // Contains next element with same key.
+    void* key_original_data; // Dynamically allocated original key data
+    void* value; // Data stored in item
+};
+
+// Custom implementation of a hashmap
+struct SwiftNetHashMap {
+    _Atomic bool atomic_lock;
+    uint32_t capacity;
+    uint32_t size;
+    struct SwiftNetHashMapItem* items;
+    struct SwiftNetMemoryAllocator* key_memory_allocator;
+    uint32_t* item_occupation; // Bitset tracking which indexes of items array are occupied for looping through items without many cycles.
 };
 
 // Connection data
@@ -228,15 +244,15 @@ struct SwiftNetClientConnection {
     pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    struct SwiftNetVector packets_completed;
+    struct SwiftNetHashMap packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
     pthread_t process_packets_thread;
-    struct SwiftNetVector pending_messages;
+    struct SwiftNetHashMap pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetVector packets_sending;
+    struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;
@@ -262,11 +278,11 @@ struct SwiftNetServer {
     pthread_mutex_t process_packets_mtx;
     pthread_cond_t process_packets_cond;
     pthread_t process_packets_thread;
-    struct SwiftNetVector pending_messages;
+    struct SwiftNetHashMap pending_messages;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetVector packets_sending;
+    struct SwiftNetHashMap packets_sending;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
-    struct SwiftNetVector packets_completed;
+    struct SwiftNetHashMap packets_completed;
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;

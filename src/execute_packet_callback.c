@@ -7,18 +7,11 @@
 #include <unistd.h>
 #include <pthread.h>
 
-static inline void lock_packet_queue(struct PacketCallbackQueue* const packet_queue) {
-    enum PacketQueueOwner owner_none = NONE;
-    while(!atomic_compare_exchange_strong_explicit(&packet_queue->owner, &owner_none, SOME, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = NONE;
-    }
-}
-
 static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struct PacketCallbackQueue* const packet_queue) {
-    lock_packet_queue(packet_queue);
+    LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->first_node == NULL) {
-        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
         return NULL;
     }
 
@@ -28,29 +21,24 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
         packet_queue->first_node = NULL;
         packet_queue->last_node = NULL;
 
-        atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+        UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
-    atomic_store_explicit(&packet_queue->owner, NONE, memory_order_release);
+    UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     return node_to_process;
 }
 
-static inline void remove_pending_message_from_vector(struct SwiftNetVector* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
-    vector_lock(pending_messages);
+static inline void remove_pending_message_from_hashmap(struct SwiftNetHashMap* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
+    LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    for (uint32_t i = 0; i < pending_messages->size; i++) {
-        const struct SwiftNetPendingMessage* const current_pending_message = vector_get(pending_messages, i);
-        if (current_pending_message == pending_message) {
-            vector_remove(pending_messages, i);
-        }
-    }
+    hashmap_remove(&pending_message->packet_id, sizeof(uint16_t), pending_messages);
 
-    vector_unlock(pending_messages);
+    UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 }
 
 void execute_packet_callback(
@@ -61,7 +49,7 @@ void execute_packet_callback(
 	struct SwiftNetMemoryAllocator* const pending_message_memory_allocator,
 	_Atomic bool* closing,
 	void* const connection,
-	struct SwiftNetVector* const pending_messages,
+	struct SwiftNetHashMap* const pending_messages,
 	_Atomic(void*)* user_data,
     pthread_mutex_t* const execute_callback_mtx,
     pthread_cond_t* const execute_callback_cond
@@ -92,7 +80,7 @@ void execute_packet_callback(
         }
 
         if(node->pending_message != NULL) {
-            remove_pending_message_from_vector(pending_messages, node->pending_message);
+            remove_pending_message_from_hashmap(pending_messages, node->pending_message);
         }
 
         void (*const packet_handler_loaded)(void* const, void* const) = atomic_load(packet_handler);

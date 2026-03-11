@@ -2,17 +2,6 @@
 #include <stdatomic.h>
 #include <stdint.h>
 
-void vector_lock(struct SwiftNetVector* const vector) {
-    uint8_t owner_none = 0;
-    while(!atomic_compare_exchange_strong_explicit(&vector->locked, &owner_none, UINT8_MAX, memory_order_acquire, memory_order_relaxed)) {
-        owner_none = 0;
-    }
-}
-
-void vector_unlock(struct SwiftNetVector* const vector) {
-    atomic_store_explicit(&vector->locked, 0, memory_order_release);
-}
-
 struct SwiftNetVector vector_create(const uint32_t starting_amount) {
     void* const data_ptr = malloc(sizeof(void*) * starting_amount);
     if (unlikely(data_ptr == NULL)) {

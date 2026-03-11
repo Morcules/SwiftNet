@@ -15,18 +15,7 @@
 #include "internal/internal.h"
 #include <netinet/in.h>
 
-static inline void lock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    bool locked = false;
-    while(!atomic_compare_exchange_strong_explicit(&packet_sending->locked, &locked, true, memory_order_acquire, memory_order_relaxed)) {
-        locked = false;
-    }
-}
-
-static inline void unlock_packet_sending(struct SwiftNetPacketSending* const packet_sending) {
-    atomic_store_explicit(&packet_sending->locked, false, memory_order_release);
-}
-
-static inline uint8_t request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
+static inline enum RequestLostPacketsReturnType request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
     while(1) {
         if(check_debug_flag(LOST_PACKETS)) {
             send_debug_message("Requested list of lost packets: {\"packet_id\": %d}\n", packet_sending->packet_id);
@@ -58,13 +47,13 @@ static inline void handle_lost_packets(
     struct SwiftNetPacketSending* const packet_sending,
     const uint32_t mtu,
     const struct SwiftNetPacketBuffer* const packet, 
-    pcap_t* pcap,
+    pcap_t* const pcap,
     const struct ether_header eth_hdr,
     const struct in_addr* const destination_address,
     const uint16_t source_port,
     const uint16_t destination_port,
     struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
-    struct SwiftNetVector* const packets_sending,
+    struct SwiftNetHashMap* const packets_sending,
     const bool loopback,
     const uint16_t addr_type,
     const uint8_t prepend_size
@@ -112,9 +101,9 @@ static inline void handle_lost_packets(
     HANDLE_PACKET_CONSTRUCTION(&resend_chunk_ip_header, &resend_chunk_packet_info, addr_type, &eth_hdr, mtu + prepend_size, resend_chunk_buffer)
 
     while(1) {
-        const uint8_t request_lost_packets_bitarray_response = request_lost_packets_bitarray(request_lost_packets_buffer, PACKET_HEADER_SIZE + prepend_size, (const struct sockaddr*)destination_address, pcap, packet_sending);
+        const enum RequestLostPacketsReturnType request_lost_packets_bitarray_response = request_lost_packets_bitarray(request_lost_packets_buffer, PACKET_HEADER_SIZE + prepend_size, (const struct sockaddr*)destination_address, pcap, packet_sending);
 
-        lock_packet_sending(packet_sending);
+        LOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
         switch (request_lost_packets_bitarray_response) {
             case REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY:
@@ -122,19 +111,9 @@ static inline void handle_lost_packets(
             case REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET:
                 free((void*)packet_sending->lost_chunks);
 
-                vector_lock(packets_sending);
+                hashmap_remove(&packet_sending->packet_id, sizeof(packet_sending->packet_id), packets_sending);
 
-                for (uint32_t i = 0; i < packets_sending->size; i++) {
-                    if (((struct SwiftNetPacketSending*)vector_get(packets_sending, i))->packet_id == packet_sending->packet_id) {
-                        vector_remove(packets_sending, i);
-
-                        break;
-                    }
-                }
-
-                vector_unlock(packets_sending);
-
-                unlock_packet_sending(packet_sending);
+                UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
                 allocator_free(packets_sending_memory_allocator, packet_sending);
 
@@ -175,7 +154,7 @@ static inline void handle_lost_packets(
             }
         }
 
-        unlock_packet_sending(packet_sending);
+        UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
     }
 }
 
@@ -186,7 +165,7 @@ inline void swiftnet_send_packet(
     const struct SwiftNetPacketBuffer* const packet,
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
-    struct SwiftNetVector* const packets_sending,
+    struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     pcap_t* const pcap,
     const struct ether_header eth_hdr,
@@ -218,11 +197,14 @@ inline void swiftnet_send_packet(
         if (request_sent != NULL) {
             request_sent->packet_id = packet_id;
 
-            vector_lock(&requests_sent);
+            LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-            vector_push(&requests_sent, request_sent);
+            uint16_t* const restrict hashmap_key_mem = allocator_allocate(&uint16_memory_allocator);
+            *hashmap_key_mem = packet_id;
 
-            vector_unlock(&requests_sent);
+            hashmap_insert(hashmap_key_mem, sizeof(uint16_t), request_sent, &requests_sent);
+
+            UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
         }
     #else
         const uint16_t packet_id = rand();
@@ -255,17 +237,21 @@ inline void swiftnet_send_packet(
             return;
         }
 
-        vector_lock(packets_sending);
+        LOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
-        vector_push((struct SwiftNetVector*)packets_sending, (struct SwiftNetPacketSending*)new_packet_sending);
-
-        vector_unlock(packets_sending);
+        uint16_t* const key_data_mem = allocator_allocate(&uint16_memory_allocator);
+        *key_data_mem = packet_id;
 
         new_packet_sending->lost_chunks = NULL;
         new_packet_sending->locked = false;
         new_packet_sending->lost_chunks = NULL;
         new_packet_sending->lost_chunks_size = 0;
         new_packet_sending->packet_id = packet_id;
+        atomic_store_explicit(&new_packet_sending->updated, NO_UPDATE, memory_order_release);
+
+        hashmap_insert(key_data_mem, sizeof(uint16_t), new_packet_sending, packets_sending);
+
+        UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
         HANDLE_PACKET_CONSTRUCTION(&ip_header, &packet_info, addr_type, &eth_hdr, mtu + prepend_size, buffer)
 

@@ -27,6 +27,7 @@ set(SOURCE_FILES
     internal/get_default_interface_and_mac.c
     internal/datatype_allocator.c
     internal/datatype_vector.c
+    internal/datatype_hashmap.c
     internal/pcap_open.c
     internal/pcap_send.c
     internal/check_existing_listener.c
