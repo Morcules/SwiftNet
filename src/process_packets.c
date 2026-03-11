@@ -133,27 +133,21 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
 static inline void handle_request_response(uint16_t packet_id, struct SwiftNetPendingMessage* const pending_message, void* const packet_data, struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_message_memory_allocator, const enum ConnectionType connection_type, const bool loopback) {
     bool is_valid_response = false;
 
-    LOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
+    LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-    for (uint32_t i = 0; i < requests_sent.size; i++) {
-        struct RequestSent* const current_request_sent = vector_get(&requests_sent, i);
-
-        if (current_request_sent == NULL) {
-            continue;
-        }
-
-        if (current_request_sent->packet_id == packet_id) {
-            atomic_store_explicit(&current_request_sent->packet_data, packet_data, memory_order_release);
-
-            vector_remove(&requests_sent, i);
-
-            is_valid_response = true;
-
-            break;
-        }
+    struct RequestSent* const request_sent = hashmap_get(&packet_id, sizeof(uint16_t), &requests_sent);
+    if (request_sent == NULL) {
+        UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
+        return;
     }
 
-    UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
+    atomic_store_explicit(&request_sent->packet_data, packet_data, memory_order_release);
+
+    hashmap_remove(&packet_id, sizeof(uint16_t), &requests_sent);
+
+    is_valid_response = true;
+
+    UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
     if (is_valid_response == true) {
         if (pending_message != NULL) {

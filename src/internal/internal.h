@@ -274,7 +274,7 @@ struct RequestSent {
 };
 
 extern struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
-extern struct SwiftNetVector requests_sent;
+extern struct SwiftNetHashMap requests_sent;
 #endif
 
 extern void swiftnet_send_packet(

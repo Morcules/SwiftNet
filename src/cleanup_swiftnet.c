@@ -40,7 +40,7 @@ void swiftnet_cleanup() {
     #ifdef SWIFT_NET_REQUESTS
         allocator_destroy(&requests_sent_memory_allocator);
 
-        vector_destroy(&requests_sent);
+        hashmap_destroy(&requests_sent);
     #endif
 
     close_listeners();

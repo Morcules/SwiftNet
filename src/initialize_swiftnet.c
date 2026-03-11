@@ -38,7 +38,7 @@ struct SwiftNetMemoryAllocator uint16_memory_allocator;
 
 #ifdef SWIFT_NET_REQUESTS
     struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
-    struct SwiftNetVector requests_sent;
+    struct SwiftNetHashMap requests_sent;
 #endif
 
 struct SwiftNetVector listeners;
@@ -67,7 +67,7 @@ static inline void initialize_allocators() {
 
 static inline void initialize_vectors() {
     #ifdef SWIFT_NET_REQUESTS
-    requests_sent = vector_create(100);
+    requests_sent = hashmap_create();
     #endif
 
     listeners = vector_create(10);

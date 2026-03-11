@@ -197,11 +197,14 @@ inline void swiftnet_send_packet(
         if (request_sent != NULL) {
             request_sent->packet_id = packet_id;
 
-            LOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
+            LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-            vector_push(&requests_sent, request_sent);
+            uint16_t* const restrict hashmap_key_mem = allocator_allocate(&uint16_memory_allocator);
+            *hashmap_key_mem = packet_id;
 
-            UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.locked);
+            hashmap_insert(hashmap_key_mem, sizeof(uint16_t), request_sent, &requests_sent);
+
+            UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
         }
     #else
         const uint16_t packet_id = rand();
