@@ -12,7 +12,7 @@
 
 ## Supported Platforms
 - **Apple Silicon (macOS arm64)**
-- **Linux arm64** (Disabled, because of TSAN issues)
+- **Linux arm64** (Release build works, but testing is disabled due to TSAN issues)
 
 ## Features
 - **💡 Ease of Use**: Simple API designed to get up and running quickly, without needing to deal directly with raw sockets.
