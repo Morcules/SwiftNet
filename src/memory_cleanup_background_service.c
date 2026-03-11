@@ -21,37 +21,41 @@ static inline void cleanup_packets_completed(struct SwiftNetHashMap* packets_com
     UNLOCK_ATOMIC_DATA_TYPE(&packets_completed->atomic_lock);
 }
 
+static inline void handle_listener(struct Listener* const current_listener) {
+    struct SwiftNetHashMap* const client_connections = &current_listener->client_connections;
+    struct SwiftNetHashMap* const servers = &current_listener->servers;
+
+    LOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
+    LOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
+
+    LOOP_HASHMAP(client_connections,
+        struct SwiftNetClientConnection* const client_connection = hashmap_data;
+        cleanup_packets_completed(&client_connection->packets_completed, &client_connection->packets_completed_memory_allocator);
+    )
+
+    LOOP_HASHMAP(servers,
+        struct SwiftNetServer* const server = hashmap_data;
+        cleanup_packets_completed(&server->packets_completed, &server->packets_completed_memory_allocator);
+    )
+
+    UNLOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
+    UNLOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
+}
+
 void* memory_cleanup_background_service() {
     while(atomic_load_explicit(&swiftnet_closing, memory_order_acquire) == false) {
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
+        LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-        for (uint32_t i = 0; i < listeners.size; i++) {
-            struct Listener* const current_listener = vector_get(&listeners, i);
+        struct SwiftNetHashMap* const listeners_map = &listeners;
 
-            struct SwiftNetHashMap* const client_connections = &current_listener->client_connections;
-            struct SwiftNetHashMap* const servers = &current_listener->servers;
+        LOOP_HASHMAP(listeners_map,
+            handle_listener(hashmap_data);
+        )
 
-            LOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
-            LOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
-
-            LOOP_HASHMAP(client_connections,
-                struct SwiftNetClientConnection* const client_connection = hashmap_data;
-                cleanup_packets_completed(&client_connection->packets_completed, &client_connection->packets_completed_memory_allocator);
-            )
-
-            LOOP_HASHMAP(servers,
-                struct SwiftNetServer* const server = hashmap_data;
-                cleanup_packets_completed(&server->packets_completed, &server->packets_completed_memory_allocator);
-            )
-
-            UNLOCK_ATOMIC_DATA_TYPE(&servers->atomic_lock);
-            UNLOCK_ATOMIC_DATA_TYPE(&client_connections->atomic_lock);
-        }
-
-        UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
+        UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
         gettimeofday(&end, NULL);
 

@@ -5,10 +5,12 @@
 #include <stdio.h>
 
 static inline void close_listeners() {
-    LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-    for (uint16_t i = 0; i < listeners.size; i++) {
-        struct Listener* const current_listener = vector_get(&listeners, i);
+    struct SwiftNetHashMap* const listeners_map = &listeners;
+
+    LOOP_HASHMAP(listeners_map,
+        struct Listener* const current_listener = hashmap_data;
 
         pcap_breakloop(current_listener->pcap);
 
@@ -18,9 +20,9 @@ static inline void close_listeners() {
 
         hashmap_destroy(&current_listener->client_connections);
         hashmap_destroy(&current_listener->servers);
-    }
+    )
 
-    vector_destroy(&listeners);
+    hashmap_destroy(&listeners);
 }
 
 static inline void close_background_service() {

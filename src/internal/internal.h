@@ -164,7 +164,7 @@ enum ConnectionType {
 
 extern uint64_t seed;
 
-extern struct SwiftNetVector listeners;
+extern struct SwiftNetHashMap listeners;
 
 extern pthread_t memory_cleanup_thread;
 extern _Atomic bool swiftnet_closing;
@@ -261,7 +261,7 @@ extern struct SwiftNetHashMap hashmap_create();
 extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);
 extern void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
 extern void hashmap_destroy(struct SwiftNetHashMap* const hashmap);
-extern void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap);
+extern void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap);
 
 extern void* server_start_pcap(void* server_void);
 extern void* client_start_pcap(void* client_void);

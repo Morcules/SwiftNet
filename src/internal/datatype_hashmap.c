@@ -22,7 +22,7 @@ static inline uint64_t hash64(const uint8_t* const data, const uint32_t data_siz
     return res;
 }
 
-static inline uint32_t get_key(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
+static inline uint32_t get_key(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
     // Mapping to max value of items allocated
     // Must rehash when scalling hashmap
     return ((__uint128_t)hash64(key_data, data_size) * hashmap->capacity) >> 64;
@@ -102,7 +102,7 @@ struct SwiftNetHashMap hashmap_create() {
     };
 }
 
-void* hashmap_get(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
+void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
     const uint64_t key = get_key(key_data, data_size, hashmap);
 
     struct SwiftNetHashMapItem* current_item = hashmap->items + key;

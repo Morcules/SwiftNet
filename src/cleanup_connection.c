@@ -3,6 +3,7 @@
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 static inline void cleanup_connection_resources(const enum ConnectionType connection_type, void* const connection) {
@@ -29,31 +30,33 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
     }
 }
 
-static inline void remove_listener(const enum ConnectionType connection_type, const char* interface_name, void* const connection) {
-    LOCK_ATOMIC_DATA_TYPE(&listeners.locked);
+static inline void remove_listener(const enum ConnectionType connection_type, const char* const interface_name, void* const connection) {
+    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-    for (uint16_t i = 0; i < listeners.size; i++) {
-        struct Listener* const current_listener = vector_get(&listeners, i);
-        if (strcmp(interface_name, current_listener->interface_name) == 0) {
-            if (connection_type == CONNECTION_TYPE_CLIENT) {
-                LOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.atomic_lock);
+    const uint32_t interface_len = strlen(interface_name);
 
-                hashmap_remove(&((struct SwiftNetClientConnection*)connection)->port_info.source_port, sizeof(uint16_t), &current_listener->client_connections);
+    struct Listener* const listener = hashmap_get(interface_name, interface_len, &listeners);
+    if (listener == NULL) {
+        UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->client_connections.atomic_lock);
-            } else {
-                LOCK_ATOMIC_DATA_TYPE(&current_listener->servers.atomic_lock);
-
-                hashmap_remove(&((struct SwiftNetServer*)connection)->server_port, sizeof(uint16_t), &current_listener->servers);
-
-                UNLOCK_ATOMIC_DATA_TYPE(&current_listener->servers.atomic_lock);
-            }
-
-            break;
-        }
+        return;
     }
 
-    UNLOCK_ATOMIC_DATA_TYPE(&listeners.locked);
+    if (connection_type == CONNECTION_TYPE_CLIENT) {
+        LOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
+
+        hashmap_remove(&((struct SwiftNetClientConnection*)connection)->port_info.source_port, sizeof(uint16_t), &listener->client_connections);
+
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
+    } else {
+        LOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
+
+        hashmap_remove(&((struct SwiftNetServer*)connection)->server_port, sizeof(uint16_t), &listener->servers);
+
+        UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
+    }
+
+    UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 }
 
 static inline const char* get_interface_name(const bool loopback) {
@@ -109,7 +112,7 @@ static inline void close_threads(const enum ConnectionType connection_type, void
 void swiftnet_client_cleanup(struct SwiftNetClientConnection* const client) {
     cleanup_connection_resources(CONNECTION_TYPE_CLIENT, client);
     
-    const char* interface_name = get_interface_name(client->loopback);
+    const char* const interface_name = get_interface_name(client->loopback);
 
     remove_listener(CONNECTION_TYPE_CLIENT, interface_name, client);
 

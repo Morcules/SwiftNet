@@ -41,7 +41,7 @@ struct SwiftNetMemoryAllocator uint16_memory_allocator;
     struct SwiftNetHashMap requests_sent;
 #endif
 
-struct SwiftNetVector listeners;
+struct SwiftNetHashMap listeners;
 
 pthread_t memory_cleanup_thread;
 
@@ -70,7 +70,7 @@ static inline void initialize_vectors() {
     requests_sent = hashmap_create();
     #endif
 
-    listeners = vector_create(10);
+    listeners = hashmap_create();
 }
 
 static inline void initialize_memory_cleanup_thread() {

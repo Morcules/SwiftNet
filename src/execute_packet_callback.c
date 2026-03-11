@@ -33,7 +33,7 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
     return node_to_process;
 }
 
-static inline void remove_pending_message_from_vector(struct SwiftNetHashMap* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
+static inline void remove_pending_message_from_hashmap(struct SwiftNetHashMap* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
     LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
     hashmap_remove(&pending_message->packet_id, sizeof(uint16_t), pending_messages);
@@ -80,7 +80,7 @@ void execute_packet_callback(
         }
 
         if(node->pending_message != NULL) {
-            remove_pending_message_from_vector(pending_messages, node->pending_message);
+            remove_pending_message_from_hashmap(pending_messages, node->pending_message);
         }
 
         void (*const packet_handler_loaded)(void* const, void* const) = atomic_load(packet_handler);
