@@ -9,6 +9,7 @@
 - [Contributing](#contributing)
 - [Goals](#goals)
 - [License](#license)
+- [Performance](#performance)
 
 ## Supported Platforms
 - **Apple Silicon (macOS arm64)**
@@ -34,6 +35,32 @@
 - AF_XDP Linux support
 
 - Long-term: optional hardware acceleration (FPGA/ASIC) with external NIC to bypass OS overhead for server side processing
+
+## Performance
+
+- **Hardware & Conditions**  
+  Tested on a MacBook Air M3 (my daily driver machine, running multiple background applications)
+
+- **Interface**  
+  Real Wi-Fi interface: en0
+
+- **Throughput**  
+  18 million bytes per second
+
+- **Memory Usage**  
+  Peak memory footprint: 10 million bytes
+
+- **CPU Usage**  
+  Average utilization: ~8%
+
+- **Detailed Timing (from /usr/bin/time -l)**  
+  - Real (wall-clock) time: 5.01 seconds  
+  - User CPU time: 0.58 seconds  
+  - System CPU time: 0.23 seconds  
+  - Total CPU time: 0.81 seconds
+
+- **CPU Cycles**  
+  2,273,393,860 cycles
 
 ## Installation
 Follow these steps to install SwiftNet:
