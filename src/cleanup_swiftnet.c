@@ -52,6 +52,8 @@ void swiftnet_cleanup() {
 
     allocator_destroy(&listener_memory_allocator);
     allocator_destroy(&uint16_memory_allocator);
+    allocator_destroy(&packet_completed_key_allocator);
+    allocator_destroy(&pending_message_key_allocator);
 
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);

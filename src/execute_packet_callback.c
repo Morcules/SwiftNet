@@ -35,8 +35,13 @@ static struct PacketCallbackQueueNode* const wait_for_next_packet_callback(struc
 
 static inline void remove_pending_message_from_hashmap(struct SwiftNetHashMap* const pending_messages, struct SwiftNetPendingMessage* const pending_message) {
     LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
+    
+    struct PendingMessagesKey key = {
+        .source_port = pending_message->source_port,
+        .packet_id = pending_message->packet_id
+    };
 
-    hashmap_remove(&pending_message->packet_id, sizeof(uint16_t), pending_messages);
+    hashmap_remove(&key, sizeof(key), pending_messages);
 
     UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 }

@@ -103,6 +103,7 @@ struct SwiftNetPendingMessage {
     struct SwiftNetPacketInfo packet_info;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
+    uint16_t source_port;
     uint16_t packet_id;
 };
 
