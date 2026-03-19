@@ -86,9 +86,9 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
     new_connection->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 100);
     new_connection->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
     new_connection->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
-    new_connection->packets_completed = hashmap_create(&uint16_memory_allocator);
+    new_connection->packets_completed = hashmap_create(&packet_completed_key_allocator);
     new_connection->packets_sending = hashmap_create(&uint16_memory_allocator);
-    new_connection->pending_messages = hashmap_create(&uint16_memory_allocator);
+    new_connection->pending_messages = hashmap_create(&pending_message_key_allocator);
     
     new_connection->packet_queue = (struct PacketQueue){
         .first_node = NULL,

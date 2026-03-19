@@ -35,6 +35,8 @@ struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 struct SwiftNetMemoryAllocator listener_memory_allocator;
 struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
 struct SwiftNetMemoryAllocator uint16_memory_allocator;
+struct SwiftNetMemoryAllocator pending_message_key_allocator;
+struct SwiftNetMemoryAllocator packet_completed_key_allocator;
 
 #ifdef SWIFT_NET_REQUESTS
     struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
@@ -58,6 +60,8 @@ static inline void initialize_allocators() {
     listener_memory_allocator = allocator_create(sizeof(struct Listener), 100);
     hashmap_item_memory_allocator = allocator_create(sizeof(struct SwiftNetHashMapItem), 0xFF);
     uint16_memory_allocator = allocator_create(sizeof(uint16_t), 0xFF);
+    pending_message_key_allocator = allocator_create(sizeof(struct PendingMessagesKey), 0xFF);
+    packet_completed_key_allocator = allocator_create(sizeof(struct PacketCompletedKey), 0xFF);
     
     #ifdef SWIFT_NET_REQUESTS
     requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 100);

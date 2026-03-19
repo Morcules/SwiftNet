@@ -147,6 +147,16 @@ enum AllocatorStackState {
     ALLOCATOR_STACK_OCCUPIED = 1
 };
 
+struct PendingMessagesKey {
+    uint16_t source_port;
+    uint16_t packet_id;
+};
+
+struct PacketCompletedKey {
+    uint16_t source_port;
+    uint16_t packet_id;
+};
+
 struct Listener {
     pcap_t* pcap;
     pthread_t listener_thread;
@@ -165,6 +175,9 @@ enum ConnectionType {
 extern uint64_t seed;
 
 extern struct SwiftNetHashMap listeners;
+
+extern struct SwiftNetMemoryAllocator pending_message_key_allocator;
+extern struct SwiftNetMemoryAllocator packet_completed_key_allocator;
 
 extern pthread_t memory_cleanup_thread;
 extern _Atomic bool swiftnet_closing;
