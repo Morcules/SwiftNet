@@ -128,7 +128,7 @@ configure_package_config_file(
 
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/morcules-swiftnetConfigVersion.cmake
-    VERSION 0.4.0
+    VERSION 0.5.0
     COMPATIBILITY AnyNewerVersion
 )
 
