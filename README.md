@@ -1,6 +1,6 @@
 # SwiftNet - Networking Library
 
-## SwiftNet is a simple and easy to use networking library built using pcap working on layer 2. It is designed for developers who value simplicity, readability, and good performance.
+## SwiftNet is a lightweight networking library built on top of pcap, operating at Layer 2. It is designed for developers who value simplicity, readability, and performance.
 
 - [Features](#features)
 - [Installation](#installation)
@@ -10,19 +10,28 @@
 - [Goals](#goals)
 - [License](#license)
 - [Performance](#performance)
+- [Use Cases](#use-cases)
+
+## Use Cases
+- High performance server side networking with kernel bypass (DPDK / AF_XDP)
+- Performance critical applications requiring minimal OS overhead
+- Multiplayer game networking with fully custom transport protocols
 
 ## Supported Platforms
 - **Apple Silicon (macOS arm64)**
 - **Linux arm64** (Release build works, but testing is disabled due to TSAN issues)
 
 ## Features
-- **💡 Ease of Use**: Simple API designed to get up and running quickly, without needing to deal directly with raw sockets.
+- **💡 Ease of Use**: Simple API designed to get up and running quickly, without needing to deal directly with scokets, ip/eth headers or complicated libraries.
 - **📂 Lightweight**: No dependencies except PCAP and a small footprint.
 
 ## Why Use SwiftNet?
 - **Straightforward API:** Get up and running with minimal setup.
 - **Open Source and Collaborative:** Contributions are welcome to make it even better.
 - **Compile time feature choosing** Compile only specific features of the library.
+- **Lightweight** Static library build is under 1MB.
+- **Future-proof** Designed to scale with optional features enabled at compile time.
+- **Server side performance** The main focus is to make linux servers easily scalable, by enabling AF DXP, DPDK or other ways of accelerating packets without operating system involvement.
 
 ## Future Version Goals
 - **0.5.0:** Performance improvements in critical paths, ready for some real world usage
@@ -45,7 +54,7 @@
   Real Wi-Fi interface: en0
 
 - **Throughput**  
-  18 million bytes per second
+  18 MB/s
 
 - **Memory Usage**  
   Peak memory footprint: 10 million bytes
