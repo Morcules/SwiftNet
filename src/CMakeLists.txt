@@ -50,6 +50,7 @@ else()
 endif()
 
 add_library(swiftnet STATIC ${SOURCE_FILES})
+add_library(swiftnet_shared SHARED ${SOURCE_FILES})
 
 if (SWIFT_NET_INTERNAL_TESTING)
     message("Internal Testing Enabled")
@@ -58,11 +59,17 @@ if (SWIFT_NET_INTERNAL_TESTING)
 
     target_compile_options(swiftnet PRIVATE -O0)
     target_link_options(swiftnet PRIVATE -O0)
+
+    target_compile_options(swiftnet_shared PRIVATE -O0)
+    target_link_options(swiftnet_shared PRIVATE -O0)
 else()
     message("Internal Testing Disabled")
 
     target_compile_options(swiftnet PRIVATE -O3)
     target_link_options(swiftnet PRIVATE -O3)
+
+    target_compile_options(swiftnet_shared PRIVATE -O3)
+    target_link_options(swiftnet_shared PRIVATE -O3)
 endif()
 
 if(DEFINED ENV{VCPKG_ROOT} AND DEFINED CMAKE_VCPKG_TARGET_TRIPLET)
@@ -80,11 +87,15 @@ if(DEFINED ENV{VCPKG_ROOT} AND DEFINED CMAKE_VCPKG_TARGET_TRIPLET)
         message(STATUS "libpcap found: ${PCAP_LIBRARY}")
         target_include_directories(swiftnet PUBLIC ${PCAP_INCLUDE_DIR})
         target_link_libraries(swiftnet PUBLIC ${PCAP_LIBRARY})
+
+        target_include_directories(swiftnet_shared PUBLIC ${PCAP_INCLUDE_DIR})
+        target_link_libraries(swiftnet_shared PUBLIC ${PCAP_LIBRARY})
     else()
         message(WARNING "libpcap not found!!!")
     endif()
 else()
     target_link_options(swiftnet PRIVATE -lpcap)
+    target_link_options(swiftnet_shared PRIVATE -lpcap)
 
     message("using linking option: -lpcap")
 endif()
@@ -92,6 +103,12 @@ endif()
 set_target_properties(swiftnet PROPERTIES
     OUTPUT_NAME "swiftnet"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/output"
+    PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/swift_net.h"
+)
+
+set_target_properties(swiftnet_shared PROPERTIES
+    OUTPUT_NAME "swiftnet"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/output"
     PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/swift_net.h"
 )
 
