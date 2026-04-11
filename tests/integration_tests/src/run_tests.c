@@ -217,7 +217,7 @@ int main() {
 
     swiftnet_initialize();
 
-    swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(PACKETS_SENDING | PACKETS_RECEIVING | INITIALIZATION | LOST_PACKETS));
+    swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(SWIFTNET_DEBUG_PACKETS_SENDING | SWIFTNET_DEBUG_PACKETS_RECEIVING | SWIFTNET_DEBUG_INITIALIZATION | SWIFTNET_DEBUG_LOST_PACKETS));
 
     for (uint16_t i = 0; i < sizeof(tests) / sizeof(struct Test); i++) {
         const struct Test* current_test = &tests[i];

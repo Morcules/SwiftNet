@@ -51,7 +51,7 @@ void* request_server_information(void* const request_server_information_args_voi
         }
 
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(INITIALIZATION)) {
+            if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
                 send_debug_message("Requested server information: {\"server_ip_address\": \"%s\"}\n", inet_ntoa(request_server_information_args->server_addr));
             }
         #endif
@@ -182,7 +182,7 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     pthread_cond_init(&new_connection->execute_callback_cond, NULL);
 
     #ifdef SWIFT_NET_DEBUG
-        if (check_debug_flag(INITIALIZATION)) {
+        if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
             send_debug_message("Successfully initialized client\n");
         }
     #endif

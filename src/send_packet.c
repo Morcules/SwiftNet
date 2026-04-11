@@ -18,7 +18,7 @@
 
 static inline enum RequestLostPacketsReturnType request_lost_packets_bitarray(const uint8_t* const raw_data, const uint32_t data_size, const struct sockaddr* const destination, pcap_t* const pcap, struct SwiftNetPacketSending* const packet_sending) {
     while(1) {
-        if(check_debug_flag(LOST_PACKETS)) {
+        if(check_debug_flag(SWIFTNET_DEBUG_LOST_PACKETS)) {
             send_debug_message("Requested list of lost packets: {\"packet_id\": %d}\n", packet_sending->packet_id);
         }
 
@@ -145,7 +145,7 @@ static inline void handle_lost_packets(
 
             memcpy(current_buffer_header_ptr, prepend_buffer, prepend_size + PACKET_HEADER_SIZE);
 
-            if (check_debug_flag(LOST_PACKETS) == true) {
+            if (check_debug_flag(SWIFTNET_DEBUG_LOST_PACKETS) == true) {
                 send_debug_message("Packet lost: {\"packet_id\": %d, \"chunk index\": %d}\n", packet_sending->packet_id, lost_chunk_index);
             }
     
@@ -199,7 +199,7 @@ inline void swiftnet_send_packet(
     const uint32_t mtu = MIN(target_maximum_transmission_unit, maximum_transmission_unit);
 
     #ifdef SWIFT_NET_DEBUG
-        if (check_debug_flag(PACKETS_SENDING)) {
+        if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_SENDING)) {
             send_debug_message("Sending packet: {\"destination_ip_address\": \"%s\", \"destination_port\": %d, \"packet_length\": %d}\n", inet_ntoa(*target_addr), port_info.destination_port, packet_length);
         }
     #endif
@@ -291,7 +291,7 @@ inline void swiftnet_send_packet(
             const uint32_t current_offset = i * (mtu - PACKET_HEADER_SIZE);
 
             #ifdef SWIFT_NET_DEBUG
-                if (check_debug_flag(PACKETS_SENDING)) {
+                if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_SENDING)) {
                     send_debug_message("Sent chunk: {\"chunk_index\": %d}\n", i);
                 }
             #endif

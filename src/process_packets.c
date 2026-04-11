@@ -363,7 +363,7 @@ static inline void swiftnet_process_packets(
         if(memcmp(&ip_header.ip_src, &ip_header.ip_dst, sizeof(struct in_addr)) != 0 && is_private_ip(ip_header.ip_src) == false && is_private_ip(ip_header.ip_dst)) { 
             if(ip_header.ip_sum != 0 && packet_corrupted(checksum_received, node->data_read, packet_buffer) == true) {
                 #ifdef SWIFT_NET_DEBUG
-                    if (check_debug_flag(PACKETS_RECEIVING)) {
+                    if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_RECEIVING)) {
                         send_debug_message("Received corrupted packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"received_checsum\": %d, \"real_checksum\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, checksum_received, crc16(packet_buffer, node->data_read));
                     }
                 #endif
@@ -375,7 +375,7 @@ static inline void swiftnet_process_packets(
         }
 
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(PACKETS_RECEIVING)) {
+            if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_RECEIVING)) {
                 send_debug_message("Received packet: {\"source_ip_address\": \"%s\", \"source_port\": %d, \"packet_id\": %d, \"packet_type\": %d, \"packet_length\": %d, \"chunk_index\": %d, \"connection_type\": %d, \"checksum_received\": %d, \"real_checksum\": %d}\n", inet_ntoa(ip_header.ip_src), packet_info.port_info.source_port, ip_header.ip_id, packet_info.packet_type, packet_info.packet_length, packet_info.chunk_index, connection_type, checksum_received, crc16(node->data, node->data_read));
             }
         #endif

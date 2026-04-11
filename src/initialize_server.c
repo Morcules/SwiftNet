@@ -77,7 +77,7 @@ struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool lo
     pthread_cond_init(&new_server->execute_callback_cond, NULL);
 
     #ifdef SWIFT_NET_DEBUG
-        if (check_debug_flag(INITIALIZATION)) {
+        if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
             send_debug_message("Successfully initialized server\n");
         }
     #endif

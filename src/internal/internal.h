@@ -212,7 +212,7 @@ extern uint32_t items_leaked;
 #ifdef SWIFT_NET_DEBUG
 extern struct SwiftNetDebugger debugger;
 
-static inline bool check_debug_flag(const enum SwiftNetDebugFlags flag) {
+static inline bool check_debug_flag(const SwiftNetDebugFlags flag) {
     return (debugger.flags & flag) != 0;
 }
 
