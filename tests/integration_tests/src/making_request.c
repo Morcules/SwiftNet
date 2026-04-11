@@ -88,7 +88,7 @@ static void on_client_packet(struct SwiftNetClientPacketData* packet, void* cons
 
     struct SwiftNetPacketBuffer send_buffer = swiftnet_client_create_packet_buffer(response_data_len);
 
-    swiftnet_client_append_to_packet(response_data, response_data_len, &send_buffer);
+    swiftnet_client_append_to_buffer(response_data, response_data_len, &send_buffer);
 
     swiftnet_client_make_response(atomic_load_explicit(&g_client_conn, memory_order_acquire), packet, &send_buffer);
 
@@ -135,7 +135,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
 
         struct SwiftNetPacketBuffer send_buffer = swiftnet_server_create_packet_buffer(response_data_len);
 
-        swiftnet_server_append_to_packet(response_data, response_data_len, &send_buffer);
+        swiftnet_server_append_to_buffer(response_data, response_data_len, &send_buffer);
 
         swiftnet_server_make_response(atomic_load_explicit(&g_server, memory_order_acquire), packet, &send_buffer);
 
@@ -176,7 +176,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
 
         struct SwiftNetPacketBuffer buffer = swiftnet_server_create_packet_buffer(request_data_len);
 
-        swiftnet_server_append_to_packet(request_data, request_data_len, &buffer);
+        swiftnet_server_append_to_buffer(request_data, request_data_len, &buffer);
 
         struct SwiftNetServerPacketData* response = swiftnet_server_make_request(atomic_load_explicit(&g_server, memory_order_acquire), &buffer, packet->metadata.sender, 1000);
 
@@ -277,7 +277,7 @@ int test_making_request(const union Args* args_ptr) {
     if (args.receiver == Server) {
         struct SwiftNetPacketBuffer buffer = swiftnet_client_create_packet_buffer(args.request_data_len);
 
-        swiftnet_client_append_to_packet(req_data, args.request_data_len, &buffer);
+        swiftnet_client_append_to_buffer(req_data, args.request_data_len, &buffer);
 
         struct SwiftNetClientPacketData* const response = swiftnet_client_make_request(client_conn, &buffer, 1000);
 
@@ -332,7 +332,7 @@ int test_making_request(const union Args* args_ptr) {
     } else {
         struct SwiftNetPacketBuffer buffer = swiftnet_client_create_packet_buffer(sizeof(g_make_request_code));
 
-        swiftnet_client_append_to_packet(&g_make_request_code, sizeof(g_make_request_code), &buffer);
+        swiftnet_client_append_to_buffer(&g_make_request_code, sizeof(g_make_request_code), &buffer);
 
         swiftnet_client_send_packet(client_conn, &buffer);
 

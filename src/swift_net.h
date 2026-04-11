@@ -312,18 +312,18 @@ extern void swiftnet_client_set_message_handler(
 );
 
 // Append data to a packet buffer.
-extern void swiftnet_client_append_to_packet(
+extern void swiftnet_client_append_to_buffer(
     const void* const data,
     const uint32_t data_size,
-    struct SwiftNetPacketBuffer* const packet
+    struct SwiftNetPacketBuffer* const buffer
 );
 
 
 // Append data to a packet buffer.
-extern void swiftnet_server_append_to_packet(
+extern void swiftnet_server_append_to_buffer(
     const void* const data,
     const uint32_t data_size,
-    struct SwiftNetPacketBuffer* const packet
+    struct SwiftNetPacketBuffer* const buffer 
 );
 
 // Clean up and free resources for a client connection.
