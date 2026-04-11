@@ -122,7 +122,7 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
     if(bytes_received != PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + client_connection->prepend_size) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(INITIALIZATION)) {
+            if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
                 send_debug_message("Invalid packet received from server. Expected server information: {\"bytes_received\": %u, \"expected_bytes\": %u}\n", bytes_received, PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation));
             }
         #endif
@@ -141,7 +141,7 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
     if(packet_info->port_info.destination_port != client_connection->port_info.source_port || packet_info->port_info.source_port != client_connection->port_info.destination_port) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(INITIALIZATION)) {
+            if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
                 send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", packet_info->port_info.destination_port, packet_info->port_info.source_port, inet_ntoa(ip_header->ip_src));
             }
         #endif
@@ -151,7 +151,7 @@ static void handle_client_init(struct SwiftNetClientConnection* user, const stru
 
     if(packet_info->packet_type != REQUEST_INFORMATION) {
         #ifdef SWIFT_NET_DEBUG
-            if (check_debug_flag(INITIALIZATION)) {
+            if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
                 send_debug_message("Invalid packet type: {\"packet_type\": %d}\n", packet_info->packet_type);
             }
         #endif
