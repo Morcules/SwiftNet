@@ -57,7 +57,7 @@ void send_large_packets(const bool loopback) {
         random_data[i] = rand();
     }
 
-    swiftnet_client_append_to_packet(random_data, PACKET_SIZE, &buffer);
+    swiftnet_client_append_to_buffer(random_data, PACKET_SIZE, &buffer);
 
     clock_gettime(CLOCK_MONOTONIC, &start);;
 

@@ -121,7 +121,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
         uint8_t* send_data = atomic_load_explicit(&g_client_data, memory_order_acquire);
 
         struct SwiftNetPacketBuffer buf = swiftnet_server_create_packet_buffer(size);
-        swiftnet_server_append_to_packet(send_data, size, &buf);
+        swiftnet_server_append_to_buffer(send_data, size, &buf);
         swiftnet_server_send_packet(atomic_load_explicit(&g_server, memory_order_acquire), &buf, packet->metadata.sender);
         swiftnet_server_destroy_packet_buffer(&buf);
 
@@ -181,7 +181,7 @@ int test_sending_packet(const union Args* args_ptr) {
     }
 
     struct SwiftNetPacketBuffer buf = swiftnet_client_create_packet_buffer(args.server_data_len);
-    swiftnet_client_append_to_packet(atomic_load_explicit(&g_server_data, memory_order_acquire), args.server_data_len, &buf);
+    swiftnet_client_append_to_buffer(atomic_load_explicit(&g_server_data, memory_order_acquire), args.server_data_len, &buf);
     swiftnet_client_send_packet(client_conn, &buf);
     swiftnet_client_destroy_packet_buffer(&buf);
 
