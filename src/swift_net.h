@@ -310,17 +310,8 @@ extern void swiftnet_client_set_message_handler(
     void (* const new_handler)(struct SwiftNetClientPacketData* const, void* const),
     void* const user_arg
 );
-
 // Append data to a packet buffer.
-extern void swiftnet_client_append_to_buffer(
-    const void* const data,
-    const uint32_t data_size,
-    struct SwiftNetPacketBuffer* const buffer
-);
-
-
-// Append data to a packet buffer.
-extern void swiftnet_server_append_to_buffer(
+extern void swiftnet_append_to_buffer(
     const void* const data,
     const uint32_t data_size,
     struct SwiftNetPacketBuffer* const buffer 
@@ -348,17 +339,18 @@ extern void swiftnet_server_send_packet(
     const struct SwiftNetClientAddrData target
 );
 
-// Create a packet buffer for the server.
-extern struct SwiftNetPacketBuffer swiftnet_server_create_packet_buffer(const uint32_t buffer_size);
 
-// Create a packet buffer for the client.
-extern struct SwiftNetPacketBuffer swiftnet_client_create_packet_buffer(const uint32_t buffer_size);
+// Create a packet buffer.
+extern struct SwiftNetPacketBuffer swiftnet_create_packet_buffer(const uint32_t buffer_size);
 
-// Destroy a server packet buffer and free resources.
-extern void swiftnet_server_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
+// Resizes packet buffer.
+extern void swiftnet_resize_packet_buffer(const uint32_t new_buffer_size, struct SwiftNetPacketBuffer* const);
 
-// Destroy a client packet buffer and free resources.
-extern void swiftnet_client_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
+// Writes to packet buffer at specific offset
+extern void swiftnet_write_packet_buffer(const uint32_t byte_offset, struct SwiftNetPacketBuffer* const, void* const data, const uint32_t data_size);
+
+// Destroy a packet buffer and free resources.
+extern void swiftnet_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
 
 // Create and initialize a server.
 extern struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback);
