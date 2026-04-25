@@ -50,14 +50,14 @@ void send_large_packets(const bool loopback) {
         exit(EXIT_FAILURE);
     }
 
-    struct SwiftNetPacketBuffer buffer = swiftnet_client_create_packet_buffer(PACKET_SIZE);
+    struct SwiftNetPacketBuffer buffer = swiftnet_create_packet_buffer(PACKET_SIZE);
 
     uint8_t* const random_data = malloc(PACKET_SIZE);
     for (uint32_t i = 0; i < PACKET_SIZE; i++) {
         random_data[i] = rand();
     }
 
-    swiftnet_client_append_to_buffer(random_data, PACKET_SIZE, &buffer);
+    swiftnet_append_to_buffer(random_data, PACKET_SIZE, &buffer);
 
     clock_gettime(CLOCK_MONOTONIC, &start);;
 
@@ -69,7 +69,7 @@ void send_large_packets(const bool loopback) {
         continue;
     }
 
-    swiftnet_client_destroy_packet_buffer(&buffer);
+    swiftnet_destroy_packet_buffer(&buffer);
 
     clock_gettime(CLOCK_MONOTONIC, &end);;
 
