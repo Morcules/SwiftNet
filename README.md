@@ -13,9 +13,9 @@
 - [Use Cases](#use-cases)
 
 ## Use Cases
-- High performance server side networking with kernel bypass (DPDK / AF_XDP)
-- Performance critical applications requiring minimal OS overhead
-- Multiplayer game networking with fully custom transport protocols
+- Multiplayer game networking
+- Applications requiring a very simple API while delivering solid performance
+- Future-proof software with maximum server-side performance
 
 ## Supported Platforms
 - **Apple Silicon (macOS arm64)**
