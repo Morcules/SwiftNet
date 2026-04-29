@@ -142,11 +142,6 @@ enum StackCreatingState {
     STACK_CREATING_UNLOCKED = 1
 };
 
-enum AllocatorStackState {
-    ALLOCATOR_STACK_FREE = 0,
-    ALLOCATOR_STACK_OCCUPIED = 1
-};
-
 struct PendingMessagesKey {
     uint16_t source_port;
     uint16_t packet_id;
