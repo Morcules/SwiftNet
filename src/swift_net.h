@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <pcap/pcap.h>
 
+#define SWIFT_NET_INTERNAL_TESTING
+
 #ifdef __cplusplus
 extern "C" {
 

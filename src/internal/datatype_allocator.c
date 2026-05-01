@@ -33,12 +33,15 @@ static inline void set_memory_status(struct SwiftNetMemoryAllocator* const memor
     for (uint32_t i = 0; i < memory_allocator->stacks_allocated; i++) {
         struct SwiftNetMemoryAllocatorStack* const stack = memory_allocator->stacks[i];
 
+        const uint8_t* const casted_data = stack->data;
+        const uint8_t* const casted_memory_loc = memory_location;
+
         if (
-            memory_location >= stack->data
+            casted_memory_loc >= casted_data
             &&
-            memory_location <= stack->data + (memory_allocator->item_size * memory_allocator->chunk_item_amount)
+            casted_memory_loc < casted_data + (memory_allocator->item_size * memory_allocator->chunk_item_amount)
         ) {
-            const uint32_t offset = memory_location - stack->data;
+            const uint32_t offset = casted_memory_loc - casted_data;
             const uint32_t index = offset / memory_allocator->item_size;
 
             const uint32_t byte = index / 8;
@@ -60,12 +63,16 @@ static inline void set_memory_status(struct SwiftNetMemoryAllocator* const memor
 static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location) {
     for (uint32_t i = 0; i < memory_allocator->stacks_allocated; i++) {
         struct SwiftNetMemoryAllocatorStack* const stack = memory_allocator->stacks[i];
+
+        const uint8_t* const casted_data = stack->data;
+        const uint8_t* const casted_memory_loc = memory_location;
+
         if (
-            memory_location >= stack->data
+            casted_memory_loc >= casted_data 
             &&
-            memory_location <= stack->data + (memory_allocator->item_size * memory_allocator->chunk_item_amount)
+            casted_memory_loc < casted_data + (memory_allocator->item_size * memory_allocator->chunk_item_amount)
         ) {
-            const uint32_t offset = memory_location - stack->data;
+            const uint32_t offset = casted_memory_loc - casted_data;
             const uint32_t index = offset / memory_allocator->item_size;
 
             const uint32_t byte = index / 8;
@@ -89,13 +96,18 @@ static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_
 }
 #endif
 
-struct SwiftNetMemoryAllocatorStack* const find_free_pointer_stack(struct SwiftNetMemoryAllocator* const allocator) {
+// Type is either 0/1 - 1 = allocation - 0 = freeing
+struct SwiftNetMemoryAllocatorStack* const find_free_pointer_stack(struct SwiftNetMemoryAllocator* const allocator, const uint8_t type) {
     uint64_t bitmap;
     uint16_t first_free;
 
     uint64_t invalid_bitmap = 0x00;
 
     uint64_t new_bitmap;
+
+    uint32_t stack_size;
+
+    bool valid_size;
 
     struct SwiftNetMemoryAllocatorStack* stack = NULL;
 
@@ -107,7 +119,7 @@ find_free_stack:
     if((bitmap | invalid_bitmap) == UINT64_MAX) {
         return NULL;
     } else {
-        first_free = __builtin_ctz(bitmap | invalid_bitmap);
+        first_free = __builtin_ctz(~(bitmap | invalid_bitmap));
     }
 
     if (first_free >= allocator->stacks_allocated) {
@@ -125,7 +137,11 @@ find_free_stack:
     goto process_stack;
 
 process_stack:
-    if (atomic_load(&stack->size) <= allocator->chunk_item_amount) {
+    stack_size = atomic_load_explicit(&stack->size, memory_order_acquire);
+
+    valid_size = type == 0 ? (stack_size < allocator->chunk_item_amount && stack_size >= 0) : (stack_size <= allocator->chunk_item_amount && stack_size > 0);
+
+    if (valid_size) {
         return stack;
     } else {
         free_stack_lock(stack, allocator);
@@ -134,8 +150,6 @@ process_stack:
 
         goto find_free_stack;
     }
-
-    return NULL;
 }
 
 struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const uint32_t chunk_item_amount) {
@@ -233,8 +247,8 @@ static void create_new_stack(struct SwiftNetMemoryAllocator* const memory_alloca
 }
 
 void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator) {
-    struct SwiftNetMemoryAllocatorStack* const valid_stack = find_free_pointer_stack(memory_allocator);
-
+    struct SwiftNetMemoryAllocatorStack* const valid_stack = find_free_pointer_stack(memory_allocator, 1);
+    
     if (valid_stack == NULL) {
         create_new_stack(memory_allocator);
 
@@ -243,7 +257,7 @@ void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator)
         return res;
     }
 
-    const uint32_t size = atomic_fetch_add(&valid_stack->size, -1);;
+    const uint32_t size = atomic_fetch_sub(&valid_stack->size, 1);;
 
     void** const ptr_to_data = ((void**)valid_stack->pointers) + size - 1;
 
@@ -268,7 +282,7 @@ void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void
         }
     #endif
 
-    struct SwiftNetMemoryAllocatorStack* const free_stack = find_free_pointer_stack(memory_allocator);
+    struct SwiftNetMemoryAllocatorStack* const free_stack = find_free_pointer_stack(memory_allocator, 0);
     if (free_stack == NULL) {
         create_new_stack(memory_allocator);
 
