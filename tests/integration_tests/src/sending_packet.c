@@ -56,9 +56,9 @@ static void on_client_packet(struct SwiftNetClientPacketData* packet, void* cons
             atomic_load_explicit(&g_client_data_len, memory_order_acquire)
         );
 
-        atomic_store_explicit(&g_test_result, -1, memory_order_release);
-
         swiftnet_client_destroy_packet_data(packet, client_conn);
+
+        atomic_store_explicit(&g_test_result, -1, memory_order_release);
 
         return;
     }
@@ -70,17 +70,17 @@ static void on_client_packet(struct SwiftNetClientPacketData* packet, void* cons
         if (data[i] != received_byte) {
             PRINT_ERROR("Client received invalid data");
 
-            atomic_store_explicit(&g_test_result, -1, memory_order_release);
-
             swiftnet_client_destroy_packet_data(packet, client_conn);
+
+            atomic_store_explicit(&g_test_result, -1, memory_order_release);
 
             return;
         }
     }
 
-    atomic_store_explicit(&g_test_result, 0, memory_order_release);
-
     swiftnet_client_destroy_packet_data(packet, client_conn);
+
+    atomic_store_explicit(&g_test_result, 0, memory_order_release);
 }
 
 static void on_server_packet(struct SwiftNetServerPacketData* packet, void* const user) {
@@ -94,9 +94,9 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
             atomic_load_explicit(&g_server_data_len, memory_order_acquire)
         );
 
-        atomic_store_explicit(&g_test_result, -1, memory_order_release);
-
         swiftnet_server_destroy_packet_data(packet, server);
+
+        atomic_store_explicit(&g_test_result, -1, memory_order_release);
 
         return;
     }
@@ -108,9 +108,9 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
         if (data[i] != byte_received) {
             PRINT_ERROR("Server received invalid data");
 
-            atomic_store_explicit(&g_test_result, -1, memory_order_release);
-
             swiftnet_server_destroy_packet_data(packet, server);
+
+            atomic_store_explicit(&g_test_result, -1, memory_order_release);
 
             return;
         }
@@ -125,12 +125,14 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
         swiftnet_server_send_packet(atomic_load_explicit(&g_server, memory_order_acquire), &buf, packet->metadata.sender);
         swiftnet_destroy_packet_buffer(&buf);
 
+        swiftnet_server_destroy_packet_data(packet, server);
+
         atomic_store_explicit(&g_client_send_done, true, memory_order_release);
     } else {
+        swiftnet_server_destroy_packet_data(packet, server);
+
         atomic_store_explicit(&g_test_result, 0, memory_order_release);
     }
-
-    swiftnet_server_destroy_packet_data(packet, server);
 }
 
 int test_sending_packet(const union Args* args_ptr) {
