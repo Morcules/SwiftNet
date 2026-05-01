@@ -10,9 +10,9 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
     if (connection_type == CONNECTION_TYPE_CLIENT) {
         struct SwiftNetClientConnection* const client = (struct SwiftNetClientConnection*)connection;
 
-        allocator_destroy(&client->packets_sending_memory_allocator);
-        allocator_destroy(&client->pending_messages_memory_allocator);
-        allocator_destroy(&client->packets_completed_memory_allocator);
+        allocator_destroy(&client->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
+        allocator_destroy(&client->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
+        allocator_destroy(&client->packets_completed_memory_allocator DISABLE_INTERNAL_CHECK);
 
         hashmap_destroy(&client->pending_messages);
         hashmap_destroy(&client->packets_sending);
@@ -20,9 +20,9 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
     } else {
         struct SwiftNetServer* const server = (struct SwiftNetServer*)connection;
 
-        allocator_destroy(&server->packets_sending_memory_allocator);
-        allocator_destroy(&server->pending_messages_memory_allocator);
-        allocator_destroy(&server->packets_completed_memory_allocator);
+        allocator_destroy(&server->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
+        allocator_destroy(&server->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
+        allocator_destroy(&server->packets_completed_memory_allocator DISABLE_INTERNAL_CHECK);
 
         hashmap_destroy(&server->pending_messages);
         hashmap_destroy(&server->packets_sending);

@@ -211,8 +211,8 @@ struct SwiftNetChunkStorageManager {
 
 struct SwiftNetMemoryAllocator {
     _Atomic uint64_t occupied;
-    struct SwiftNetMemoryAllocatorStack* stacks[64];
-    uint16_t stacks_allocated;
+    _Atomic(struct SwiftNetMemoryAllocatorStack*) stacks[64];
+    _Atomic uint16_t stacks_allocated;
     uint32_t item_size;
     uint32_t chunk_item_amount;
     _Atomic uint8_t creating_stack;

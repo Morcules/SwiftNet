@@ -30,8 +30,10 @@ static inline void lock_ptr_status(struct SwiftNetMemoryAllocatorStack* const st
 }
 
 static inline void set_memory_status(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location, const uint8_t status) {
-    for (uint32_t i = 0; i < memory_allocator->stacks_allocated; i++) {
-        struct SwiftNetMemoryAllocatorStack* const stack = memory_allocator->stacks[i];
+    const uint16_t stacks_allocated = atomic_load_explicit(&memory_allocator->stacks_allocated, memory_order_acquire);
+
+    for (uint16_t i = 0; i < stacks_allocated; i++) {
+        struct SwiftNetMemoryAllocatorStack* const stack = atomic_load_explicit(&memory_allocator->stacks[i], memory_order_acquire);
 
         const uint8_t* const casted_data = stack->data;
         const uint8_t* const casted_memory_loc = memory_location;
@@ -56,13 +58,19 @@ static inline void set_memory_status(struct SwiftNetMemoryAllocator* const memor
             }
 
             unlock_ptr_status(stack);
+
+            return;
         }
     }
+
+    printf("doesnt fall\n");
 }
 
 static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location) {
-    for (uint32_t i = 0; i < memory_allocator->stacks_allocated; i++) {
-        struct SwiftNetMemoryAllocatorStack* const stack = memory_allocator->stacks[i];
+    const uint16_t stacks_allocated = atomic_load_explicit(&memory_allocator->stacks_allocated, memory_order_acquire);
+
+    for (uint16_t i = 0; i < stacks_allocated; i++) {
+        struct SwiftNetMemoryAllocatorStack* const stack = atomic_load_explicit(&memory_allocator->stacks[i], memory_order_acquire);
 
         const uint8_t* const casted_data = stack->data;
         const uint8_t* const casted_memory_loc = memory_location;
@@ -98,6 +106,8 @@ static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_
 
 // Type is either 0/1 - 1 = allocation - 0 = freeing
 struct SwiftNetMemoryAllocatorStack* const find_free_pointer_stack(struct SwiftNetMemoryAllocator* const allocator, const uint8_t type) {
+    const uint16_t stacks_allocated = atomic_load_explicit(&allocator->stacks_allocated, memory_order_acquire);
+
     uint64_t bitmap;
     uint16_t first_free;
 
@@ -122,7 +132,7 @@ find_free_stack:
         first_free = __builtin_ctz(~(bitmap | invalid_bitmap));
     }
 
-    if (first_free >= allocator->stacks_allocated) {
+    if (first_free >= stacks_allocated) {
         return NULL;
     }
 
@@ -132,7 +142,7 @@ find_free_stack:
         goto find_free_stack;
     }
 
-    stack = allocator->stacks[first_free];
+    stack = atomic_load_explicit(&allocator->stacks[first_free], memory_order_acquire);
 
     goto process_stack;
 
@@ -201,7 +211,7 @@ struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const 
 static void create_new_stack(struct SwiftNetMemoryAllocator* const memory_allocator) {
     uint8_t creating_unlocked = STACK_CREATING_UNLOCKED;
 
-    while (!atomic_compare_exchange_strong_explicit(&memory_allocator->creating_stack, &creating_unlocked, STACK_CREATING_LOCKED, memory_order_acquire, memory_order_relaxed)) {
+    while (!atomic_compare_exchange_strong_explicit(&memory_allocator->creating_stack, &creating_unlocked, STACK_CREATING_LOCKED, memory_order_release, memory_order_relaxed)) {
         creating_unlocked = STACK_CREATING_UNLOCKED;
 
         usleep(100);
@@ -225,10 +235,12 @@ static void create_new_stack(struct SwiftNetMemoryAllocator* const memory_alloca
         exit(EXIT_FAILURE);
     }
 
+    const uint16_t stacks_allocated = atomic_load_explicit(&memory_allocator->stacks_allocated, memory_order_acquire);
+
     stack->pointers = allocated_memory_pointers;
     stack->data = allocated_memory;
     stack->size = chunk_item_amount;
-    stack->index = memory_allocator->stacks_allocated;
+    stack->index = stacks_allocated;
 
     for (uint32_t i = 0; i < chunk_item_amount; i++) {
         ((void **)allocated_memory_pointers)[i] = (uint8_t*)allocated_memory + (i * item_size);
@@ -239,9 +251,9 @@ static void create_new_stack(struct SwiftNetMemoryAllocator* const memory_alloca
         stack->ptr_status = calloc(sizeof(uint8_t), (chunk_item_amount / 8) + 1);
     #endif
 
-    memory_allocator->stacks[memory_allocator->stacks_allocated] = stack;
+    atomic_store_explicit(&memory_allocator->stacks[stacks_allocated], stack, memory_order_release);
 
-    memory_allocator->stacks_allocated++;
+    atomic_fetch_add_explicit(&memory_allocator->stacks_allocated, 1, memory_order_release);
 
     atomic_store_explicit(&memory_allocator->creating_stack, STACK_CREATING_UNLOCKED, memory_order_release);
 }
@@ -302,40 +314,48 @@ void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void
     free_stack_lock(free_stack, memory_allocator);
 }
 
-void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator) {
-    for (uint32_t stack_index = 0; stack_index < memory_allocator->stacks_allocated; stack_index++) {
-        struct SwiftNetMemoryAllocatorStack* const current_stack = memory_allocator->stacks[stack_index];
+void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator
+    #ifdef SWIFT_NET_INTERNAL_TESTING
+        , const bool disable_internal_check
+    #endif
+) {
+    const uint16_t stacks_allocated = atomic_load_explicit(&memory_allocator->stacks_allocated, memory_order_acquire);
+
+    for (uint16_t stack_index = 0; stack_index < stacks_allocated; stack_index++) {
+        struct SwiftNetMemoryAllocatorStack* const current_stack = atomic_load_explicit(&memory_allocator->stacks[stack_index], memory_order_acquire);
 
         free(current_stack->data);
         free(current_stack->pointers);
 
         #ifdef SWIFT_NET_INTERNAL_TESTING
-            lock_ptr_status(current_stack);
+            if(!disable_internal_check) {
+                lock_ptr_status(current_stack);
 
-            const uint32_t total_items = memory_allocator->chunk_item_amount;
-            const uint32_t bytes = (total_items / 8) + 1;
+                const uint32_t total_items = memory_allocator->chunk_item_amount;
+                const uint32_t bytes = (total_items / 8) + 1;
 
-            for (uint32_t byte = 0; byte < bytes; byte++) {
-                uint8_t mask = current_stack->ptr_status[byte];
+                for (uint32_t byte = 0; byte < bytes; byte++) {
+                    uint8_t mask = current_stack->ptr_status[byte];
 
-                if (mask == 0x00) {
-                    continue;
-                }
+                    if (mask == 0x00) {
+                        continue;
+                    }
 
-                for (uint8_t bit = 0; bit < 8; bit++) {
-                    uint32_t idx = byte * 8 + bit;
-                    if (idx >= total_items) break;
+                    for (uint8_t bit = 0; bit < 8; bit++) {
+                        uint32_t idx = byte * 8 + bit;
+                        if (idx >= total_items) break;
 
-                    bool allocated = (mask & (1u << bit)) != 0;
+                        bool allocated = (mask & (1u << bit)) != 0;
 
-                    if (allocated) {
-                        items_leaked++;
-                        bytes_leaked += memory_allocator->item_size;
+                        if (allocated) {
+                            items_leaked++;
+                            bytes_leaked += memory_allocator->item_size;
+                        }
                     }
                 }
-            }
 
-            unlock_ptr_status(current_stack);
+                unlock_ptr_status(current_stack);
+            }
 
             free(current_stack->ptr_status);
         #endif
