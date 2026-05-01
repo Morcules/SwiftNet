@@ -54,22 +54,22 @@
   Real Wi-Fi interface: en0
 
 - **Throughput**  
-  18 MB/s
+  9.4 MB/s
 
 - **Memory Usage**  
-  Peak memory footprint: 10 million bytes
+  Peak memory footprint: 14 million bytes
 
 - **CPU Usage**  
-  Average utilization: ~8%
+  Average utilization: ~7.7%
 
 - **Detailed Timing (from /usr/bin/time -l)**  
-  - Real (wall-clock) time: 5.01 seconds  
-  - User CPU time: 0.58 seconds  
-  - System CPU time: 0.23 seconds  
-  - Total CPU time: 0.81 seconds
+  - Real (wall-clock) time: 5.32 seconds  
+  - User CPU time: 0.24 seconds  
+  - System CPU time: 0.17 seconds  
+  - Total CPU time: 0.41 seconds
 
 - **CPU Cycles**  
-  2,273,393,860 cycles
+  1 005 063 001 cycles
 
 ## Installation
 Follow these steps to install SwiftNet:
