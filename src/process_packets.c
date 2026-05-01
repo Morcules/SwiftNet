@@ -207,14 +207,14 @@ static inline bool chunk_already_received(uint8_t* const chunks_received, const 
     const uint32_t byte = index / 8;
     const uint8_t bit = index % 8;
 
-    return (chunks_received[byte] & (1 << bit)) == 0x01;
+    return (chunks_received[byte] & (1U << bit)) != 0;
 }
 
 static inline void chunk_received(uint8_t* const chunks_received, const uint32_t index) {
     const uint32_t byte = index / 8;
     const uint8_t bit = index % 8;
 
-    chunks_received[byte] |= 1 << bit;
+    chunks_received[byte] |= (uint8_t)(1U << bit);
 }
 
 static inline struct SwiftNetPendingMessage* const create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetPacketInfo* const packet_info, const enum ConnectionType connection_type, const uint16_t packet_id, const uint16_t source_port) {
@@ -466,10 +466,10 @@ static inline void swiftnet_process_packets(
 
                 HANDLE_PACKET_CONSTRUCTION(&send_lost_packets_ip_header, &packet_info_new, addr_type, &eth_hdr, mtu + prepend_size, buffer)
 
-                const uint16_t lost_chunk_indexes = return_lost_chunk_indexes(pending_message->chunks_received, pending_message->packet_info.chunk_amount, mtu - PACKET_HEADER_SIZE, (uint32_t*)(buffer + header_size));
+                const uint32_t lost_chunk_indexes = return_lost_chunk_indexes(pending_message->chunks_received, pending_message->packet_info.chunk_amount, mtu - PACKET_HEADER_SIZE, (uint32_t*)(buffer + header_size));
 
-                const uint16_t packet_length = sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo) + (lost_chunk_indexes * sizeof(uint32_t));
-                const uint16_t packet_length_net_order = htons(packet_length);
+                const uint32_t packet_length = sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo) + (lost_chunk_indexes * sizeof(uint32_t));
+                const uint16_t packet_length_net_order = htons((uint16_t)packet_length);
 
                 memcpy(buffer + prepend_size + offsetof(struct ip, ip_len), &packet_length_net_order, SIZEOF_FIELD(struct ip, ip_len));
 
@@ -555,7 +555,7 @@ static inline void swiftnet_process_packets(
                 // Split packet into chunks
                 struct SwiftNetPendingMessage* const new_pending_message = create_new_pending_message(pending_messages, pending_messages_memory_allocator, &packet_info, connection_type, ip_header.ip_id, packet_info.port_info.source_port);
 
-                new_pending_message->chunks_received_number++;
+                new_pending_message->chunks_received_number = 1;
 
                 chunk_received(new_pending_message->chunks_received, packet_info.chunk_index);
                     
@@ -627,7 +627,10 @@ static inline void swiftnet_process_packets(
 
             const uint32_t bytes_to_write = (packet_info.chunk_index + 1) >= packet_info.chunk_amount ? packet_info.packet_length % chunk_data_size : chunk_data_size;
 
-            if(pending_message->chunks_received_number + 1 >= packet_info.chunk_amount) {
+            if(pending_message->chunks_received_number + 1 == packet_info.chunk_amount) {
+
+                pending_message->chunks_received_number++;
+
                 // Completed the packet
                 memcpy(pending_message->packet_data_start + (chunk_data_size * packet_info.chunk_index), packet_data, bytes_to_write);
 

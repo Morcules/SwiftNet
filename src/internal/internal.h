@@ -19,6 +19,14 @@
 #define LOOPBACK_INTERFACE_NAME "lo0\0"
 #endif
 
+#ifdef SWIFT_NET_INTERNAL_TESTING
+    #define ENABLE_INTERNAL_CHECK , 0
+    #define DISABLE_INTERNAL_CHECK , 1
+#else
+    #define ENABLE_INTERNAL_CHECK
+    #define DISABLE_INTERNAL_CHECK
+#endif
+
 enum RequestLostPacketsReturnType {
     REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY = 0x00,
     REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET  = 0x01
@@ -142,11 +150,6 @@ enum StackCreatingState {
     STACK_CREATING_UNLOCKED = 1
 };
 
-enum AllocatorStackState {
-    ALLOCATOR_STACK_FREE = 0,
-    ALLOCATOR_STACK_OCCUPIED = 1
-};
-
 struct PendingMessagesKey {
     uint16_t source_port;
     uint16_t packet_id;
@@ -250,7 +253,11 @@ extern struct SwiftNetMemoryAllocator uint16_memory_allocator;
 extern struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const uint32_t chunk_item_amount);
 extern void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator);
 extern void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location);
-extern void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator);
+extern void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator
+    #ifdef SWIFT_NET_INTERNAL_TESTING
+        , const bool disable_internal_check
+    #endif
+);
 
 extern struct SwiftNetMemoryAllocator packet_queue_node_memory_allocator;
 extern struct SwiftNetMemoryAllocator packet_callback_queue_node_memory_allocator;

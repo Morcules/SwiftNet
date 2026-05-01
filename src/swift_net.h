@@ -192,12 +192,10 @@ struct SwiftNetSentSuccessfullyCompletedPacketSignal {
 };
 
 struct SwiftNetMemoryAllocatorStack {
-    _Atomic(void*) next;
-    _Atomic(void*) previous;
     void* pointers;
     void* data;
+    uint16_t index;
     _Atomic uint32_t size;
-    _Atomic uint8_t owner;
     #ifdef SWIFT_NET_INTERNAL_TESTING 
     _Atomic bool accessing_ptr_status;
     uint8_t* ptr_status;
@@ -210,7 +208,9 @@ struct SwiftNetChunkStorageManager {
 };
 
 struct SwiftNetMemoryAllocator {
-    struct SwiftNetChunkStorageManager data;
+    _Atomic uint64_t occupied;
+    _Atomic(struct SwiftNetMemoryAllocatorStack*) stacks[64];
+    _Atomic uint16_t stacks_allocated;
     uint32_t item_size;
     uint32_t chunk_item_amount;
     _Atomic uint8_t creating_stack;

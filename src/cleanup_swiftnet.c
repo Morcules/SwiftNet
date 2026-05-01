@@ -32,28 +32,28 @@ static inline void close_background_service() {
 }
 
 void swiftnet_cleanup() {
-    allocator_destroy(&packet_queue_node_memory_allocator);
-    allocator_destroy(&packet_callback_queue_node_memory_allocator);
-    allocator_destroy(&server_packet_data_memory_allocator);
-    allocator_destroy(&client_packet_data_memory_allocator);
-    allocator_destroy(&packet_buffer_memory_allocator);
-    allocator_destroy(&hashmap_item_memory_allocator);
+    allocator_destroy(&packet_queue_node_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&packet_callback_queue_node_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&server_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&client_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&packet_buffer_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&hashmap_item_memory_allocator ENABLE_INTERNAL_CHECK);
     
     #ifdef SWIFT_NET_REQUESTS
-        allocator_destroy(&requests_sent_memory_allocator);
+        allocator_destroy(&requests_sent_memory_allocator ENABLE_INTERNAL_CHECK);
 
         hashmap_destroy(&requests_sent);
     #endif
 
     close_listeners();
     
-    allocator_destroy(&server_memory_allocator);
-    allocator_destroy(&client_connection_memory_allocator);
+    allocator_destroy(&server_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&client_connection_memory_allocator ENABLE_INTERNAL_CHECK);
 
-    allocator_destroy(&listener_memory_allocator);
-    allocator_destroy(&uint16_memory_allocator);
-    allocator_destroy(&packet_completed_key_allocator);
-    allocator_destroy(&pending_message_key_allocator);
+    allocator_destroy(&listener_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&uint16_memory_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&packet_completed_key_allocator ENABLE_INTERNAL_CHECK);
+    allocator_destroy(&pending_message_key_allocator ENABLE_INTERNAL_CHECK);
 
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);
