@@ -8,8 +8,11 @@
 #include "../../shared.h"
 
 
-#define PACKET_SIZE 1000000 // 1 MILLION BYTES
-#define PACKETS_TO_SEND 50 // HOW MANY PACKETS TO SEND
+//#define PACKET_SIZE 1000000 // 1 MILLION BYTES
+//#define PACKETS_TO_SEND 50 // HOW MANY PACKETS TO SEND
+
+#define PACKET_SIZE 100000000 // 1 MILLION BYTES
+#define PACKETS_TO_SEND 1 // HOW MANY PACKETS TO SEND
 
 // ********************** //
 // SEND 50 MILLION BYTES //
@@ -85,8 +88,6 @@ void send_large_packets(const bool loopback) {
 
 int main() {
     swiftnet_initialize();
-
-    //swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(SWIFTNET_DEBUG_PACKETS_SENDING | SWIFTNET_DEBUG_PACKETS_RECEIVING | SWIFTNET_DEBUG_INITIALIZATION | SWIFTNET_DEBUG_LOST_PACKETS));
 
     send_large_packets(false);
 

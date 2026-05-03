@@ -66,8 +66,8 @@ static inline void swiftnet_handle_packets(
 	const struct pcap_pkthdr* hdr,
 	const uint8_t* packet,
     pthread_mutex_t* const process_packets_mtx,
-    pthread_cond_t* const process_packets_cond
-
+    pthread_cond_t* const process_packets_cond,
+    _Atomic bool *const processing_packets
 ) {
     uint8_t* const packet_buffer = allocator_allocate(&packet_buffer_memory_allocator);
     if (unlikely(packet_buffer == NULL)) {
@@ -100,15 +100,15 @@ static inline void swiftnet_handle_packets(
 
     struct PacketQueueNode* const node = construct_node(len, packet_buffer, sender_address);
 
-    atomic_thread_fence(memory_order_release);
-
-    pthread_mutex_lock(process_packets_mtx);
-
     insert_queue_node(node, packet_queue, connection_type);
 
-    pthread_cond_signal(process_packets_cond);
+    if (atomic_load_explicit(processing_packets, memory_order_acquire) != true) {
+        pthread_mutex_lock(process_packets_mtx);
 
-    pthread_mutex_unlock(process_packets_mtx);
+        pthread_cond_signal(process_packets_cond);
+
+        pthread_mutex_unlock(process_packets_mtx);
+    }
 }
 
 static void handle_client_init(struct SwiftNetClientConnection* user, const struct pcap_pkthdr* hdr, const uint8_t* buffer) {
@@ -177,7 +177,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
         if (client_connection->initialized == false) {
             handle_client_init(client_connection, hdr, packet);
         } else {
-            swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond);
+            swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond, &client_connection->processing_packets);
         }
     } else {
         LOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
@@ -189,7 +189,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
             return;
         }
 
-        swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond);
+        swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond, &server->processing_packets);
     }
 }
 

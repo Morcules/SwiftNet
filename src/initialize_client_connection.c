@@ -56,7 +56,7 @@ void* request_server_information(void* const request_server_information_args_voi
             }
         #endif
 
-        swiftnet_pcap_send(request_server_information_args->pcap, request_server_information_args->data, request_server_information_args->size);
+        SWIFTNET_PCAP_SEND_SAFE(request_server_information_args->pcap, request_server_information_args->data, request_server_information_args->size);
 
         usleep(250000);
     }
@@ -98,6 +98,7 @@ static inline struct SwiftNetClientConnection* const construct_client_connection
     UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_queue.locked);
     UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_callback_queue.locked);
 
+    atomic_store_explicit(&new_connection->processing_packets, true, memory_order_release);
     atomic_store_explicit(&new_connection->closing, false, memory_order_release);
     atomic_store_explicit(&new_connection->initialized, false, memory_order_release);
     atomic_store_explicit(&new_connection->packet_handler_user_arg, NULL, memory_order_release);

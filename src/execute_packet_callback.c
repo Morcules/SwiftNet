@@ -59,52 +59,51 @@ void execute_packet_callback(
     pthread_mutex_t* const execute_callback_mtx,
     pthread_cond_t* const execute_callback_cond
 ) {
-    while (1) {
-        if (atomic_load_explicit(closing, memory_order_acquire) == true) {
-            break;
-        }
+check_packet:
+    if (unlikely(atomic_load_explicit(closing, memory_order_acquire) == true)) {
+        return;
+    }
 
-        pthread_mutex_lock(execute_callback_mtx);
+    pthread_mutex_lock(execute_callback_mtx);
 
-        const struct PacketCallbackQueueNode* const node = wait_for_next_packet_callback(queue);
-        if(node == NULL) {
-            pthread_cond_wait(execute_callback_cond, execute_callback_mtx);
-
-            pthread_mutex_unlock(execute_callback_mtx);
-
-            continue;
-        }
+    const struct PacketCallbackQueueNode* const node = wait_for_next_packet_callback(queue);
+    if(node == NULL) {
+        pthread_cond_wait(execute_callback_cond, execute_callback_mtx);
 
         pthread_mutex_unlock(execute_callback_mtx);
 
-        atomic_thread_fence(memory_order_acquire);
+        goto check_packet;
+    }
 
-        if(node->packet_data == NULL) {
-            allocator_free(&packet_callback_queue_node_memory_allocator, (void*)node);
-            continue;
+    pthread_mutex_unlock(execute_callback_mtx);
+
+    if(node->packet_data == NULL) {
+        allocator_free(&packet_callback_queue_node_memory_allocator, (void*)node);
+        goto check_packet;
+    }
+
+    if(node->pending_message != NULL) {
+        remove_pending_message_from_hashmap(pending_messages, node->pending_message);
+    }
+
+    void (*const packet_handler_loaded)(void* const, void* const) = atomic_load(packet_handler);
+    if (unlikely(packet_handler_loaded == NULL)) {
+        if (connection_type == CONNECTION_TYPE_CLIENT) {
+            swiftnet_client_destroy_packet_data(node->packet_data, connection);
+        } else {
+            swiftnet_client_destroy_packet_data(node->packet_data, connection);
         }
-
-        if(node->pending_message != NULL) {
-            remove_pending_message_from_hashmap(pending_messages, node->pending_message);
-        }
-
-        void (*const packet_handler_loaded)(void* const, void* const) = atomic_load(packet_handler);
-        if (unlikely(packet_handler_loaded == NULL)) {
-            if (connection_type == CONNECTION_TYPE_CLIENT) {
-                swiftnet_client_destroy_packet_data(node->packet_data, connection);
-            } else {
-                swiftnet_client_destroy_packet_data(node->packet_data, connection);
-            }
-
-            allocator_free(&packet_callback_queue_node_memory_allocator, (void*)node);
-
-            continue;
-        }
-
-        (*packet_handler_loaded)(node->packet_data, atomic_load_explicit(user_data, memory_order_acquire));
 
         allocator_free(&packet_callback_queue_node_memory_allocator, (void*)node);
+
+        goto check_packet;
     }
+
+    (*packet_handler_loaded)(node->packet_data, atomic_load_explicit(user_data, memory_order_acquire));
+
+    allocator_free(&packet_callback_queue_node_memory_allocator, (void*)node);
+
+    goto check_packet;
 }
 
 void* execute_packet_callback_client(void* const void_client) {

@@ -39,6 +39,7 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
     UNLOCK_ATOMIC_DATA_TYPE(&new_server->packet_queue.locked);
     UNLOCK_ATOMIC_DATA_TYPE(&new_server->packet_callback_queue.locked);
 
+    atomic_store_explicit(&new_server->processing_packets, true, memory_order_release);
     atomic_store_explicit(&new_server->packet_handler, NULL, memory_order_release);
     atomic_store_explicit(&new_server->packet_handler_user_arg, NULL, memory_order_release);
     atomic_store_explicit(&new_server->closing, false, memory_order_release);
