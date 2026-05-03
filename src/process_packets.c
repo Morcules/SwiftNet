@@ -47,8 +47,6 @@ static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chun
                 }
 
                 if((chunks_received[byte] & (1u << bit)) == 0x00) {
-                    //printf("%d\n", byte * 8 + bit);
-
                     buffer[offset] = byte * 8 + bit;
                     offset++;
                 }
@@ -214,8 +212,6 @@ static inline bool chunk_already_received(uint8_t* const chunks_received, const 
 }
 
 static inline void chunk_received(uint8_t* const chunks_received, const uint32_t index) {
-    //printf("received\n");
-
     const uint32_t byte = index / 8;
     const uint8_t bit = index % 8;
 
@@ -549,8 +545,6 @@ static inline void swiftnet_process_packets(
                     goto next_packet;
                 }
 
-                //printf("got response %d\n", packet_info.packet_length);
-
                 LOCK_ATOMIC_DATA_TYPE(&target_packet_sending->locked);
 
                 if(target_packet_sending->lost_chunks == NULL) {
@@ -596,9 +590,9 @@ static inline void swiftnet_process_packets(
                 uint32_t current_delay = atomic_load_explicit(&target_packet_sending->current_send_delay, memory_order_acquire);
 
                 if (*status == INCREASE_DELAY) {
-                    current_delay = (current_delay / 4) * 5;
+                    current_delay = (current_delay / 6) * 7;
                 } else {
-                    current_delay = (current_delay / 4) * 3;
+                    current_delay = (current_delay / 6) * 5;
                 }
 
                 atomic_store_explicit(&target_packet_sending->current_send_delay, current_delay, memory_order_release);

@@ -123,8 +123,6 @@ static inline void handle_lost_packets(
 
         switch (request_lost_packets_bitarray_response) {
             case REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY:
-                //printf("got update\n");
-
                 break;
             case REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET:
                 free((void*)packet_sending->lost_chunks);
@@ -140,8 +138,6 @@ static inline void handle_lost_packets(
     
         for(uint32_t i = 0; i < packet_sending->lost_chunks_size; i++) {
             const uint32_t lost_chunk_index = packet_sending->lost_chunks[i];
-
-            //printf("resending %d\n", lost_chunk_index);
 
             const uint32_t current_offset = lost_chunk_index * (mtu - PACKET_HEADER_SIZE);
 

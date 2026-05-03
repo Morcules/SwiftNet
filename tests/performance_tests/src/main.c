@@ -11,11 +11,11 @@
 //#define PACKET_SIZE 1000000 // 1 MILLION BYTES
 //#define PACKETS_TO_SEND 50 // HOW MANY PACKETS TO SEND
 
-#define PACKET_SIZE 100000000 // 1 MILLION BYTES
+#define PACKET_SIZE 100000000 // 100 MILLION BYTES
 #define PACKETS_TO_SEND 1 // HOW MANY PACKETS TO SEND
 
 // ********************** //
-// SEND 50 MILLION BYTES //
+// SEND 100 MILLION BYTES //
 // ********************** //
 
 char private_ip_address_testing[INET_ADDRSTRLEN];
@@ -55,12 +55,7 @@ void send_large_packets(const bool loopback) {
 
     struct SwiftNetPacketBuffer buffer = swiftnet_create_packet_buffer(PACKET_SIZE);
 
-    uint8_t* const random_data = malloc(PACKET_SIZE);
-    for (uint32_t i = 0; i < PACKET_SIZE; i++) {
-        random_data[i] = rand();
-    }
-
-    swiftnet_append_to_buffer(random_data, PACKET_SIZE, &buffer);
+    buffer.packet_append_pointer += PACKET_SIZE;
 
     clock_gettime(CLOCK_MONOTONIC, &start);;
 

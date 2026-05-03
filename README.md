@@ -47,6 +47,9 @@
 
 ## Performance
 
+- **Test Overview**
+  One large packet with 100 Million bytes of data
+
 - **Hardware & Conditions**  
   Tested on a MacBook Air M3 (my daily driver machine, running multiple background applications)
 
@@ -54,22 +57,25 @@
   Real Wi-Fi interface: en0
 
 - **Throughput**  
-  9.4 MB/s
+  20.9 MB/s
 
 - **Memory Usage**  
-  Peak memory footprint: 14 million bytes
+  **Peak memory footprint: 203 million bytes**
+  - 100M bytes are used for buffers on receiver and sender
+  - 3M bytes are used on internal data
+  
 
 - **CPU Usage**  
-  Average utilization: ~7.7%
+  Average utilization: ~9%
 
 - **Detailed Timing (from /usr/bin/time -l)**  
-  - Real (wall-clock) time: 5.32 seconds  
-  - User CPU time: 0.24 seconds  
-  - System CPU time: 0.17 seconds  
-  - Total CPU time: 0.41 seconds
+  - Real (wall-clock) time: 4.78 seconds  
+  - User CPU time: 0.07 seconds  
+  - System CPU time: 0.31 seconds  
+  - Total CPU time: 0.38 seconds
 
 - **CPU Cycles**  
-  1 005 063 001 cycles
+  1 513 423 854 cycles
 
 ## Installation
 Follow these steps to install SwiftNet:
