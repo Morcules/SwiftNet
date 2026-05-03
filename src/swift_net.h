@@ -29,6 +29,8 @@ extern "C" {
 #define SWIFT_NET_DEBUG
 #endif
 
+#define SWIFT_NET_ALIGNED(bytes) __attribute__((aligned(bytes)))
+
 // Multiplication of memory pre allocated.
 // More memory = better performance
 #define SWIFT_NET_MEMORY_USAGE 5
@@ -39,10 +41,16 @@ enum PacketType {
     SEND_LOST_PACKETS_REQUEST = 0x03,
     SEND_LOST_PACKETS_RESPONSE = 0x04,
     SUCCESSFULLY_RECEIVED_PACKET = 0x05,    
+    PACKET_DELAY_UPDATE = 0x06,
     #ifdef SWIFT_NET_REQUESTS
-    REQUEST = 0x06,
-    RESPONSE = 0x07,
+    REQUEST = 0x07,
+    RESPONSE = 0x08,
     #endif
+};
+
+enum PacketDelayUpdateStatus {
+    LOWER_DELAY,
+    INCREASE_DELAY
 };
 
 #define PACKET_INFO_ID_NONE 0xFFFF
@@ -64,20 +72,20 @@ typedef uint8_t SwiftNetDebugFlags;
 
 struct SwiftNetDebugger {
     int flags;
-};
+} SWIFT_NET_ALIGNED(8);
 #endif
 
 struct SwiftNetPortInfo {
     uint16_t destination_port;
     uint16_t source_port;
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetClientAddrData {
     uint32_t maximum_transmission_unit;
     struct in_addr sender_address;   
     uint16_t port;
     uint8_t mac_address[6];
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPacketClientMetadata {
     uint32_t data_length;
@@ -86,26 +94,30 @@ struct SwiftNetPacketClientMetadata {
     #ifdef SWIFT_NET_REQUESTS
     bool expecting_response;
     #endif
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPacketInfo {
     uint32_t packet_length;
     uint32_t chunk_amount;
     uint32_t chunk_index;
     uint32_t maximum_transmission_unit;
+    uint32_t checksum;
     struct SwiftNetPortInfo port_info;
     uint8_t packet_type;
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPendingMessage {
+    struct SwiftNetPacketInfo packet_info;
     uint8_t* chunks_received;
     uint8_t* packet_data_start;
-    struct SwiftNetPacketInfo packet_info;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
+    uint32_t last_index_checked;
+    uint32_t last_chunks_received_number;
     uint16_t source_port;
     uint16_t packet_id;
-};
+    bool sending_lost_packets;
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetPacketServerMetadata {
     struct SwiftNetClientAddrData sender;
@@ -115,11 +127,11 @@ struct SwiftNetPacketServerMetadata {
     #ifdef SWIFT_NET_REQUESTS
     bool expecting_response;
     #endif
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetServerInformation {
     uint32_t maximum_transmission_unit;
-};
+} SWIFT_NET_ALIGNED(4);
 
 enum PacketSendingUpdated {
     NO_UPDATE,
@@ -130,82 +142,85 @@ enum PacketSendingUpdated {
 struct SwiftNetPacketSending {
     uint32_t* lost_chunks;
     _Atomic enum PacketSendingUpdated updated;
+    _Atomic uint32_t current_send_delay;
     uint32_t lost_chunks_size;
     uint16_t packet_id;
     _Atomic bool locked;
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPacketCompleted {
     uint16_t packet_id;
     bool marked_cleanup;
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPacketBuffer {
     uint8_t* packet_buffer_start;   // Start of the allocated buffer
     uint8_t* packet_data_start;     // Start of the stored data
     uint8_t* packet_append_pointer; // Current position to append new data
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct PacketQueueNode {
     struct PacketQueueNode* next;
     uint8_t* data;
     uint32_t data_read;
     struct in_addr sender_address;   
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct PacketQueue {
     struct PacketQueueNode* first_node;
     struct PacketQueueNode* last_node;
     _Atomic bool locked;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct PacketCallbackQueueNode {
     struct SwiftNetPendingMessage* pending_message;
     struct PacketCallbackQueueNode* next;
     void* packet_data;
     uint16_t packet_id;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetServerPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
     uint8_t* current_pointer;
     struct SwiftNetPacketServerMetadata metadata;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetClientPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
     uint8_t* current_pointer;
     struct SwiftNetPacketClientMetadata metadata;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct PacketCallbackQueue {
     struct PacketCallbackQueueNode* first_node;
     struct PacketCallbackQueueNode* last_node;
     _Atomic bool locked;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetSentSuccessfullyCompletedPacketSignal {
     uint16_t packet_id;
     bool confirmed;
-};
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetMemoryAllocatorStack {
     void* pointers;
     void* data;
-    uint16_t index;
-    _Atomic uint32_t size;
     #ifdef SWIFT_NET_INTERNAL_TESTING 
-    _Atomic bool accessing_ptr_status;
     uint8_t* ptr_status;
     #endif
-};
+    _Atomic uint32_t size;
+    uint16_t index;
+    #ifdef SWIFT_NET_INTERNAL_TESTING 
+    _Atomic bool accessing_ptr_status;
+    #endif
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetChunkStorageManager {
     _Atomic(void*) first_item;
     _Atomic(void*) last_item;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetMemoryAllocator {
     _Atomic uint64_t occupied;
@@ -214,88 +229,89 @@ struct SwiftNetMemoryAllocator {
     uint32_t item_size;
     uint32_t chunk_item_amount;
     _Atomic uint8_t creating_stack;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetVector {
     void** data;
     uint32_t size;
     uint32_t capacity;
     _Atomic bool locked;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetHashMapItem {
-    uint32_t key_original_data_size;
     struct SwiftNetHashMapItem* next; // Contains next element with same key.
     void* key_original_data; // Dynamically allocated original key data
     void* value; // Data stored in item
-};
+    uint32_t key_original_data_size;
+} SWIFT_NET_ALIGNED(8);
 
 // Custom implementation of a hashmap
 struct SwiftNetHashMap {
-    _Atomic bool atomic_lock;
-    uint32_t capacity;
-    uint32_t size;
     struct SwiftNetHashMapItem* items;
     struct SwiftNetMemoryAllocator* key_memory_allocator;
     uint32_t* item_occupation; // Bitset tracking which indexes of items array are occupied for looping through items without many cycles.
-};
+    uint32_t capacity;
+    uint32_t size;
+    _Atomic bool atomic_lock;
+} SWIFT_NET_ALIGNED(8);
 
 // Connection data
 struct SwiftNetClientConnection {
+    struct SwiftNetHashMap packets_completed;
+    struct SwiftNetHashMap pending_messages;
+    struct SwiftNetHashMap packets_sending;
+    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
+    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
+    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
+    struct PacketQueue packet_queue;
+    struct PacketCallbackQueue packet_callback_queue;
     pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    struct SwiftNetHashMap packets_completed;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
-    pthread_cond_t process_packets_cond;
-    pthread_t process_packets_thread;
-    struct SwiftNetHashMap pending_messages;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
-    struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t process_packets_cond;
     pthread_cond_t execute_callback_cond;
+    pthread_t process_packets_thread;
     pthread_t execute_callback_thread;
     struct SwiftNetPortInfo port_info;
-    uint16_t addr_type; 
-    struct in_addr server_addr;
     struct ether_header eth_header; 
     uint32_t maximum_transmission_unit;
+    struct in_addr server_addr;
+    uint16_t addr_type; 
     uint8_t prepend_size;
     bool loopback;
+    _Atomic bool processing_packets;
     _Atomic bool closing;
     _Atomic bool initialized;
 };
 
 struct SwiftNetServer {
+    struct SwiftNetHashMap packets_completed;
+    struct SwiftNetHashMap pending_messages;
+    struct SwiftNetHashMap packets_sending;
+    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
+    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
+    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
+    struct PacketQueue packet_queue;
+    struct PacketCallbackQueue packet_callback_queue;
     pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetServerPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
-    uint8_t* current_read_pointer;
-    struct PacketQueue packet_queue;
     pthread_mutex_t process_packets_mtx;
-    pthread_cond_t process_packets_cond;
-    pthread_t process_packets_thread;
-    struct SwiftNetHashMap pending_messages;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
-    struct SwiftNetHashMap packets_completed;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct PacketCallbackQueue packet_callback_queue;
     pthread_mutex_t execute_callback_mtx;
+    pthread_cond_t process_packets_cond;
     pthread_cond_t execute_callback_cond;
+    pthread_t process_packets_thread;
     pthread_t execute_callback_thread;
     struct ether_header eth_header; 
     uint16_t server_port;        
     uint16_t addr_type;
     uint8_t prepend_size;
     bool loopback;
+    _Atomic bool processing_packets;
     _Atomic bool closing;
-};
+} SWIFT_NET_ALIGNED(8);
 
 // Set a custom message (packet) handler for the server.
 extern void swiftnet_server_set_message_handler(

@@ -1,4 +1,5 @@
 #include "internal.h"
+#include <pcap/pcap.h>
 
 pcap_t* swiftnet_pcap_open(const char* interface) {
     char errbuf[PCAP_ERRBUF_SIZE];

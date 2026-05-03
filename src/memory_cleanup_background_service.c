@@ -59,13 +59,15 @@ void* memory_cleanup_background_service() {
 
         gettimeofday(&end, NULL);
 
-        uint32_t diff_us = (uint32_t)((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        int64_t elapsed_us = (int64_t)(end.tv_sec - start.tv_sec) * 1000000LL + (end.tv_usec - start.tv_usec);
 
-        if (diff_us > PACKET_HISTORY_STORE_TIME * 1000000) {
-            continue;
+        if (elapsed_us < 0) elapsed_us = 0;
+
+        uint64_t target_us = (uint64_t)PACKET_HISTORY_STORE_TIME * 1000000ULL;
+
+        if ((uint64_t)elapsed_us < target_us) {
+            usleep(target_us - (uint64_t)elapsed_us);
         }
-
-        usleep((PACKET_HISTORY_STORE_TIME * 1000000) - diff_us);
     }
 
     return NULL;

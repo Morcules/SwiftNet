@@ -62,8 +62,6 @@ static inline void set_memory_status(struct SwiftNetMemoryAllocator* const memor
             return;
         }
     }
-
-    printf("doesnt fall\n");
 }
 
 static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_allocator, void* const memory_location) {
@@ -129,7 +127,7 @@ find_free_stack:
     if((bitmap | invalid_bitmap) == UINT64_MAX) {
         return NULL;
     } else {
-        first_free = __builtin_ctz(~(bitmap | invalid_bitmap));
+        first_free = __builtin_ctzll(~(bitmap | invalid_bitmap));
     }
 
     if (first_free >= stacks_allocated) {
