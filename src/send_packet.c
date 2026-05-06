@@ -8,7 +8,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/_endian.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>

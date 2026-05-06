@@ -47,6 +47,8 @@ else()
     message(STATUS "No sanitizer enabled")
 endif()
 
+add_compile_options(-march=native)
+
 add_library(swiftnet STATIC ${SOURCE_FILES})
 add_library(swiftnet_shared SHARED ${SOURCE_FILES})
 
