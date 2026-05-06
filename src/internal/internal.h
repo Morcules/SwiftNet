@@ -14,6 +14,12 @@
 #include <net/if.h>
 #include "../swift_net.h"
 
+#ifdef __APPLE__
+    #include <sys/_endian.h>
+#elif __linux__
+    #include <endian.h>
+#endif
+
 #ifdef __linux__
 #define LOOPBACK_INTERFACE_NAME "lo\0"
 #elif defined(__APPLE__)

@@ -1,6 +1,5 @@
 #include "internal/internal.h"
 #include "swift_net.h"
-#include <_time.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
