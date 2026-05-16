@@ -1,7 +1,6 @@
 #pragma once
 
 #include <arpa/inet.h>
-#include <pcap/pcap.h>
 #include <stdint.h>
 #include <arm_acle.h>
 #include <string.h>
@@ -33,11 +32,6 @@
     #define ENABLE_INTERNAL_CHECK
     #define DISABLE_INTERNAL_CHECK
 #endif
-
-#define SWIFTNET_PCAP_SEND_SAFE(pcap, buffer, len) \
-    while(swiftnet_pcap_send(pcap, buffer, len) == -2) { \
-        usleep(2000); \
-    } \
 
 enum RequestLostPacketsReturnType {
     REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY = 0x00,
@@ -79,23 +73,6 @@ enum RequestLostPacketsReturnType {
 // Memory should contain either an eth hdr or any specific data depending on addr type (loopback or real interface)
 #define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
 #define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
-#define HANDLE_PACKET_CONSTRUCTION(ip_header, packet_info, addr_type, eth_hdr, buffer_size, buffer_name) \
-    uint8_t buffer_name[buffer_size]; \
-    if(addr_type == DLT_NULL) { \
-        uint32_t family = PF_INET; \
-        memcpy(buffer_name, &family, sizeof(family)); \
-        memcpy(buffer_name + sizeof(family), ip_header, sizeof(*ip_header)); \
-        memcpy(buffer_name + sizeof(family) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
-    } else if(addr_type == DLT_EN10MB){ \
-        memcpy(buffer_name, eth_hdr, sizeof(*eth_hdr)); \
-        memcpy(buffer_name + sizeof(*eth_hdr), ip_header, sizeof(*ip_header)); \
-        memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
-    } \
-
-// Simple crc16 call with proper memory order
-#define HANDLE_CHECKSUM(buffer, size, prepend_size) \
-    const uint32_t checksum = crc32(buffer, size); \
-    memcpy(buffer + prepend_size + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, checksum), &checksum, sizeof(checksum));
 
 // Number used in ip.proto
 #define PROT_NUMBER 253
@@ -145,7 +122,7 @@ struct PacketCompletedKey {
 };
 
 struct Listener {
-    pcap_t* pcap;
+    struct SwiftNetNetworkData network_data;
     pthread_t listener_thread;
     struct SwiftNetHashMap servers;
     struct SwiftNetHashMap client_connections;
@@ -173,9 +150,6 @@ extern void* memory_cleanup_background_service();
 
 extern int get_default_interface_and_mac(char *restrict interface_name, uint32_t interface_name_length, uint8_t mac_out[6], int sockfd);
 extern const uint32_t get_mtu(const char* restrict const interface, const int sockfd);
-extern int get_bpf_device();
-extern int bind_bpf_to_interface(const int bpf, const bool loopback);
-extern int setup_bpf_settings(const int bpf);
 
 extern void* swiftnet_server_process_packets(void* const void_server);
 extern void* swiftnet_client_process_packets(void* const void_client);
@@ -186,8 +160,6 @@ extern void* execute_packet_callback_server(void* const void_server);
 extern struct in_addr private_ip_address;
 extern uint8_t mac_address[6];
 extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
-extern pcap_t* swiftnet_pcap_open(const char* interface);
-extern int swiftnet_pcap_send(pcap_t *pcap, const uint8_t *data, int len);
 
 extern void* check_existing_listener(const char* interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
@@ -290,11 +262,9 @@ extern void swiftnet_send_packet(
     const struct in_addr* const target_addr,
     struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
-    pcap_t* const pcap,
     const struct ether_header eth_hdr,
     const bool loopback,
-    const uint16_t addr_type,
-    const uint8_t prepend_size
+    const struct SwiftNetNetworkData network_data
     #ifdef SWIFT_NET_REQUESTS
     , struct RequestSent* const request_sent
     , const bool response

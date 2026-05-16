@@ -1,4 +1,5 @@
 #include "internal/internal.h"
+#include "internal/networking.h"
 #include "swift_net.h"
 #include <stdatomic.h>
 #include <stdint.h>
@@ -118,7 +119,7 @@ void swiftnet_client_cleanup(struct SwiftNetClientConnection* const client) {
 
     close_threads(CONNECTION_TYPE_CLIENT, client);
 
-    pcap_close(client->pcap);
+    SWIFTNET_CLOSE_CONNECTION(&client->network_data);
 
     allocator_free(&client_connection_memory_allocator, client);
 }
@@ -132,7 +133,7 @@ void swiftnet_server_cleanup(struct SwiftNetServer* const server) {
 
     close_threads(CONNECTION_TYPE_SERVER, server);
 
-    pcap_close(server->pcap);
+    SWIFTNET_CLOSE_CONNECTION(&server->network_data);
 
     allocator_free(&server_memory_allocator, server);
 }

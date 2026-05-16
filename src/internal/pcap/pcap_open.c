@@ -1,7 +1,7 @@
-#include "internal.h"
+#include "../internal.h"
 #include <pcap/pcap.h>
 
-pcap_t* swiftnet_pcap_open(const char* interface) {
+pcap_t* swiftnet_pcap_open(const char* const restrict interface) {
     char errbuf[PCAP_ERRBUF_SIZE];
 
     pcap_t *p = pcap_open_live(

@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <pcap/pcap.h>
 
+#define SWIFTNET_BACKEND_PCAP
+
 #ifdef __cplusplus
 extern "C" {
 
@@ -34,6 +36,14 @@ extern "C" {
 // Multiplication of memory pre allocated.
 // More memory = better performance
 #define SWIFT_NET_MEMORY_USAGE 5
+
+struct SwiftNetNetworkData {
+    #ifdef SWIFTNET_BACKEND_PCAP
+    pcap_t* pcap;
+    uint16_t addr_type;
+    uint8_t prepend_size;
+    #endif
+} SWIFT_NET_ALIGNED(8);
 
 enum PacketType {
     MESSAGE = 0x01,
@@ -263,9 +273,9 @@ struct SwiftNetClientConnection {
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
+    struct SwiftNetNetworkData network_data;
     struct PacketQueue packet_queue;
     struct PacketCallbackQueue packet_callback_queue;
-    pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetClientPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
     pthread_mutex_t process_packets_mtx;
@@ -278,8 +288,6 @@ struct SwiftNetClientConnection {
     struct ether_header eth_header; 
     uint32_t maximum_transmission_unit;
     struct in_addr server_addr;
-    uint16_t addr_type; 
-    uint8_t prepend_size;
     bool loopback;
     _Atomic bool processing_packets;
     _Atomic bool closing;
@@ -293,9 +301,9 @@ struct SwiftNetServer {
     struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
     struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
     struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
+    struct SwiftNetNetworkData network_data;
     struct PacketQueue packet_queue;
     struct PacketCallbackQueue packet_callback_queue;
-    pcap_t* pcap;
     _Atomic(void (*)(struct SwiftNetServerPacketData* const, void* const user)) packet_handler;
     _Atomic(void*) packet_handler_user_arg;
     pthread_mutex_t process_packets_mtx;
@@ -306,8 +314,6 @@ struct SwiftNetServer {
     pthread_t execute_callback_thread;
     struct ether_header eth_header; 
     uint16_t server_port;        
-    uint16_t addr_type;
-    uint8_t prepend_size;
     bool loopback;
     _Atomic bool processing_packets;
     _Atomic bool closing;

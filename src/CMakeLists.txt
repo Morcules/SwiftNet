@@ -26,8 +26,8 @@ set(SOURCE_FILES
     internal/datatype_allocator.c
     internal/datatype_vector.c
     internal/datatype_hashmap.c
-    internal/pcap_open.c
-    internal/pcap_send.c
+    internal/pcap/pcap_open.c
+    internal/pcap/pcap_send.c
     internal/check_existing_listener.c
 )
 
@@ -46,6 +46,8 @@ elseif(SANITIZER STREQUAL "undefined")
 else()
     message(STATUS "No sanitizer enabled")
 endif()
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_options(-march=native)
 

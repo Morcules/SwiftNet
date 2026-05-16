@@ -11,9 +11,17 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include "internal/internal.h"
+#include "internal/networking.h"
 #include "swift_net.h"
 
-static inline struct SwiftNetServer* const construct_server(const bool loopback, const uint16_t server_port, pcap_t* const pcap) {
+static inline struct SwiftNetServer* const construct_server(const bool loopback, const uint16_t server_port) {
+    const struct SwiftNetNetworkData null_net_data = {0x00};
+
+    struct SwiftNetNetworkData net_data = swiftnet_initialize_networking(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface);
+    if (unlikely(memcmp(&net_data, &null_net_data, sizeof(struct SwiftNetNetworkData)) == 0)) {
+        return NULL;
+    }
+
     struct SwiftNetServer* const new_server = allocator_allocate(&server_memory_allocator);
 
     struct ether_header eth_header = {
@@ -23,12 +31,10 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 
     memcpy(eth_header.ether_shost, mac_address, sizeof(eth_header.ether_shost));
 
+    new_server->network_data = net_data;
     new_server->eth_header = eth_header;
     new_server->server_port = server_port;
     new_server->loopback = loopback;
-    new_server->pcap = pcap;
-    new_server->addr_type = pcap_datalink(pcap);
-    new_server->prepend_size = PACKET_PREPEND_SIZE(new_server->addr_type);
     new_server->packet_queue = (struct PacketQueue){
         .first_node = NULL,
         .last_node = NULL
@@ -57,13 +63,7 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 
 struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback) {
     // Init pcap device
-    pcap_t* const pcap = swiftnet_pcap_open(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface);
-    if (unlikely(pcap == NULL)) {
-        PRINT_ERROR("Failed to open bpf");
-        return NULL;
-    }
-
-    struct SwiftNetServer* const new_server = construct_server(loopback, port, pcap);
+    struct SwiftNetServer* const new_server = construct_server(loopback, port);
 
     // Create a new thread that will handle all packets received
     check_existing_listener(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface, new_server, CONNECTION_TYPE_SERVER, loopback);

@@ -1,4 +1,5 @@
 #include "internal/internal.h"
+#include "internal/networking.h"
 #include "swift_net.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -263,7 +264,7 @@ static inline struct SwiftNetPacketSending* const get_packet_sending(struct Swif
     return result;
 }
 
-static inline void signal_delay_change(const enum PacketDelayUpdateStatus status, const struct ip* const ip_header, const uint16_t source_port, const uint16_t destination_port, const uint16_t addr_type, const uint8_t prepend_size, pcap_t* const pcap, const struct ether_header* const eth_hdr) {
+static inline void signal_delay_change(const enum PacketDelayUpdateStatus status, const struct ip* const ip_header, const uint16_t source_port, const uint16_t destination_port, const struct ether_header* const eth_hdr, const struct SwiftNetNetworkData* const net_data) {
     const struct ip send_server_info_ip_header = construct_ip_header(ip_header->ip_src, PACKET_HEADER_SIZE, ip_header->ip_id);
 
     const struct SwiftNetPacketInfo packet_info_new = construct_packet_info(
@@ -281,13 +282,15 @@ static inline void signal_delay_change(const enum PacketDelayUpdateStatus status
         .maximum_transmission_unit = maximum_transmission_unit
     };
 
-    HANDLE_PACKET_CONSTRUCTION(&send_server_info_ip_header, &packet_info_new, addr_type, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(server_info), buffer)
+    const uint16_t prepend_size = GET_PREPEND_SIZE(net_data);
+
+    HANDLE_PACKET_CONSTRUCTION(&send_server_info_ip_header, &packet_info_new, net_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(server_info), buffer)
 
     memcpy(buffer + prepend_size + PACKET_HEADER_SIZE, &server_info, sizeof(server_info));
 
-    HANDLE_CHECKSUM(buffer, sizeof(buffer), prepend_size)
+    HANDLE_CHECKSUM(buffer, sizeof(buffer), net_data)
     
-    SWIFTNET_PCAP_SEND_SAFE(pcap, buffer, sizeof(buffer));
+    SWIFTNET_SEND_PACKET(net_data, buffer, sizeof(buffer));
 }
 
 struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const packet_queue) {
@@ -322,11 +325,10 @@ static inline bool packet_corrupted(const uint32_t checksum, const uint32_t chun
 
 static inline void swiftnet_process_packets(
     void* _Atomic * packet_handler,
-    pcap_t* const pcap,
     const struct ether_header eth_hdr,
     const uint16_t source_port,
     const bool loopback,
-    const uint16_t addr_type,
+    const struct SwiftNetNetworkData network_data,
     struct SwiftNetHashMap* const packets_sending,
     struct SwiftNetMemoryAllocator* const packets_sending_messages_memory_allocator,
     struct SwiftNetHashMap* const pending_messages,
@@ -338,7 +340,6 @@ static inline void swiftnet_process_packets(
     struct PacketCallbackQueue* const packet_callback_queue,
     void* const connection,
     _Atomic bool* closing,
-    const uint8_t prepend_size,
     pthread_mutex_t* const process_packets_mtx,
     pthread_cond_t* const process_packets_cond,
     pthread_mutex_t* const execute_callback_mtx,
@@ -346,6 +347,8 @@ static inline void swiftnet_process_packets(
     _Atomic bool *const processing_packets
 ) {
     uint8_t idle_stage = 0; // 0-3
+    
+    const uint16_t prepend_size = GET_PREPEND_SIZE(&network_data);
 
     while(1) {
         if (atomic_load(closing) == true) {
@@ -448,13 +451,13 @@ static inline void swiftnet_process_packets(
                     .maximum_transmission_unit = maximum_transmission_unit
                 };
 
-                HANDLE_PACKET_CONSTRUCTION(&send_server_info_ip_header, &packet_info_new, addr_type, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(server_info), buffer)
+                HANDLE_PACKET_CONSTRUCTION(&send_server_info_ip_header, &packet_info_new, &network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(server_info), buffer)
 
                 memcpy(buffer + prepend_size + PACKET_HEADER_SIZE, &server_info, sizeof(server_info));
 
-                HANDLE_CHECKSUM(buffer, sizeof(buffer), prepend_size)
+                HANDLE_CHECKSUM(buffer, sizeof(buffer), &network_data);
                 
-                SWIFTNET_PCAP_SEND_SAFE(pcap, buffer, sizeof(buffer));
+                SWIFTNET_SEND_PACKET(&network_data, buffer, sizeof(buffer));
 
                 allocator_free(&packet_buffer_memory_allocator, packet_buffer);
     
@@ -481,11 +484,11 @@ static inline void swiftnet_process_packets(
                             }
                         );
 
-                        HANDLE_PACKET_CONSTRUCTION(&send_packet_ip_header, &send_packet_info, addr_type, &eth_hdr, prepend_size + PACKET_HEADER_SIZE, buffer)
+                        HANDLE_PACKET_CONSTRUCTION(&send_packet_ip_header, &send_packet_info, &network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE, buffer)
 
-                        HANDLE_CHECKSUM(buffer, sizeof(buffer), prepend_size)
+                        HANDLE_CHECKSUM(buffer, sizeof(buffer), &network_data);
 
-                        SWIFTNET_PCAP_SEND_SAFE(pcap, buffer, sizeof(buffer));
+                        SWIFTNET_SEND_PACKET(&network_data, buffer, sizeof(buffer));
 
                         allocator_free(&packet_buffer_memory_allocator, packet_buffer);
 
@@ -514,7 +517,7 @@ static inline void swiftnet_process_packets(
 
                 const uint16_t header_size = PACKET_HEADER_SIZE + prepend_size;
 
-                HANDLE_PACKET_CONSTRUCTION(&send_lost_packets_ip_header, &packet_info_new, addr_type, &eth_hdr, mtu + prepend_size, buffer)
+                HANDLE_PACKET_CONSTRUCTION(&send_lost_packets_ip_header, &packet_info_new, &network_data, &eth_hdr, mtu + prepend_size, buffer)
 
                 const uint32_t lost_chunk_indexes = return_lost_chunk_indexes(pending_message->chunks_received, pending_message->packet_info.chunk_amount, mtu - PACKET_HEADER_SIZE, (uint32_t*)(buffer + header_size));
 
@@ -526,9 +529,9 @@ static inline void swiftnet_process_packets(
                 memcpy(buffer + prepend_size + offsetof(struct ip, ip_len), &packet_length_net_order, SIZEOF_FIELD(struct ip, ip_len));
                 memcpy(buffer + prepend_size + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, packet_length), &lost_indexes_size, sizeof(lost_indexes_size));
 
-                HANDLE_CHECKSUM(buffer, packet_length + prepend_size, prepend_size);
+                HANDLE_CHECKSUM(buffer, packet_length + prepend_size, &network_data);
 
-                SWIFTNET_PCAP_SEND_SAFE(pcap, buffer, packet_length + prepend_size);
+                SWIFTNET_SEND_PACKET(&network_data, buffer, packet_length + prepend_size);
 
                 allocator_free(&packet_buffer_memory_allocator, packet_buffer);
 
@@ -614,7 +617,7 @@ static inline void swiftnet_process_packets(
             .port = packet_info.port_info.source_port,
         };
 
-        if (addr_type == DLT_EN10MB) {
+        if (GET_ADDR_TYPE(&network_data) == DLT_EN10MB) {
             memcpy(&sender.mac_address, eth_hdr.ether_shost, sizeof(sender.mac_address));
         }
 
@@ -788,9 +791,9 @@ static inline void swiftnet_process_packets(
                 if (new_packets > 50) {
                     float ratio = (float)new_packets_validated / (float)new_packets;
                     if (ratio > 0.95) {
-                        signal_delay_change(LOWER_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
+                        signal_delay_change(LOWER_DELAY, &ip_header, source_port, packet_info.port_info.source_port, &eth_hdr, &network_data);
                     } else {
-                        signal_delay_change(INCREASE_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
+                        signal_delay_change(INCREASE_DELAY, &ip_header, source_port, packet_info.port_info.source_port, &eth_hdr, &network_data);
                     }
 
                     pending_message->last_chunks_received_number = pending_message->chunks_received_number;
@@ -821,7 +824,7 @@ static inline void swiftnet_process_packets(
 void* swiftnet_server_process_packets(void* const void_server) {
     struct SwiftNetServer* const server = (struct SwiftNetServer*)void_server;
 
-    swiftnet_process_packets((void*)&server->packet_handler, server->pcap, server->eth_header, server->server_port, server->loopback, server->addr_type, &server->packets_sending, &server->packets_sending_memory_allocator, &server->pending_messages, &server->pending_messages_memory_allocator, &server->packets_completed, &server->packets_completed_memory_allocator, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->packet_callback_queue, server, &server->closing, server->prepend_size, &server->process_packets_mtx, &server->process_packets_cond, &server->execute_callback_mtx, &server->execute_callback_cond, &server->processing_packets);
+    swiftnet_process_packets((void*)&server->packet_handler, server->eth_header, server->server_port, server->loopback, server->network_data, &server->packets_sending, &server->packets_sending_memory_allocator, &server->pending_messages, &server->pending_messages_memory_allocator, &server->packets_completed, &server->packets_completed_memory_allocator, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->packet_callback_queue, server, &server->closing, &server->process_packets_mtx, &server->process_packets_cond, &server->execute_callback_mtx, &server->execute_callback_cond, &server->processing_packets);
 
     return NULL;
 }
@@ -829,7 +832,7 @@ void* swiftnet_server_process_packets(void* const void_server) {
 void* swiftnet_client_process_packets(void* const void_client) {
     struct SwiftNetClientConnection* const client = (struct SwiftNetClientConnection*)void_client;
 
-    swiftnet_process_packets((void*)&client->packet_handler, client->pcap, client->eth_header, client->port_info.source_port, client->loopback, client->addr_type, &client->packets_sending, &client->packets_sending_memory_allocator, &client->pending_messages, &client->pending_messages_memory_allocator, &client->packets_completed, &client->packets_completed_memory_allocator, CONNECTION_TYPE_CLIENT, &client->packet_queue, &client->packet_callback_queue, client, &client->closing, client->prepend_size, &client->process_packets_mtx, &client->process_packets_cond, &client->execute_callback_mtx, &client->execute_callback_cond, &client->processing_packets);
+    swiftnet_process_packets((void*)&client->packet_handler, client->eth_header, client->port_info.source_port, client->loopback, client->network_data, &client->packets_sending, &client->packets_sending_memory_allocator, &client->pending_messages, &client->pending_messages_memory_allocator, &client->packets_completed, &client->packets_completed_memory_allocator, CONNECTION_TYPE_CLIENT, &client->packet_queue, &client->packet_callback_queue, client, &client->closing, &client->process_packets_mtx, &client->process_packets_cond, &client->execute_callback_mtx, &client->execute_callback_cond, &client->processing_packets);
 
     return NULL;
 }
