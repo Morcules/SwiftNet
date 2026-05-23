@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef SWIFTNET_BACKEND_PCAP
+#ifdef SWIFT_NET_BACKEND_PCAP
 
 #include <pcap/pcap.h>
     // Simple crc16 call with proper memory order

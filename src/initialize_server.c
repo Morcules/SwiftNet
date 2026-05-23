@@ -50,9 +50,9 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
     atomic_store_explicit(&new_server->packet_handler_user_arg, NULL, memory_order_release);
     atomic_store_explicit(&new_server->closing, false, memory_order_release);
 
-    new_server->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 100);
-    new_server->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 100);
-    new_server->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 100);
+    new_server->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 40 * SWIFT_NET_MEMORY_USAGE);
+    new_server->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 40 * SWIFT_NET_MEMORY_USAGE);
+    new_server->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 40 * SWIFT_NET_MEMORY_USAGE);
 
     new_server->packets_completed = hashmap_create(&packet_completed_key_allocator);
     new_server->packets_sending = hashmap_create(&uint16_memory_allocator);

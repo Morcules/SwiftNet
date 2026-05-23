@@ -9,9 +9,13 @@
 #include <semaphore.h>
 #include <netinet/ip.h>
 #include <stdbool.h>
-#include <pcap/pcap.h>
 
-#define SWIFTNET_BACKEND_PCAP
+#ifdef SWIFT_NET_BACKEND_PCAP
+#include <pcap/pcap.h>
+#endif
+
+#ifdef SWIFT_NET_BACKEND_DPDK
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,7 +42,7 @@ extern "C" {
 #define SWIFT_NET_MEMORY_USAGE 5
 
 struct SwiftNetNetworkData {
-    #ifdef SWIFTNET_BACKEND_PCAP
+    #ifdef SWIFT_NET_BACKEND_PCAP
     pcap_t* pcap;
     uint16_t addr_type;
     uint8_t prepend_size;

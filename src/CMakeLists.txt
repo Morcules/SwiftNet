@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(swiftnet C CXX)
 
 include(GNUInstallDirs)
+include(../build/profile.cmake)
 
 set(CMAKE_C_STANDARD 99)
 
@@ -54,54 +55,36 @@ add_compile_options(-march=native)
 add_library(swiftnet STATIC ${SOURCE_FILES})
 add_library(swiftnet_shared SHARED ${SOURCE_FILES})
 
-option(SWIFT_NET_INTERNAL_TESTING "Enable internal testing" OFF)
+if(BACKEND STREQUAL "pcap")
+    add_compile_definitions(SWIFT_NET_BACKEND_PCAP)
 
-if (SWIFT_NET_INTERNAL_TESTING)
-    message("Internal Testing Enabled")
+    if(DEFINED ENV{VCPKG_ROOT} AND DEFINED CMAKE_VCPKG_TARGET_TRIPLET)
+        set(VCPKG_INCLUDE_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/include")
+        set(VCPKG_LIB_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/lib")
 
-    add_compile_definitions(SWIFT_NET_INTERNAL_TESTING)
+        find_path(PCAP_INCLUDE_DIR pcap.h
+            PATHS ${VCPKG_INCLUDE_DIR} /usr/include /usr/local/include /opt/homebrew/include
+        )
+        find_library(PCAP_LIBRARY pcap
+            PATHS ${VCPKG_LIB_DIR} /usr/lib /usr/local/lib /opt/homebrew/lib
+        )
 
-    target_compile_options(swiftnet PRIVATE -O0)
-    target_link_options(swiftnet PRIVATE -O0)
+        if(PCAP_INCLUDE_DIR AND PCAP_LIBRARY)
+            message(STATUS "libpcap found: ${PCAP_LIBRARY}")
+            target_include_directories(swiftnet PUBLIC ${PCAP_INCLUDE_DIR})
+            target_link_libraries(swiftnet PUBLIC ${PCAP_LIBRARY})
 
-    target_compile_options(swiftnet_shared PRIVATE -O0)
-    target_link_options(swiftnet_shared PRIVATE -O0)
-else()
-    message("Internal Testing Disabled")
-
-    target_compile_options(swiftnet PRIVATE -O3)
-    target_link_options(swiftnet PRIVATE -O3)
-
-    target_compile_options(swiftnet_shared PRIVATE -O3)
-    target_link_options(swiftnet_shared PRIVATE -O3)
-endif()
-
-if(DEFINED ENV{VCPKG_ROOT} AND DEFINED CMAKE_VCPKG_TARGET_TRIPLET)
-    set(VCPKG_INCLUDE_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/include")
-    set(VCPKG_LIB_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/lib")
-
-    find_path(PCAP_INCLUDE_DIR pcap.h
-        PATHS ${VCPKG_INCLUDE_DIR} /usr/include /usr/local/include /opt/homebrew/include
-    )
-    find_library(PCAP_LIBRARY pcap
-        PATHS ${VCPKG_LIB_DIR} /usr/lib /usr/local/lib /opt/homebrew/lib
-    )
-
-    if(PCAP_INCLUDE_DIR AND PCAP_LIBRARY)
-        message(STATUS "libpcap found: ${PCAP_LIBRARY}")
-        target_include_directories(swiftnet PUBLIC ${PCAP_INCLUDE_DIR})
-        target_link_libraries(swiftnet PUBLIC ${PCAP_LIBRARY})
-
-        target_include_directories(swiftnet_shared PUBLIC ${PCAP_INCLUDE_DIR})
-        target_link_libraries(swiftnet_shared PUBLIC ${PCAP_LIBRARY})
+            target_include_directories(swiftnet_shared PUBLIC ${PCAP_INCLUDE_DIR})
+            target_link_libraries(swiftnet_shared PUBLIC ${PCAP_LIBRARY})
+        else()
+            message(WARNING "libpcap not found!!!")
+        endif()
     else()
-        message(WARNING "libpcap not found!!!")
-    endif()
-else()
-    target_link_options(swiftnet PRIVATE -lpcap)
-    target_link_options(swiftnet_shared PRIVATE -lpcap)
+        target_link_options(swiftnet PRIVATE -lpcap)
+        target_link_options(swiftnet_shared PRIVATE -lpcap)
 
-    message("using linking option: -lpcap")
+        message("using linking option: -lpcap")
+    endif()
 endif()
 
 set_target_properties(swiftnet PROPERTIES

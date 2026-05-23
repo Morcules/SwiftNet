@@ -200,7 +200,7 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
     }
 }
 
-#ifdef SWIFTNET_BACKEND_PCAP
+#ifdef SWIFT_NET_BACKEND_PCAP
 static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* const hdr, const uint8_t* const packet) {
     struct Listener* const listener = (struct Listener*)user;
 

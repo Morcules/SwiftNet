@@ -50,21 +50,21 @@ pthread_t memory_cleanup_thread;
 _Atomic bool swiftnet_closing;
 
 static inline void initialize_allocators() {
-    packet_queue_node_memory_allocator = allocator_create(sizeof(struct PacketQueueNode), 100);
-    packet_callback_queue_node_memory_allocator = allocator_create(sizeof(struct PacketCallbackQueueNode), 100);
-    server_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetServerPacketData), 100);
-    client_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetClientPacketData), 100);
-    packet_buffer_memory_allocator = allocator_create(maximum_transmission_unit + sizeof(struct ether_header), 100);
+    packet_queue_node_memory_allocator = allocator_create(sizeof(struct PacketQueueNode), 40 * SWIFT_NET_MEMORY_USAGE);
+    packet_callback_queue_node_memory_allocator = allocator_create(sizeof(struct PacketCallbackQueueNode), 40 * SWIFT_NET_MEMORY_USAGE);
+    server_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetServerPacketData), 40 * SWIFT_NET_MEMORY_USAGE);
+    client_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetClientPacketData), 40 * SWIFT_NET_MEMORY_USAGE);
+    packet_buffer_memory_allocator = allocator_create(maximum_transmission_unit + sizeof(struct ether_header), 40 * SWIFT_NET_MEMORY_USAGE);
     server_memory_allocator = allocator_create(sizeof(struct SwiftNetServer), 10);
     client_connection_memory_allocator = allocator_create(sizeof(struct SwiftNetClientConnection), 10);
-    listener_memory_allocator = allocator_create(sizeof(struct Listener), 100);
-    hashmap_item_memory_allocator = allocator_create(sizeof(struct SwiftNetHashMapItem), 0xFF);
-    uint16_memory_allocator = allocator_create(sizeof(uint16_t), 0xFF);
-    pending_message_key_allocator = allocator_create(sizeof(struct PendingMessagesKey), 0xFF);
-    packet_completed_key_allocator = allocator_create(sizeof(struct PacketCompletedKey), 0xFF);
+    listener_memory_allocator = allocator_create(sizeof(struct Listener), 40 * SWIFT_NET_MEMORY_USAGE);
+    hashmap_item_memory_allocator = allocator_create(sizeof(struct SwiftNetHashMapItem), 0xFF * SWIFT_NET_MEMORY_USAGE);
+    uint16_memory_allocator = allocator_create(sizeof(uint16_t), 0xFF * SWIFT_NET_MEMORY_USAGE);
+    pending_message_key_allocator = allocator_create(sizeof(struct PendingMessagesKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
+    packet_completed_key_allocator = allocator_create(sizeof(struct PacketCompletedKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
     
     #ifdef SWIFT_NET_REQUESTS
-    requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 100);
+    requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 40 * SWIFT_NET_MEMORY_USAGE);
     #endif
 
 }

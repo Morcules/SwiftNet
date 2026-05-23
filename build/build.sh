@@ -4,5 +4,5 @@ rm -rf cmake
 rm -f Makefile
 rm -f cmake_install.cmake
 
-cmake ../src -DCMAKE_BUILD_TYPE=Release -DSANITIZER=none -B .
+cmake ../src -B .
 make -B -j8
