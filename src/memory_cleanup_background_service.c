@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static inline void cleanup_packets_completed(struct SwiftNetHashMap* packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
+static inline void cleanup_packets_completed(struct SwiftNetHashMap* const packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
     LOCK_ATOMIC_DATA_TYPE(&packets_completed->atomic_lock);
 
     LOOP_HASHMAP(packets_completed, 
@@ -43,32 +43,33 @@ static inline void handle_listener(struct Listener* const current_listener) {
 }
 
 void* memory_cleanup_background_service() {
-    while(atomic_load_explicit(&swiftnet_closing, memory_order_acquire) == false) {
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
+    struct timeval start, end;
+    int64_t elapsed_us;
+    uint64_t target_us = (uint64_t)PACKET_HISTORY_STORE_TIME * 1000000ULL;
 
-        LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-        struct SwiftNetHashMap* const listeners_map = &listeners;
+start_loop:
+    if(atomic_load_explicit(&swiftnet_closing, memory_order_acquire) == true) return NULL;
 
-        LOOP_HASHMAP(listeners_map,
-            handle_listener(hashmap_data);
-        )
+    gettimeofday(&start, NULL);
 
-        UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
+    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-        gettimeofday(&end, NULL);
+    LOOP_HASHMAP(&listeners,
+        handle_listener(hashmap_data);
+    )
 
-        int64_t elapsed_us = (int64_t)(end.tv_sec - start.tv_sec) * 1000000LL + (end.tv_usec - start.tv_usec);
+    UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-        if (elapsed_us < 0) elapsed_us = 0;
+    gettimeofday(&end, NULL);
 
-        uint64_t target_us = (uint64_t)PACKET_HISTORY_STORE_TIME * 1000000ULL;
+    elapsed_us = (int64_t)(end.tv_sec - start.tv_sec) * 1000000LL + (end.tv_usec - start.tv_usec);
 
-        if ((uint64_t)elapsed_us < target_us) {
-            usleep(target_us - (uint64_t)elapsed_us);
-        }
+    if (elapsed_us < 0) elapsed_us = 0;
+
+    if ((uint64_t)elapsed_us < target_us) {
+        usleep(target_us - (uint64_t)elapsed_us);
     }
 
-    return NULL;
+    goto start_loop;
 }

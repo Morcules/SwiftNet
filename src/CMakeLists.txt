@@ -4,6 +4,7 @@ project(swiftnet C CXX)
 include(GNUInstallDirs)
 
 set(CMAKE_C_STANDARD 99)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set(SOURCE_FILES
     initialize_swiftnet.c
@@ -67,10 +68,48 @@ if (SWIFT_NET_INTERNAL_TESTING)
 else()
     message("Internal Testing Disabled")
 
-    target_compile_options(swiftnet PRIVATE -O3)
+    target_compile_options(swiftnet PRIVATE
+        -O3
+        -march=native
+        -mtune=native
+        -flto=auto
+        -funroll-loops
+        -fomit-frame-pointer
+
+        -ffast-math
+        -fno-math-errno
+        -funsafe-math-optimizations
+        -ffinite-math-only
+
+        -fvectorize
+        -falign-functions=64
+        -falign-loops=64
+
+        -flto
+    )
+
     target_link_options(swiftnet PRIVATE -O3)
 
-    target_compile_options(swiftnet_shared PRIVATE -O3)
+    target_compile_options(swiftnet_shared PRIVATE
+        -O3
+        -march=native
+        -mtune=native
+        -flto=auto
+        -funroll-loops
+        -fomit-frame-pointer
+
+        -ffast-math
+        -fno-math-errno
+        -funsafe-math-optimizations
+        -ffinite-math-only
+
+        -fvectorize
+        -falign-functions=64
+        -falign-loops=64
+
+        -flto
+    )
+
     target_link_options(swiftnet_shared PRIVATE -O3)
 endif()
 

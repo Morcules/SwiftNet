@@ -1,11 +1,12 @@
 # SwiftNet - Networking Library
 
-## SwiftNet is a lightweight networking library built on top of pcap, operating at Layer 2. It is designed for developers who value simplicity, readability, and performance.
+## SwiftNet is a lightweight networking library built on top of pcap, operating at Layer 2. It is designed for developers who value simplicity, readability, and performance. It handles chunked delivery for large payloads, automatic lost-chunk recovery, callback handlers, and has an optional request/response model. Call swiftnet_initialize() before creating clients or servers.
 
 - [Features](#features)
 - [Installation](#installation)
 - [Future Version Goals](#future-version-goals)
 - [Example](#example)
+- [Syntax](#syntax)
 - [Contributing](#contributing)
 - [Goals](#goals)
 - [License](#license)
@@ -22,7 +23,7 @@
 - **Linux arm64** (Release build works, but testing is disabled due to TSAN issues)
 
 ## Features
-- **💡 Ease of Use**: Simple API designed to get up and running quickly, without needing to deal directly with scokets, ip/eth headers or complicated libraries.
+- **💡 Ease of Use**: Simple API designed to get up and running quickly, without needing to deal directly with sockets, ip/eth headers or complicated libraries.
 - **📂 Lightweight**: No dependencies except PCAP and a small footprint.
 
 ## Why Use SwiftNet?
@@ -99,7 +100,7 @@ cd SwiftNet/build
 ./build_for_release.sh
 ```
 4. To use SwiftNet in your project:
-- Include the SwiftNet.h header from the `src` directory in your main source file (e.g., `main.c`).
+- Include `swift_net.h` in your main source file (e.g., `main.c`).
 - Link against the static library `libswiftnet.a` using your compiler.
 
 ## Important note
@@ -108,6 +109,8 @@ cd SwiftNet/build
 
 ## Example
 ```
+swiftnet_initialize();
+
 struct SwiftNetClientConnection* const client_conn = swiftnet_create_client("127.0.0.1", 8080, 1000);
 if (client_conn == NULL) {
     printf("Failed to create client connection\n");
@@ -116,14 +119,29 @@ if (client_conn == NULL) {
 
 swiftnet_client_set_message_handler(client_conn, on_client_packet, NULL);
 
-struct SwiftNetPacketBuffer buf = swiftnet_client_create_packet_buffer(sizeof(int));
+struct SwiftNetPacketBuffer buf = swiftnet_create_packet_buffer(1024);
 
 int code = 0xFF;
+swiftnet_append_to_buffer(&code, sizeof(code), &buf);
 
-swiftnet_client_append_to_packet(&code, sizeof(code), &buf);
 swiftnet_client_send_packet(client_conn, &buf);
-swiftnet_client_destroy_packet_buffer(&buf);
+swiftnet_destroy_packet_buffer(&buf);
+
+/* later */
+swiftnet_client_cleanup(client_conn);
+swiftnet_cleanup();
 ```
+
+Handlers get called with `struct SwiftNetClientPacketData*` (or the server equivalent). Use `swiftnet_client_read_packet` to pull data out, then `swiftnet_client_destroy_packet_data`. Server side is symmetric. Requests/responses are available when `SWIFT_NET_REQUESTS` is enabled.
+
+## Syntax
+
+- Every stack var has to be declared on top for easier variable clarity.
+- New scopes can declare at top of the scope.
+- Use gotos and labels for labeled progression.
+- Trying to avoid many scopes in one function.
+
+(only some files have the new style i'm working on it)
 
 ## Contributing
 
