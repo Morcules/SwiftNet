@@ -869,16 +869,18 @@ process_packet:
             new_packets = packet_info.chunk_index - pending_message->last_index_checked;
             new_packets_validated = pending_message->chunks_received_number - pending_message->last_chunks_received_number;
 
-            if (new_packets > 50) {
-                ratio = (float)new_packets_validated / (float)new_packets;
-                if (ratio > 0.95) {
-                    signal_delay_change(LOWER_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
-                } else {
-                    signal_delay_change(INCREASE_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
-                }
+            if (pending_message->sending_lost_packets == false) {
+                if (new_packets > 50) {
+                    ratio = (float)new_packets_validated / (float)new_packets;
+                    if (ratio > 0.95) {
+                        signal_delay_change(LOWER_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
+                    } else {
+                        signal_delay_change(INCREASE_DELAY, &ip_header, source_port, packet_info.port_info.source_port, addr_type, prepend_size, pcap, &eth_hdr);
+                    }
 
-                pending_message->last_chunks_received_number = pending_message->chunks_received_number;
-                pending_message->last_index_checked = packet_info.chunk_index;
+                    pending_message->last_chunks_received_number = pending_message->chunks_received_number;
+                    pending_message->last_index_checked = packet_info.chunk_index;
+                }
             }
 
             memcpy(pending_message->packet_data_start + (chunk_data_size * packet_info.chunk_index), packet_data, bytes_to_write);
