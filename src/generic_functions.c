@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 // These functions append data to a packet buffer and advance the current pointer by the data size.
-static inline void validate_append_to_packet_args(const void* const data, const uint32_t data_size) {
+static inline void validate_append_to_packet_args(const void* restrict const data, const uint32_t data_size) {
     if(unlikely(data == NULL || data_size == 0)) {
         PRINT_ERROR("Error: Invalid arguments given");
         exit(EXIT_FAILURE);

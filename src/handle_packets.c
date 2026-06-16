@@ -38,7 +38,7 @@ static inline void insert_queue_node(
     return;
 }
 
-static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* const data, const uint32_t sender_address) {
+static inline struct PacketQueueNode* construct_node(const uint32_t data_read, void* restrict const data, const uint32_t sender_address) {
     struct PacketQueueNode* restrict node;
 
 
@@ -70,11 +70,11 @@ static inline void swiftnet_handle_packets(
 	void* const connection,
 	const enum ConnectionType connection_type,
 	struct PacketQueue* const packet_queue,
-	const _Atomic bool* closing,
+	const _Atomic bool* const closing,
 	const bool loopback,
 	const uint16_t addr_type,
-	const struct pcap_pkthdr* hdr,
-	const uint8_t* const packet,
+	const struct pcap_pkthdr* restrict const hdr,
+	const uint8_t* restrict const packet,
     pthread_mutex_t* const process_packets_mtx,
     pthread_cond_t* const process_packets_cond,
     _Atomic bool *const processing_packets
@@ -269,8 +269,8 @@ static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* re
     handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, hdr, packet, port_info);
 }
 
-void* interface_start_listening(void* const listener) {
-    pcap_loop(((struct Listener*)listener)->pcap, 0, pcap_packet_handle, listener);
+void* interface_start_listening(void* const listener_void) {
+    pcap_loop(((struct Listener*)listener_void)->pcap, 0, pcap_packet_handle, listener_void);
 
     return NULL;
 }

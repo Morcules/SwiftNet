@@ -8,7 +8,7 @@
 
 #ifdef SWIFT_NET_REQUESTS
 
-static inline void delete_request_sent(struct RequestSent* request_sent) {
+static inline void delete_request_sent(struct RequestSent* restrict const request_sent) {
     LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock)
 
     hashmap_remove(&request_sent->packet_id, sizeof(uint16_t), &requests_sent);
@@ -69,7 +69,7 @@ check_response:
     goto check_response;
 }
 
-struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetServer* const server, struct SwiftNetPacketBuffer* const packet, const struct SwiftNetClientAddrData addr_data, const uint32_t timeout_ms) {
+struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetServer* const server, struct SwiftNetPacketBuffer* restrict const packet, const struct SwiftNetClientAddrData addr_data, const uint32_t timeout_ms) {
     struct RequestSent* request_sent;
     uint32_t packet_length;
     struct SwiftNetPortInfo port_info;

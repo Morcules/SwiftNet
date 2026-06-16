@@ -29,7 +29,7 @@ struct RequestServerInformationArgs {
     struct SwiftNetClientConnection* connection;
 };
 
-void* request_server_information(void* restrict const request_server_information_args_void) {
+void* request_server_information(void* const request_server_information_args_void) {
     const struct RequestServerInformationArgs* const request_server_information_args = request_server_information_args_void;
 
     struct timeval tv;
@@ -131,7 +131,7 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     uint32_t ip;
     bool loopback;
     pcap_t* pcap;
-    struct SwiftNetClientConnection* restrict new_connection;
+    struct SwiftNetClientConnection* new_connection;
     struct SwiftNetPacketInfo request_server_information_packet_info;
     struct ip request_server_info_ip_header;
     pthread_t send_request_thread;

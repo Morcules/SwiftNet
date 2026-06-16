@@ -17,47 +17,58 @@
 #include <net/if_dl.h>
 #endif
 
-int get_default_interface_and_mac(char* restrict interface_name, uint32_t interface_name_length, uint8_t mac_out[6], int sockfd) {
+int get_default_interface_and_mac(char* restrict interface_name, const uint32_t interface_name_length, uint8_t* restrict mac_out, const int sockfd) {
     struct sockaddr_in local_addr;
-    socklen_t addr_len = sizeof(local_addr);
+    socklen_t addr_len;
+    char local_ip[INET_ADDRSTRLEN];
+    struct ifaddrs* ifaddr;
+    struct ifaddrs* ifa;
+    struct ifaddrs* match;
+    int mac_found;
 
-    if (getsockname(sockfd, (struct sockaddr *)&local_addr, &addr_len) < 0) {
+
+    addr_len = sizeof(local_addr);
+
+    if(getsockname(sockfd, (struct sockaddr *)&local_addr, &addr_len) < 0) {
         perror("getsockname");
         return -1;
     }
 
-    char local_ip[INET_ADDRSTRLEN];
-    if (!inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, sizeof(local_ip))) {
+    if(!inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, sizeof(local_ip))) {
         perror("inet_ntop");
         return -1;
     }
 
-    struct ifaddrs *ifaddr, *ifa;
-    if (getifaddrs(&ifaddr) == -1) {
+    if(getifaddrs(&ifaddr) == -1) {
         perror("getifaddrs");
         return -1;
     }
 
-    struct ifaddrs *match = NULL;
+    match = NULL;
 
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_addr) continue;
+    for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        char iface_ip[INET_ADDRSTRLEN];
+        struct sockaddr_in* sin;
 
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            char iface_ip[INET_ADDRSTRLEN];
-            struct sockaddr_in *sin = (struct sockaddr_in *)ifa->ifa_addr;
+        if(!ifa->ifa_addr) {
+            continue;
+        }
 
-            if (!inet_ntop(AF_INET, &sin->sin_addr, iface_ip, sizeof(iface_ip)))
+        if(ifa->ifa_addr->sa_family == AF_INET) {
+            sin = (struct sockaddr_in *)ifa->ifa_addr;
+
+            if(!inet_ntop(AF_INET, &sin->sin_addr, iface_ip, sizeof(iface_ip))) {
                 continue;
+            }
 
-            if (strcmp(local_ip, iface_ip) == 0) {
+            if(strcmp(local_ip, iface_ip) == 0) {
                 match = ifa;
                 break;
             }
         }
     }
 
-    if (!match) {
+    if(!match) {
         PRINT_ERROR("No matching interface found for IP %s", local_ip);
         freeifaddrs(ifaddr);
         return -1;
@@ -66,25 +77,36 @@ int get_default_interface_and_mac(char* restrict interface_name, uint32_t interf
     strncpy(interface_name, match->ifa_name, interface_name_length - 1);
     interface_name[interface_name_length - 1] = '\0';
 
-    int mac_found = 0;
+    mac_found = 0;
 
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_addr) continue;
-        if (strcmp(ifa->ifa_name, interface_name) != 0) continue;
+    for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if(!ifa->ifa_addr) {
+            continue;
+        }
+
+        if(strcmp(ifa->ifa_name, interface_name) != 0) {
+            continue;
+        }
 
     #ifdef __linux__
-        if (ifa->ifa_addr->sa_family == AF_PACKET) {
-            struct sockaddr_ll *s = (struct sockaddr_ll *)ifa->ifa_addr;
-            if (s->sll_halen == 6) {
+        if(ifa->ifa_addr->sa_family == AF_PACKET) {
+            struct sockaddr_ll* s;
+
+
+            s = (struct sockaddr_ll *)ifa->ifa_addr;
+            if(s->sll_halen == 6) {
                 memcpy(mac_out, s->sll_addr, 6);
                 mac_found = 1;
                 break;
             }
         }
     #elif defined(__APPLE__)
-        if (ifa->ifa_addr->sa_family == AF_LINK) {
-            struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-            if (sdl->sdl_alen == 6) {
+        if(ifa->ifa_addr->sa_family == AF_LINK) {
+            struct sockaddr_dl* sdl;
+
+
+            sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+            if(sdl->sdl_alen == 6) {
                 memcpy(mac_out, LLADDR(sdl), 6);
                 mac_found = 1;
                 break;
@@ -95,7 +117,7 @@ int get_default_interface_and_mac(char* restrict interface_name, uint32_t interf
 
     freeifaddrs(ifaddr);
 
-    if (!mac_found) {
+    if(!mac_found) {
         PRINT_ERROR("No MAC address found for interface %s", interface_name);
         return -1;
     }

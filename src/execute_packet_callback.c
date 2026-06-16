@@ -54,10 +54,10 @@ void execute_packet_callback(
     struct SwiftNetMemoryAllocator* const pending_message_memory_allocator,
     const _Atomic bool * const closing,
     void * const connection,
-    struct SwiftNetHashMap * const pending_messages,
-    _Atomic(void *) *user_data,
-    pthread_mutex_t* restrict const execute_callback_mtx,
-    pthread_cond_t* restrict const execute_callback_cond
+    struct SwiftNetHashMap* const pending_messages,
+    _Atomic(void *) * const user_data,
+    pthread_mutex_t* const execute_callback_mtx,
+    pthread_cond_t* const execute_callback_cond
 ) {
     void (*packet_handler_loaded)(void *const, void *const);
 

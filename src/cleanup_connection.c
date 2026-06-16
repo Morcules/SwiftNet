@@ -32,7 +32,7 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
 
 static inline void remove_listener(const enum ConnectionType connection_type, const char* const restrict interface_name, void* const connection) {
     uint32_t interface_len;
-    struct Listener* restrict listener;
+    struct Listener* listener;
 
     interface_len = strlen(interface_name);
 

@@ -43,7 +43,7 @@ void swiftnet_resize_packet_buffer(uint32_t new_buffer_size, struct SwiftNetPack
     };
 }
 
-void swiftnet_write_packet_buffer(const uint32_t byte_offset, struct SwiftNetPacketBuffer* const packet_buffer, void* restrict const data, const uint32_t data_size) {
+void swiftnet_write_packet_buffer(const uint32_t byte_offset, struct SwiftNetPacketBuffer* restrict const packet_buffer, void* restrict const data, const uint32_t data_size) {
     memcpy(packet_buffer->packet_data_start + byte_offset, data, data_size);
 }
 

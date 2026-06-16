@@ -113,19 +113,36 @@ enum RequestLostPacketsReturnType {
 
 #define MIN(one, two) (one > two ? two : one)
 
-static inline uint32_t crc32(uint8_t* data, uint32_t length) {
+static inline void* swiftnet_allocate_memory(const uint32_t size) {
+    // Future
+    return NULL;
+}
+
+static inline void swiftnet_free_memory(const uint32_t size, const void* restrict const ptr) {
+    // Future
+    return;
+}
+
+static inline void swiftnet_reallocate_memory(const uint32_t new_size, const void* restrict const ptr) {
+    // Future
+    return;
+}
+
+static inline uint32_t crc32(const uint8_t* const data, const uint32_t length) {
+    const uint8_t* ptr = data;
+    uint32_t remaining = length;
     uint32_t crc = 0xFFFFFFFF;
     
-    while (length >= 8) {
-        crc = __crc32d(crc, *(const uint64_t*)data);
-        data += 8;
-        length -= 8;
+    while (remaining >= 8) {
+        crc = __crc32d(crc, *(const uint64_t*)ptr);
+        ptr += 8;
+        remaining -= 8;
     }
 
-    while (length > 0) {
-        crc = __crc32b(crc, *data);
-        data++;
-        length--;
+    while (remaining > 0) {
+        crc = __crc32b(crc, *ptr);
+        ptr++;
+        remaining--;
     }
 
     return ~crc;
@@ -173,7 +190,7 @@ extern _Atomic bool swiftnet_closing;
 
 extern void* memory_cleanup_background_service();
 
-extern int get_default_interface_and_mac(char *restrict interface_name, uint32_t interface_name_length, uint8_t mac_out[6], int sockfd);
+extern int get_default_interface_and_mac(char* restrict interface_name, const uint32_t interface_name_length, uint8_t* restrict mac_out, const int sockfd);
 extern const uint32_t get_mtu(const char* restrict const interface, const int sockfd);
 extern int get_bpf_device();
 extern int bind_bpf_to_interface(const int bpf, const bool loopback);
@@ -188,10 +205,10 @@ extern void* execute_packet_callback_server(void* const void_server);
 extern struct in_addr private_ip_address;
 extern uint8_t mac_address[6];
 extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
-extern pcap_t* swiftnet_pcap_open(const char* interface);
-extern int swiftnet_pcap_send(pcap_t *pcap, const uint8_t *data, int len);
+extern pcap_t* swiftnet_pcap_open(const char* restrict const interface);
+extern int swiftnet_pcap_send(pcap_t* const pcap, const uint8_t* restrict const data, const int len);
 
-extern void* check_existing_listener(const char* interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
+extern void* check_existing_listener(const char* restrict const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
 extern uint32_t bytes_leaked;
@@ -205,14 +222,19 @@ static inline bool check_debug_flag(const SwiftNetDebugFlags flag) {
     return (debugger.flags & flag) != 0;
 }
 
-static inline void send_debug_message(const char* message, ...) {
+static inline void send_debug_message(const char* restrict const message, ...) {
     va_list args;
+    char* prefix;
+    uint32_t prefix_length;
+    uint32_t message_length;
+
+
     va_start(args, message);
 
-    char* prefix = "[DEBUG] ";
+    prefix = "[DEBUG] ";
 
-    const uint32_t prefix_length = strlen(prefix);
-    const uint32_t message_length = strlen(message);
+    prefix_length = strlen(prefix);
+    message_length = strlen(message);
 
     char full_message[prefix_length + message_length + 1];
 
@@ -255,7 +277,7 @@ extern struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 extern struct SwiftNetMemoryAllocator listener_memory_allocator;
 extern struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
 
-extern void* interface_start_listening(void* listener_void);
+extern void* interface_start_listening(void* const listener_void);
 
 extern void* vector_get(struct SwiftNetVector* const vector, const uint32_t index);
 extern void vector_remove(struct SwiftNetVector* const vector, const uint32_t index);
@@ -263,14 +285,14 @@ extern void vector_push(struct SwiftNetVector* const vector, void* const data);
 extern void vector_destroy(struct SwiftNetVector* const vector);
 extern struct SwiftNetVector vector_create(const uint32_t starting_amount);
 
-extern struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory_allocator);
-extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* restrict const hashmap);
+extern struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* const key_memory_allocator);
+extern void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* const hashmap);
 extern void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
 extern void hashmap_destroy(struct SwiftNetHashMap* const hashmap);
-extern void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* restrict const hashmap);
+extern void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap);
 
-extern void* server_start_pcap(void* server_void);
-extern void* client_start_pcap(void* client_void);
+extern void* server_start_pcap(void* const server_void);
+extern void* client_start_pcap(void* const client_void);
 
 #ifdef SWIFT_NET_REQUESTS
 struct RequestSent {
@@ -316,19 +338,22 @@ static inline struct SwiftNetPacketInfo construct_packet_info(const uint32_t pac
     };
 }
 
-static struct ip construct_ip_header(struct in_addr destination_addr, const uint32_t packet_size, const uint16_t packet_id) {
-    struct ip ip_header = {
-        .ip_v = 4, // Version (ipv4)
-        .ip_hl = 5, // Header length
-        .ip_tos = 0, // Type of service
-        .ip_p = PROT_NUMBER, // Protocol
-        .ip_len = htons(packet_size), // Chunk size
-        .ip_id = htons(packet_id), // Packet id
-        .ip_off = htons(0), // Not used
-        .ip_ttl = 64,// Time to live
-        .ip_sum = htons(0), // not used!!
-        .ip_src = private_ip_address, // Source ip
-        .ip_dst = destination_addr // Destination ip
+static struct ip construct_ip_header(const struct in_addr destination_addr, const uint32_t packet_size, const uint16_t packet_id) {
+    struct ip ip_header;
+
+
+    ip_header = (struct ip){
+        .ip_v = 4,
+        .ip_hl = 5,
+        .ip_tos = 0,
+        .ip_p = PROT_NUMBER,
+        .ip_len = htons(packet_size),
+        .ip_id = htons(packet_id),
+        .ip_off = htons(0),
+        .ip_ttl = 64,
+        .ip_sum = htons(0),
+        .ip_src = private_ip_address,
+        .ip_dst = destination_addr
     };
 
     return ip_header;

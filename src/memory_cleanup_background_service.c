@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static inline void cleanup_packets_completed(struct SwiftNetHashMap* packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
+static inline void cleanup_packets_completed(struct SwiftNetHashMap* const packets_completed, struct SwiftNetMemoryAllocator* const packets_completed_allocator) {
     LOCK_ATOMIC_DATA_TYPE(&packets_completed->atomic_lock);
 
     LOOP_HASHMAP(packets_completed, 
