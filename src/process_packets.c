@@ -28,62 +28,65 @@ static inline bool is_private_ip(struct in_addr ip) {
 }  
 
 // Returns an array of 4 byte uint32_t, that contain indexes of lost chunks
-static inline const uint32_t return_lost_chunk_indexes(const uint8_t* const chunks_received, const uint32_t chunk_amount, const uint32_t buffer_size, uint32_t* const buffer) {
+static inline const uint32_t return_lost_chunk_indexes(const uint8_t* restrict const chunks_received, const uint32_t chunk_amount, const uint32_t buffer_size, uint32_t* restrict const buffer) {
     uint32_t byte = 0;
-
     uint32_t offset = 0;
 
-    while(1) {
-        if(byte * 8 + 8 < chunk_amount) {
-            if(chunks_received[byte] == 0xFF) {
-                byte++;
-                continue;
-            }
+    goto loop;
 
-            for(uint8_t bit = 0; bit < 8; bit++) {
-                if(offset * 4 + 4 > buffer_size) { 
-                    return offset;
-                }
-
-                if((chunks_received[byte] & (1u << bit)) == 0x00) {
-                    buffer[offset] = byte * 8 + bit;
-                    offset++;
-                }
-            }
-        } else {
-            const uint32_t bits_to_check = chunk_amount - byte * 8;
+loop:
+    if(byte * 8 + 8 < chunk_amount) {
+        if(chunks_received[byte] == 0xFF) {
+            byte++;
             
-            for(uint32_t bit = 0; bit < bits_to_check; bit++) {
-                if(offset * 4 + 4 > buffer_size) { 
-                    return offset;
-                }
-                
-                if((chunks_received[byte] & (1u << bit)) == 0x00) {
-                    buffer[offset] = byte * 8 + bit;
-                    offset++;
-                }
-            }
-            
-            return offset;
+            goto loop;
         }
 
-        byte++;
+        for(uint8_t bit = 0; bit < 8; bit++) {
+            if(offset * 4 + 4 > buffer_size) goto exit;
+
+            if((chunks_received[byte] & (1u << bit)) == 0x00) {
+                buffer[offset] = byte * 8 + bit;
+                offset++;
+            }
+        }
+    } else {
+        for(uint32_t bit = 0; bit < chunk_amount - byte * 8; bit++) {
+            if(offset * 4 + 4 > buffer_size) goto exit;
+            
+            if((chunks_received[byte] & (1u << bit)) == 0x00) {
+                buffer[offset] = byte * 8 + bit;
+                offset++;
+            }
+        }
+        
+        goto exit;
     }
 
+    byte++;
+
+    goto loop;
+
+
+exit:
     return offset;
 }
 
-static inline void packet_completed(const uint16_t packet_id, const uint16_t source_port, struct SwiftNetHashMap* const packets_completed_history, struct SwiftNetMemoryAllocator* const packets_completed_history_memory_allocator) {
-    struct SwiftNetPacketCompleted* const new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
-    new_packet_completed->packet_id = packet_id;
-    new_packet_completed->marked_cleanup = false;
+static inline void packet_completed(const uint16_t packet_id, const uint16_t source_port, struct SwiftNetHashMap* restrict const packets_completed_history, struct SwiftNetMemoryAllocator* restrict const packets_completed_history_memory_allocator) {
+    struct SwiftNetPacketCompleted* restrict new_packet_completed;
+    struct PacketCompletedKey* restrict key;
+    uint16_t* restrict heap_key_data_location;
 
-    uint16_t* heap_key_data_location = allocator_allocate(&uint16_memory_allocator);
+
+    new_packet_completed = allocator_allocate(packets_completed_history_memory_allocator);
+    *new_packet_completed = (struct SwiftNetPacketCompleted){.packet_id = packet_id, .marked_cleanup = false};
+
+    heap_key_data_location = allocator_allocate(&uint16_memory_allocator);
     *heap_key_data_location = packet_id;
 
     LOCK_ATOMIC_DATA_TYPE(&packets_completed_history->atomic_lock);
 
-    struct PacketCompletedKey* const key = allocator_allocate(&packet_completed_key_allocator);
+    key = allocator_allocate(&packet_completed_key_allocator);
     *key = (struct PacketCompletedKey){
         .source_port = source_port,
         .packet_id = packet_id
@@ -97,35 +100,35 @@ static inline void packet_completed(const uint16_t packet_id, const uint16_t sou
 }
 
 static inline bool check_packet_already_completed(const uint16_t packet_id, const uint16_t source_port, struct SwiftNetHashMap* const packets_completed_history) {
-    const struct PacketCompletedKey key = {
-        .packet_id = packet_id,
-        .source_port = source_port
-    };
+    struct PacketCompletedKey key;
+    struct SwiftNetPacketCompleted* item;
 
-    const struct SwiftNetPacketCompleted* const item = hashmap_get(&key, sizeof(key), packets_completed_history);
+
+    key = (struct PacketCompletedKey){.packet_id = packet_id, .source_port = source_port};
+
+    item = hashmap_get(&key, sizeof(key), packets_completed_history);
 
     return item != NULL;
 }
 
 static inline struct SwiftNetPendingMessage* const get_pending_message(struct SwiftNetHashMap* const pending_messages, const enum ConnectionType connection_type, const uint16_t packet_id, const uint16_t source_port) {
+    struct PendingMessagesKey key;
+    struct SwiftNetPendingMessage* pending_message;
+
+
     LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    const struct PendingMessagesKey key = {
-        .source_port = source_port,
-        .packet_id = packet_id
-    };
+    key = (struct PendingMessagesKey){.source_port = source_port, .packet_id = packet_id};
 
-    struct SwiftNetPendingMessage* const pending_message = hashmap_get(&key, sizeof(key), pending_messages);
+    pending_message = hashmap_get(&key, sizeof(key), pending_messages);
 
     UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
     return pending_message;
 }
 
-static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* const new_node, struct PacketCallbackQueue* const packet_queue) {
-    if(unlikely(new_node == NULL)) {
-        return;
-    }
+static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* restrict const new_node, struct PacketCallbackQueue* const packet_queue) {
+    if(unlikely(new_node == NULL)) return;
 
     LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
@@ -148,12 +151,12 @@ static inline void insert_callback_queue_node(struct PacketCallbackQueueNode* co
 
 #ifdef SWIFT_NET_REQUESTS
 
-static inline void handle_request_response(uint16_t packet_id, struct SwiftNetPendingMessage* const pending_message, void* const packet_data, struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_message_memory_allocator, const enum ConnectionType connection_type, const bool loopback, const uint16_t source_port) {
-    bool is_valid_response = false;
+static inline void handle_request_response(uint16_t packet_id, struct SwiftNetPendingMessage* restrict const pending_message, void* restrict const packet_data, struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_message_memory_allocator, const enum ConnectionType connection_type, const bool loopback, const uint16_t source_port) {
+    struct RequestSent* request_sent;
 
     LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-    struct RequestSent* const request_sent = hashmap_get(&packet_id, sizeof(uint16_t), &requests_sent);
+    request_sent = hashmap_get(&packet_id, sizeof(uint16_t), &requests_sent);
     if (request_sent == NULL) {
         UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
         return;
@@ -163,36 +166,32 @@ static inline void handle_request_response(uint16_t packet_id, struct SwiftNetPe
 
     hashmap_remove(&packet_id, sizeof(uint16_t), &requests_sent);
 
-    is_valid_response = true;
-
     UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-    if (is_valid_response == true) {
-        if (pending_message != NULL) {
-            LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
+    if (pending_message != NULL) {
+        struct PendingMessagesKey key;
 
-            struct PendingMessagesKey key = {
-                .source_port = source_port,
-                .packet_id = packet_id
-            };
 
-            hashmap_remove(&key, sizeof(key), pending_messages);
+        key = (struct PendingMessagesKey){.source_port = source_port, .packet_id = packet_id};
 
-            UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
-        }
+        LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
+
+        hashmap_remove(&key, sizeof(key), pending_messages);
+
+        UNLOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
         return;
-    }
+    } else return;
 }
 
 #endif
 
-static inline void pass_callback_execution(void* const packet_data, struct PacketCallbackQueue* const queue, struct SwiftNetPendingMessage* const pending_message, const uint16_t packet_id, pthread_mutex_t* const execute_callback_mtx, pthread_cond_t* const execute_callback_cond) {
-    struct PacketCallbackQueueNode* const node = allocator_allocate(&packet_callback_queue_node_memory_allocator);
-    node->packet_data = packet_data;
-    node->next = NULL;
-    node->pending_message = pending_message;
-    node->packet_id = packet_id;
+static inline void pass_callback_execution(void* const packet_data, struct PacketCallbackQueue* const queue, struct SwiftNetPendingMessage* restrict const pending_message, const uint16_t packet_id, pthread_mutex_t* const execute_callback_mtx, pthread_cond_t* const execute_callback_cond) {
+    struct PacketCallbackQueueNode* restrict node;
+
+
+    node = allocator_allocate(&packet_callback_queue_node_memory_allocator);
+    *node = (struct PacketCallbackQueueNode){.packet_data = packet_data, .next = NULL, .pending_message = pending_message, .packet_id = packet_id};
 
     pthread_mutex_lock(execute_callback_mtx);
 
@@ -204,10 +203,7 @@ static inline void pass_callback_execution(void* const packet_data, struct Packe
 }
 
 static inline bool chunk_already_received(uint8_t* const chunks_received, const uint32_t index) {
-    const uint32_t byte = index / 8;
-    const uint8_t bit = index % 8;
-
-    return (chunks_received[byte] & (1U << bit)) != 0;
+    return (chunks_received[index / 8] & (1U << (index % 8))) != 0;
 }
 
 static inline void chunk_received(uint8_t* const chunks_received, const uint32_t index) {
@@ -217,30 +213,33 @@ static inline void chunk_received(uint8_t* const chunks_received, const uint32_t
     chunks_received[byte] |= (uint8_t)(1U << bit);
 }
 
-static inline struct SwiftNetPendingMessage* const create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetPacketInfo* const packet_info, const enum ConnectionType connection_type, const uint16_t packet_id, const uint16_t source_port) {
-    struct SwiftNetPendingMessage* const new_pending_message = allocator_allocate(pending_messages_memory_allocator);
-
-    uint8_t* const allocated_memory = malloc(packet_info->packet_length);
-
+static inline struct SwiftNetPendingMessage* const create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetPacketInfo* restrict const packet_info, const enum ConnectionType connection_type, const uint16_t packet_id, const uint16_t source_port) {
+    struct SwiftNetPendingMessage* restrict new_pending_message;
+    uint8_t* restrict allocated_memory;
+    struct PendingMessagesKey* key;
     const uint32_t chunks_received_byte_size = (packet_info->chunk_amount + 7) / 8;
 
-    new_pending_message->packet_info = *packet_info;
 
-    new_pending_message->packet_data_start = allocated_memory;
-    new_pending_message->chunks_received_number = 0x00;
-    new_pending_message->last_index_checked = 0;
-    new_pending_message->sending_lost_packets = false;
-    new_pending_message->last_chunks_received_number = 0;
+    new_pending_message = allocator_allocate(pending_messages_memory_allocator);
 
-    new_pending_message->chunks_received_length = chunks_received_byte_size;
-    new_pending_message->chunks_received = calloc(chunks_received_byte_size, 1);
+    allocated_memory = malloc(packet_info->packet_length);
 
-    new_pending_message->packet_id = packet_id;
-    new_pending_message->source_port = source_port;
+    *new_pending_message = (struct SwiftNetPendingMessage){
+        .packet_info = *packet_info,
+        .packet_data_start = allocated_memory,
+        .chunks_received_number = 0x00,
+        .last_index_checked = 0,
+        .sending_lost_packets = false,
+        .last_chunks_received_number = 0,
+        .chunks_received_length = chunks_received_byte_size,
+        .chunks_received = calloc(chunks_received_byte_size, 1),
+        .packet_id = packet_id,
+        .source_port = source_port,
+    };
 
     LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
-    struct PendingMessagesKey* const key = allocator_allocate(&pending_message_key_allocator);
+    key = allocator_allocate(&pending_message_key_allocator);
     *key = (struct PendingMessagesKey){
         .source_port = source_port,
         .packet_id = packet_id
@@ -254,9 +253,12 @@ static inline struct SwiftNetPendingMessage* const create_new_pending_message(st
 }
 
 static inline struct SwiftNetPacketSending* const get_packet_sending(struct SwiftNetHashMap* const packet_sending_array, uint16_t target_id) {
+    struct SwiftNetPacketSending* result;
+
+
     LOCK_ATOMIC_DATA_TYPE(&packet_sending_array->atomic_lock);
 
-    struct SwiftNetPacketSending* const result = hashmap_get(&target_id, sizeof(target_id), packet_sending_array);
+     result = hashmap_get(&target_id, sizeof(target_id), packet_sending_array);
 
     UNLOCK_ATOMIC_DATA_TYPE(&packet_sending_array->atomic_lock);
 
@@ -264,9 +266,14 @@ static inline struct SwiftNetPacketSending* const get_packet_sending(struct Swif
 }
 
 static inline void signal_delay_change(const enum PacketDelayUpdateStatus status, const struct ip* const ip_header, const uint16_t source_port, const uint16_t destination_port, const uint16_t addr_type, const uint8_t prepend_size, pcap_t* const pcap, const struct ether_header* const eth_hdr) {
-    const struct ip send_server_info_ip_header = construct_ip_header(ip_header->ip_src, PACKET_HEADER_SIZE, ip_header->ip_id);
+    struct ip send_server_info_ip_header;
+    struct SwiftNetPacketInfo packet_info_new;
+    struct SwiftNetServerInformation server_info;
 
-    const struct SwiftNetPacketInfo packet_info_new = construct_packet_info(
+
+    send_server_info_ip_header = construct_ip_header(ip_header->ip_src, PACKET_HEADER_SIZE, ip_header->ip_id);
+
+    packet_info_new = construct_packet_info(
         sizeof(enum PacketDelayUpdateStatus),
         PACKET_DELAY_UPDATE,
         1,
@@ -277,7 +284,7 @@ static inline void signal_delay_change(const enum PacketDelayUpdateStatus status
         }
     );
 
-    const struct SwiftNetServerInformation server_info = {
+    server_info = (struct SwiftNetServerInformation){
         .maximum_transmission_unit = maximum_transmission_unit
     };
 
@@ -291,6 +298,8 @@ static inline void signal_delay_change(const enum PacketDelayUpdateStatus status
 }
 
 struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const packet_queue) {
+    struct PacketQueueNode* node_to_process;
+
     LOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
     if(packet_queue->first_node == NULL) {
@@ -298,7 +307,7 @@ struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const pac
         return NULL;
     }
 
-    struct PacketQueueNode* const node_to_process = packet_queue->first_node;
+    node_to_process = packet_queue->first_node;
 
     if(node_to_process->next == NULL) {
         packet_queue->first_node = NULL;
@@ -316,7 +325,7 @@ struct PacketQueueNode* const wait_for_next_packet(struct PacketQueue* const pac
     return node_to_process;
 }
 
-static inline bool packet_corrupted(const uint32_t checksum, const uint32_t chunk_size, uint8_t* const buffer) {
+static inline bool packet_corrupted(const uint32_t checksum, const uint32_t chunk_size, uint8_t* restrict const buffer) {
     return crc32(buffer, chunk_size) != checksum;
 }
 

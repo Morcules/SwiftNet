@@ -1,63 +1,159 @@
-# OUTDATED!!!!!!!!
+# SwiftNet Usage
 
-# Explanation of every single function
+**You must run with sudo** (pcap raw access).
 
-## SWIFT_NET_SERVER AND SWIFT_NET_CLIENT
-### Usage:
-- Sets the current thread to operate in either client or server mode. The library then executes different functions depending on the selected mode.
+Call `swiftnet_initialize()` once at startup and `swiftnet_cleanup()` at shutdown.
 
-- When the thread is set to SWIFT_NET_SERVER, the system will handle incoming connections and process server-side functionality.
-- When the thread is set to SWIFT_NET_CLIENT, the system will connect to a server and execute client-side operations.
-- This allows you to easily switch between server and client behavior within the same application, depending on the configuration.
+## Initialize / Cleanup
 
-## InitializeSwiftNet
-### Usage:
-- Initializes the Swift Net library.
-- **Note:** As of now, this function does not perform any actions, but it may be used in the future for setting up configurations or performing initialization tasks related to networking.
+```c
+swiftnet_initialize();
 
-# SwiftNetSetBufferSize
-### Arguments:
-1. unsigned int - New Buffer Size: Specifies the desired size of the packet buffer.
-2. Pointer to either SwiftNetClientConnection or SwiftNetServer: A pointer to the appropriate connection object (either client or server). The function will terminate if a null pointer is provided.
-### Usage:
-- Changes the packet buffer size to the specified new size.
+// ... create connections, send, etc ...
 
-# SwiftNetCreateClient
-### Arguments:
-1. char* - IP address of the server: The server's IP address to which the client will connect.
-2. uint16_t - Port of the server: The port number on which the server is listening for connections.
-### Usage:
-- Establishes a client connection to the specified server at the given IP address and port. This function initiates the process of connecting the client to the server.
-### Return:
-- Pointer to SwiftNetClientConnection: Returns a pointer to the client connection struct that represents the established connection to the server.
+swiftnet_cleanup();
+```
 
-# SwiftNetCreateServer
-### Arguments:
-1. char* - IP address of the server: The server's IP address to bind the server to.
-2. uint16_t - Port of the server: The port number on which the server will listen for incoming client connections.
-### Usage:
-- Creates and initializes a server on the specified IP address and port. This function binds the server to the provided IP address and port, enabling it to accept incoming client connections on that address. The server will start listening for connections and handle requests accordingly.
-### Return:
-- Pointer to SwiftNetServer: Returns a pointer to the server struct that represents the server.
+## Create Server
 
-# SwiftNetSetMessageHandler
-### Arguments:
-1. void(uint8_t* data) - A function pointer to the handler function that will be called when a new packet is received. The handler function should accept a single argument: a uint8_t* (pointer to data), which represents the data sent with the packet.
-2. Pointer to either SwiftNetClientConnection or SwiftNetServer: A pointer to the appropriate connection object (either client or server).
-### Usage:
-- Registers a callback function (handler) to handle incoming packet data. When a new packet is received, the specified handler function is called with the packet data as its argument.
+```c
+struct SwiftNetServer* server = swiftnet_create_server(8080, false /* loopback */);
+if (server == NULL) {
+    // failed to open interface etc.
+}
+```
 
-# SwiftNetAppendToPacket
-### Arguments:
-1. Pointer to either SwiftNetClientConnection or SwiftNetServer: A pointer to the appropriate connection object (either client or server).
-2. void* - Pointer to the data: The data that will be appended to the packet buffer.
-3. unsigned int - Size in bytes of the data: The size of the data to be appended, in bytes.
-### Usage:
-- Appends the provided data to the current packet buffer for the specified connection and then increments the internal pointer to the next available space in the buffer.
+- `loopback = true` uses the loopback interface (good for local tests).
+- Server will start its own listener + processing threads.
 
-# SwiftNetSendPacket
-### Arguments:
-1. Pointer to either SwiftNetClientConnection or SwiftNetServer: A pointer to the appropriate connection object (either client or server).
-2. ClientAddress* (only necessary in SERVER mode, otherwise set it to NULL): The address of the client to which the packet should be sent. This argument is only required when the mode is set to SERVER, as the server may need to send a packet to a specific client. If using CLIENT mode, this should be set to NULL.
-### Usage:
-- Sends the constructed packet to the specified destination. In SERVER mode, the packet is sent to the provided client's address, while in CLIENT mode, the packet is sent to the connected server.
+## Create Client
+
+```c
+struct SwiftNetClientConnection* client = swiftnet_create_client("127.0.0.1", 8080, 1000 /* timeout ms */);
+if (client == NULL) {
+    // failed to reach server or complete initial handshake
+}
+```
+
+Client performs a short handshake to learn the server's MTU.
+
+## Message Handlers
+
+```c
+void on_client_packet(struct SwiftNetClientPacketData* packet, void* user) {
+    // packet->metadata has data_length, packet_id, port_info, expecting_response (if requests enabled)
+    uint8_t byte = *(uint8_t*)swiftnet_client_read_packet(packet, 1);
+
+    swiftnet_client_destroy_packet_data(packet, client);
+}
+
+swiftnet_client_set_message_handler(client, on_client_packet, NULL /* user arg */);
+```
+
+Server side is identical but uses `struct SwiftNetServerPacketData*` and `swiftnet_server_set_message_handler`.
+
+The handler is invoked (on a background thread) after the library has fully reassembled any chunked packet.
+
+When sending from a server handler back to that client, use the address that came in:
+
+```c
+swiftnet_server_send_packet(server, &buf, packet->metadata.sender);
+```
+
+`metadata.sender` contains the address, port, mac, and MTU for that client.
+
+## Packet Buffers
+
+```c
+struct SwiftNetPacketBuffer buf = swiftnet_create_packet_buffer(1024);
+
+int32_t value = 42;
+swiftnet_append_to_buffer(&value, sizeof(value), &buf);
+
+// or write at an offset
+swiftnet_write_packet_buffer(0, &buf, &value, sizeof(value));
+
+swiftnet_client_send_packet(client, &buf);
+swiftnet_destroy_packet_buffer(&buf);
+```
+
+Other helpers:
+- `swiftnet_resize_packet_buffer(new_size, &buf)`
+- `swiftnet_create_packet_buffer`, `swiftnet_destroy_packet_buffer`
+
+## Sending
+
+Client (to its server):
+
+```c
+swiftnet_client_send_packet(client, &buf);
+```
+
+Server (to a specific client):
+
+```c
+swiftnet_server_send_packet(server, &buf, target_addr_data);
+```
+
+The library handles splitting > MTU payloads into chunks and retransmitting lost ones automatically.
+
+## Reading Received Packets
+
+Inside your handler:
+
+```c
+void* data = swiftnet_client_read_packet(packet, packet->metadata.data_length);
+// or read piecemeal:
+uint8_t first = *(uint8_t*)swiftnet_client_read_packet(packet, 1);
+```
+
+Always call the destroy function when you are done with the packet data:
+
+- `swiftnet_client_destroy_packet_data(packet, client_conn)`
+- `swiftnet_server_destroy_packet_data(packet, server)`
+
+## Requests / Responses (enabled unless SWIFT_NET_DISABLE_REQUESTS)
+
+Synchronous request from client:
+
+```c
+struct SwiftNetPacketBuffer req_buf = swiftnet_create_packet_buffer(size);
+swiftnet_append_to_buffer(data, size, &req_buf);
+
+struct SwiftNetClientPacketData* reply = swiftnet_client_make_request(client, &req_buf, 1000 /* ms */);
+if (reply) {
+    // read from reply the same way
+    swiftnet_client_destroy_packet_data(reply, client);
+}
+swiftnet_destroy_packet_buffer(&req_buf);
+```
+
+Server can also send requests to clients using `swiftnet_server_make_request(server, &buf, client_addr, timeout)`.
+
+In a handler, if `packet->metadata.expecting_response` is true you can reply without the caller blocking on a new make_request:
+
+```c
+swiftnet_client_make_response(client, packet, &response_buf);
+```
+
+Same pattern exists for server.
+
+## Debug Output (enabled unless SWIFT_NET_DISABLE_DEBUGGING)
+
+```c
+swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(
+    SWIFTNET_DEBUG_PACKETS_SENDING |
+    SWIFTNET_DEBUG_PACKETS_RECEIVING |
+    SWIFTNET_DEBUG_INITIALIZATION |
+    SWIFTNET_DEBUG_LOST_PACKETS
+));
+```
+
+Remove flags with `swiftnet_remove_debug_flags(...)`.
+
+## Important Notes
+
+- Always run the binary as root / with sudo.
+- The library owns several background threads per connection (listener, packet processor, callback executor).
+- Cleanup functions stop threads and free the allocators / hashmaps used by that connection.
+- All the heavy lifting (reassembly, lost packet recovery, checksums) happens inside the library.

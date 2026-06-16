@@ -6,11 +6,9 @@
 
 static inline void close_listeners() {
     LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
-
-    struct SwiftNetHashMap* const listeners_map = &listeners;
-
-    LOOP_HASHMAP(listeners_map,
-        struct Listener* const current_listener = hashmap_data;
+    
+    LOOP_HASHMAP(&listeners,
+        struct Listener* restrict const current_listener = hashmap_data;
 
         pcap_breakloop(current_listener->pcap);
 

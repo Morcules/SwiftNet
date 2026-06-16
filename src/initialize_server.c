@@ -15,11 +15,7 @@
 
 static inline struct SwiftNetServer* const construct_server(const bool loopback, const uint16_t server_port, pcap_t* const pcap) {
     struct SwiftNetServer* const new_server = allocator_allocate(&server_memory_allocator);
-
-    struct ether_header eth_header = {
-        .ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff},
-        .ether_type = htons(0x0800)
-    };
+    struct ether_header eth_header = DEFAULT_MAC_ADDRESS_STRUCT;
 
     memcpy(eth_header.ether_shost, mac_address, sizeof(eth_header.ether_shost));
 
@@ -57,13 +53,17 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 
 struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback) {
     // Init pcap device
-    pcap_t* const pcap = swiftnet_pcap_open(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface);
+    struct SwiftNetServer* new_server;
+    pcap_t* pcap;
+
+
+    pcap = swiftnet_pcap_open(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface);
     if (unlikely(pcap == NULL)) {
         PRINT_ERROR("Failed to open bpf");
         return NULL;
     }
 
-    struct SwiftNetServer* const new_server = construct_server(loopback, port, pcap);
+    new_server = construct_server(loopback, port, pcap);
 
     // Create a new thread that will handle all packets received
     check_existing_listener(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface, new_server, CONNECTION_TYPE_SERVER, loopback);

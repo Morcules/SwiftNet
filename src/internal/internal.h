@@ -48,8 +48,8 @@ enum RequestLostPacketsReturnType {
 // "hashmap_item" contains pointer to current struct SwiftNetHashMapItem 
 // "hashmap_data" contains data stored inside struct SwiftNetHashMapItem
 #define LOOP_HASHMAP(hashmap, loop_body) \
-    for(uint32_t i = 0; i < (hashmap->capacity + 31) / 32; i++) { \
-        uint32_t current_index = *(hashmap->item_occupation + i); \
+    for(uint32_t i = 0; i < ((hashmap)->capacity + 31) / 32; i++) { \
+        uint32_t current_index = *((hashmap)->item_occupation + i); \
         if(current_index == 0x00) { \
             continue; \
         } \
@@ -57,7 +57,7 @@ enum RequestLostPacketsReturnType {
         while(inverted != UINT32_MAX) { \
             uint32_t bit_index = __builtin_ctz(inverted); \
             inverted |= 1 << bit_index; \
-            for(struct SwiftNetHashMapItem* hashmap_item = hashmap->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
+            for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
                 void* const hashmap_data = hashmap_item->value; \
                 loop_body \
             } \
@@ -96,6 +96,8 @@ enum RequestLostPacketsReturnType {
 #define HANDLE_CHECKSUM(buffer, size, prepend_size) \
     const uint32_t checksum = crc32(buffer, size); \
     memcpy(buffer + prepend_size + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, checksum), &checksum, sizeof(checksum));
+
+#define DEFAULT_MAC_ADDRESS_STRUCT {.ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff}, .ether_type = htons(0x0800)}
 
 // Number used in ip.proto
 #define PROT_NUMBER 253
