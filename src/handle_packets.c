@@ -1,3 +1,4 @@
+#include "internal/networking.h"
 #include "swift_net.h"
 #include <arpa/inet.h>
 #include <stdatomic.h>
@@ -72,24 +73,27 @@ static inline void swiftnet_handle_packets(
 	struct PacketQueue* const packet_queue,
 	const _Atomic bool* const closing,
 	const bool loopback,
-	const uint16_t addr_type,
-	const struct pcap_pkthdr* restrict const hdr,
 	const uint8_t* restrict const packet,
     pthread_mutex_t* const process_packets_mtx,
     pthread_cond_t* const process_packets_cond,
-    _Atomic bool *const processing_packets
+    _Atomic bool *const processing_packets,
+    struct SwiftNetNetworkData network_data,
+    const uint32_t packet_len
 ) {
+    uint8_t prepend_size;
+    uint8_t addr_type;
+
     uint32_t sender_address;
     uint8_t* restrict packet_buffer;
-    uint32_t packet_len;
 
+
+    prepend_size = GET_PREPEND_SIZE(&network_data);
+    addr_type = GET_ADDR_TYPE(&network_data);
 
     packet_buffer = allocator_allocate(&packet_buffer_memory_allocator);
     if (unlikely(packet_buffer == NULL)) {
         goto exit;
     }
-
-    packet_len = hdr->caplen;
 
     memcpy(packet_buffer, packet, packet_len);
 
@@ -139,21 +143,20 @@ exit:
     return;
 }
 
-static void handle_client_init(struct SwiftNetClientConnection* const user, const struct pcap_pkthdr* restrict const hdr, const uint8_t* restrict const buffer) {
-    struct SwiftNetClientConnection* client_connection;
-
+static void handle_client_init(struct SwiftNetClientConnection* const client_connection, const uint8_t* restrict const buffer, const uint32_t bytes_received) {
     struct SwiftNetPacketInfo* restrict packet_info;
     struct SwiftNetServerInformation* restrict server_information;
 
-    uint32_t bytes_received;
+    uint8_t prepend_size;
+    uint8_t addr_type;
 
+    prepend_size = GET_PREPEND_SIZE(&client_connection->network_data);
+    addr_type = GET_ADDR_TYPE(&client_connection->network_data);
 
     goto check_closing;
 
 
 check_closing:
-    client_connection = user;
-
     if (atomic_load_explicit(&client_connection->closing, memory_order_acquire) == true) {
         return;
     }
@@ -162,9 +165,7 @@ check_closing:
 
 
 validate_packet_size:
-    bytes_received = hdr->caplen;
-
-    if(bytes_received != PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + client_connection->prepend_size) {
+    if(bytes_received != PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + prepend_size) {
         #ifdef SWIFT_NET_DEBUG
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
                 send_debug_message("Invalid packet received from server. Expected server information: {\"bytes_received\": %u, \"expected_bytes\": %u}\n", bytes_received, PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation));
@@ -176,9 +177,8 @@ validate_packet_size:
 
     goto handle_mac_address;
 
-
 handle_mac_address:
-    if (client_connection->addr_type == DLT_EN10MB) {
+    if (addr_type == DLT_EN10MB) {
         memcpy(client_connection->eth_header.ether_dhost, ((struct ether_header*)buffer)->ether_shost, sizeof(client_connection->eth_header.ether_dhost));
     }
 
@@ -186,13 +186,13 @@ handle_mac_address:
 
 
 validate_target:
-    packet_info = (struct SwiftNetPacketInfo*)(buffer + client_connection->prepend_size + sizeof(struct ip));
-    server_information = (struct SwiftNetServerInformation*)(buffer + client_connection->prepend_size + sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo));
+    packet_info = (struct SwiftNetPacketInfo*)(buffer + prepend_size + sizeof(struct ip));
+    server_information = (struct SwiftNetServerInformation*)(buffer + prepend_size+ sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo));
 
     if(packet_info->port_info.destination_port != client_connection->port_info.source_port || packet_info->port_info.source_port != client_connection->port_info.destination_port) {
         #ifdef SWIFT_NET_DEBUG
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
-                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", packet_info->port_info.destination_port, packet_info->port_info.source_port, inet_ntoa(((struct ip*)(buffer + client_connection->prepend_size))->ip_src));
+                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", packet_info->port_info.destination_port, packet_info->port_info.source_port, inet_ntoa(((struct ip*)(buffer + prepend_size))->ip_src));
             }
         #endif
 
@@ -225,7 +225,7 @@ exit:
     return;
 }
 
-static inline void handle_correct_receiver(const enum ConnectionType connection_type, struct Listener* const listener, const struct pcap_pkthdr* restrict const hdr, const uint8_t* restrict const packet, const struct SwiftNetPortInfo* restrict const port_info) {
+static inline uint8_t handle_correct_receiver(const enum ConnectionType connection_type, struct Listener* const listener, const uint8_t* restrict const packet, const struct SwiftNetPortInfo* restrict const port_info, const uint32_t packet_len) {
     if (connection_type == CONNECTION_TYPE_CLIENT) {
         struct SwiftNetClientConnection* client_connection;
 
@@ -235,14 +235,16 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
         UNLOCK_ATOMIC_DATA_TYPE(&listener->client_connections.atomic_lock);
 
         if (client_connection == NULL) {
-            return;
+            return 0;
         }
 
-        if (client_connection->initialized == false) {
-            handle_client_init(client_connection, hdr, packet);
+        if (atomic_load_explicit(&client_connection->initialized, memory_order_acquire) == false) {
+            handle_client_init(client_connection, packet, packet_len);
         } else {
-            swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, client_connection->addr_type, hdr, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond, &client_connection->processing_packets);
+            swiftnet_handle_packets(client_connection->port_info.source_port, &client_connection->process_packets_thread, client_connection, CONNECTION_TYPE_CLIENT, &client_connection->packet_queue, &client_connection->closing, client_connection->loopback, packet, &client_connection->process_packets_mtx, &client_connection->process_packets_cond, &client_connection->processing_packets, client_connection->network_data, packet_len);
         }
+
+        return 1;
     } else {
         struct SwiftNetServer* server;
 
@@ -253,24 +255,28 @@ static inline void handle_correct_receiver(const enum ConnectionType connection_
         UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
 
         if (server == NULL) {
-            return;
+            return 0;
         }
 
-        swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, server->addr_type, hdr, packet, &server->process_packets_mtx, &server->process_packets_cond, &server->processing_packets);
+        swiftnet_handle_packets(server->server_port, &server->process_packets_thread, server, CONNECTION_TYPE_SERVER, &server->packet_queue, &server->closing, server->loopback, packet, &server->process_packets_mtx, &server->process_packets_cond, &server->processing_packets, server->network_data, packet_len);
+
+        return 1;
     }
 }
 
+#ifdef SWIFT_NET_BACKEND_PCAP
 static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* restrict const hdr, const uint8_t* restrict const packet) {
     struct Listener* const listener = (struct Listener*)user;
     struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, port_info));
 
-
-    handle_correct_receiver(CONNECTION_TYPE_CLIENT, listener, hdr, packet, port_info);
-    handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, hdr, packet, port_info);
+    if(handle_correct_receiver(CONNECTION_TYPE_CLIENT, listener, packet, port_info, hdr->caplen) == 0) handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, packet, port_info, hdr->caplen);
 }
+#endif
 
-void* interface_start_listening(void* const listener_void) {
-    pcap_loop(((struct Listener*)listener_void)->pcap, 0, pcap_packet_handle, listener_void);
+void* interface_start_listening(void* listener_void) {
+    struct Listener* listener = listener_void;
+
+    SWIFTNET_LOOP_PACKETS(&listener->network_data, listener);
 
     return NULL;
 }

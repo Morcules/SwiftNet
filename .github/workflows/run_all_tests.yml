@@ -22,7 +22,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: build
       run: |
-        ./build_for_testing.sh
+        cp profile_template.cmake profile.cmake
+        ./build.sh
       working-directory: build
     - name: build_integration_tests
       run: |

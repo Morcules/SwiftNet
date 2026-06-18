@@ -1,4 +1,5 @@
 #include "internal/internal.h"
+#include "internal/networking.h"
 #include "swift_net.h"
 #include <stdatomic.h>
 #include <stdint.h>
@@ -10,11 +11,11 @@ static inline void close_listeners() {
     LOOP_HASHMAP(&listeners,
         struct Listener* restrict const current_listener = hashmap_data;
 
-        pcap_breakloop(current_listener->pcap);
+        SWIFTNET_BREAK_RECEIVER_LOOP(&current_listener->network_data);
 
         pthread_join(current_listener->listener_thread, NULL);
 
-        pcap_close(current_listener->pcap);
+        SWIFTNET_CLOSE_CONNECTION(&current_listener->network_data);
 
         hashmap_destroy(&current_listener->client_connections);
         hashmap_destroy(&current_listener->servers);
@@ -35,7 +36,6 @@ void swiftnet_cleanup() {
     allocator_destroy(&server_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&client_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&packet_buffer_memory_allocator ENABLE_INTERNAL_CHECK);
-    allocator_destroy(&hashmap_item_memory_allocator ENABLE_INTERNAL_CHECK);
     
     #ifdef SWIFT_NET_REQUESTS
         allocator_destroy(&requests_sent_memory_allocator ENABLE_INTERNAL_CHECK);
@@ -45,6 +45,7 @@ void swiftnet_cleanup() {
 
     close_listeners();
     
+    allocator_destroy(&hashmap_item_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&server_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&client_connection_memory_allocator ENABLE_INTERNAL_CHECK);
 

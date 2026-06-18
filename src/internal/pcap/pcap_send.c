@@ -1,4 +1,4 @@
-#include "internal.h"
+#include "../internal.h"
 #include <errno.h>
 #include <pcap/pcap.h>
 

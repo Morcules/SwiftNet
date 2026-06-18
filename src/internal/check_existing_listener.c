@@ -1,4 +1,5 @@
 #include "internal.h"
+#include "networking.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,11 +48,12 @@ void* check_existing_listener(const char* restrict const interface_name, void* c
     *new_listener = (struct Listener){
         .servers = hashmap_create(&uint16_memory_allocator),
         .client_connections = hashmap_create(&uint16_memory_allocator),
-        .pcap = swiftnet_pcap_open(interface_name),
+        .network_data = swiftnet_initialize_networking(interface_name),
         .loopback = loopback
     };
 
-    new_listener->addr_type = pcap_datalink(new_listener->pcap),
+    new_listener->addr_type = GET_ADDR_TYPE(&new_listener->network_data);
+
 
     memcpy(new_listener->interface_name, interface_name, interface_len + 1);
 
