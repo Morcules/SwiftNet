@@ -23,7 +23,7 @@ jobs:
     - name: build
       run: |
         cp profile_template.cmake profile.cmake
-        ./build_.sh
+        ./build.sh
       working-directory: build
     - name: build_integration_tests
       run: |
