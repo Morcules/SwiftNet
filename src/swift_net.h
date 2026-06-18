@@ -338,9 +338,9 @@ extern void swiftnet_client_set_message_handler(
 );
 // Append data to a packet buffer.
 extern void swiftnet_append_to_buffer(
-    const void* const data,
+    const void* restrict const data,
     const uint32_t data_size,
-    struct SwiftNetPacketBuffer* const buffer 
+    struct SwiftNetPacketBuffer* restrict const buffer 
 );
 
 // Clean up and free resources for a client connection.
@@ -355,13 +355,13 @@ extern void swiftnet_initialize();
 // Send a packet from the client to its connected server.
 extern void swiftnet_client_send_packet(
     struct SwiftNetClientConnection* const client,
-    struct SwiftNetPacketBuffer* const packet
+    struct SwiftNetPacketBuffer* restrict const packet
 );
 
 // Send a packet from the server to a specified client.
 extern void swiftnet_server_send_packet(
     struct SwiftNetServer* const server,
-    struct SwiftNetPacketBuffer* const packet,
+    struct SwiftNetPacketBuffer* restrict const packet,
     const struct SwiftNetClientAddrData target
 );
 
@@ -370,13 +370,13 @@ extern void swiftnet_server_send_packet(
 extern struct SwiftNetPacketBuffer swiftnet_create_packet_buffer(const uint32_t buffer_size);
 
 // Resizes packet buffer.
-extern void swiftnet_resize_packet_buffer(const uint32_t new_buffer_size, struct SwiftNetPacketBuffer* const);
+extern void swiftnet_resize_packet_buffer(uint32_t new_buffer_size, struct SwiftNetPacketBuffer* restrict const);
 
 // Writes to packet buffer at specific offset
-extern void swiftnet_write_packet_buffer(const uint32_t byte_offset, struct SwiftNetPacketBuffer* const, void* const data, const uint32_t data_size);
+extern void swiftnet_write_packet_buffer(const uint32_t byte_offset, struct SwiftNetPacketBuffer* restrict const, void* restrict const data, const uint32_t data_size);
 
 // Destroy a packet buffer and free resources.
-extern void swiftnet_destroy_packet_buffer(const struct SwiftNetPacketBuffer* const packet);
+extern void swiftnet_destroy_packet_buffer(const struct SwiftNetPacketBuffer* restrict const packet);
 
 // Create and initialize a server.
 extern struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback);
@@ -389,20 +389,20 @@ extern struct SwiftNetClientConnection* swiftnet_create_client(
 );
 
 // Read data from a client packet.
-extern void* swiftnet_client_read_packet(struct SwiftNetClientPacketData* const packet_data, const uint32_t data_size);
+extern void* swiftnet_client_read_packet(struct SwiftNetClientPacketData* restrict const packet_data, const uint32_t data_size);
 
 // Read data from a server packet.
-extern void* swiftnet_server_read_packet(struct SwiftNetServerPacketData* const packet_data, const uint32_t data_size);
+extern void* swiftnet_server_read_packet(struct SwiftNetServerPacketData* restrict const packet_data, const uint32_t data_size);
 
 // Destroy client packet data and release memory.
 extern void swiftnet_client_destroy_packet_data(
-    struct SwiftNetClientPacketData* const packet_data,
+    struct SwiftNetClientPacketData* restrict const packet_data,
     struct SwiftNetClientConnection* const client_conn
 );
 
 // Destroy server packet data and release memory.
 extern void swiftnet_server_destroy_packet_data(
-    struct SwiftNetServerPacketData* const packet_data,
+    struct SwiftNetServerPacketData* restrict const packet_data,
     struct SwiftNetServer* const server
 );
 
@@ -414,14 +414,14 @@ extern void swiftnet_cleanup();
 // Make a request from a client and wait for a response.
 extern struct SwiftNetClientPacketData* swiftnet_client_make_request(
     struct SwiftNetClientConnection* const client,
-    struct SwiftNetPacketBuffer* const packet,
+    struct SwiftNetPacketBuffer* restrict const packet,
     const uint32_t timeout_ms
 );
 
 // Make a request from the server to a specific client and wait for response.
 extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
     struct SwiftNetServer* const server,
-    struct SwiftNetPacketBuffer* const packet,
+    struct SwiftNetPacketBuffer* restrict const packet,
     const struct SwiftNetClientAddrData addr_data,
     const uint32_t timeout_ms
 );
@@ -430,14 +430,14 @@ extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
 extern void swiftnet_client_make_response(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetClientPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* const buffer
+    struct SwiftNetPacketBuffer* restrict const buffer
 );
 
 // Send a response from the server.
 extern void swiftnet_server_make_response(
     struct SwiftNetServer* const server,
     struct SwiftNetServerPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* const buffer
+    struct SwiftNetPacketBuffer* restrict const buffer
 );
 #endif
 

@@ -15,29 +15,32 @@
 #include "swift_net.h"
 
 static inline struct SwiftNetServer* const construct_server(const bool loopback, const uint16_t server_port) {
-    const struct SwiftNetNetworkData null_net_data = {0x00};
+    struct SwiftNetServer* restrict new_server;
+    struct ether_header eth_header;
+    struct SwiftNetNetworkData null_net_data;
+
+
+    memset(&null_net_data, 0x00, sizeof(null_net_data));
 
     struct SwiftNetNetworkData net_data = swiftnet_initialize_networking(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface);
     if (unlikely(memcmp(&net_data, &null_net_data, sizeof(struct SwiftNetNetworkData)) == 0)) {
         return NULL;
     }
 
-    struct SwiftNetServer* const new_server = allocator_allocate(&server_memory_allocator);
-
-    struct ether_header eth_header = {
-        .ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff},
-        .ether_type = htons(0x0800)
-    };
+    new_server = allocator_allocate(&server_memory_allocator);
+    eth_header = DEFAULT_MAC_ADDRESS_STRUCT;
 
     memcpy(eth_header.ether_shost, mac_address, sizeof(eth_header.ether_shost));
 
-    new_server->network_data = net_data;
-    new_server->eth_header = eth_header;
-    new_server->server_port = server_port;
-    new_server->loopback = loopback;
-    new_server->packet_queue = (struct PacketQueue){
-        .first_node = NULL,
-        .last_node = NULL
+    *new_server = (struct SwiftNetServer){
+        .network_data = net_data,
+        .eth_header = eth_header,
+        .server_port = server_port,
+        .loopback = loopback,
+        .packet_queue = (struct PacketQueue){
+            .first_node = NULL,
+            .last_node = NULL
+        },
     };
 
     memset(&new_server->packet_callback_queue, 0x00, sizeof(struct PacketCallbackQueue));
@@ -62,8 +65,14 @@ static inline struct SwiftNetServer* const construct_server(const bool loopback,
 }
 
 struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback) {
-    // Init pcap device
-    struct SwiftNetServer* const new_server = construct_server(loopback, port);
+    struct SwiftNetServer* restrict new_server;
+
+
+    new_server = construct_server(loopback, port);
+    if(unlikely(new_server == NULL)) {
+        PRINT_ERROR("Failed to construct server");
+        exit(EXIT_FAILURE);
+    }
 
     // Create a new thread that will handle all packets received
     check_existing_listener(loopback ? LOOPBACK_INTERFACE_NAME : default_network_interface, new_server, CONNECTION_TYPE_SERVER, loopback);

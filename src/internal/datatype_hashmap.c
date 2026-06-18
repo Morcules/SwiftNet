@@ -12,10 +12,13 @@ uint64_t seed;
 // This hashing function is not really as random as I would want it to be, but it's performant. 
 // Can cause some collisions.
 static inline uint64_t hash64(const uint8_t* const data, const uint32_t data_size) {
-    // Manual SIMD optimization would be preffered in the future.
-    uint64_t res = 0;
+    uint64_t res;
+    uint32_t i;
 
-    for (uint32_t i = 0; i < data_size; i++) {
+
+    res = 0;
+
+    for(i = 0; i < data_size; i++) {
         res = (res ^ *(data + i)) * seed;
     }
 
@@ -30,11 +33,15 @@ static inline uint32_t get_key(const void* const key_data, const uint32_t data_s
 
 // Must rehash every key. Takes many cpu cycles.
 static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
-    // Multiply value should be changed by -D flag in the future.
-    // For now just literal
-    const uint32_t old_capacity = hashmap->capacity;
-    const uint32_t new_capacity = hashmap->capacity * 4;
-    struct SwiftNetHashMapItem* const old_data_location = hashmap->items;
+    uint32_t old_capacity;
+    uint32_t new_capacity;
+    struct SwiftNetHashMapItem* old_data_location;
+    uint32_t i;
+
+
+    old_capacity = hashmap->capacity;
+    new_capacity = hashmap->capacity * 4;
+    old_data_location = hashmap->items;
 
     hashmap->capacity = new_capacity;
 
@@ -45,32 +52,42 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
 
     hashmap->item_occupation = calloc(sizeof(uint32_t), (new_capacity + 31) / 32);
 
-    for (uint32_t i = 0; i < old_capacity; i++) {
-        struct SwiftNetHashMapItem* const current_hashmap_item = old_data_location + i;
-        if (current_hashmap_item->value == NULL) {
+    for(i = 0; i < old_capacity; i++) {
+        struct SwiftNetHashMapItem* current_hashmap_item;
+        struct SwiftNetHashMapItem* current_linked_item;
+        void* key_original_data;
+        uint32_t key_original_data_size;
+        uint64_t new_key;
+        struct SwiftNetHashMapItem* new_mem_hashmap_item;
+        uint32_t byte;
+        uint8_t bit;
+        struct SwiftNetHashMapItem* hashmap_item_new_allocation;
+
+
+        current_hashmap_item = old_data_location + i;
+        if(current_hashmap_item->value == NULL) {
             continue;
         }
 
-        for (struct SwiftNetHashMapItem* current_linked_item = current_hashmap_item; current_linked_item != NULL; current_linked_item = current_linked_item->next) {
-            void* const key_original_data = current_linked_item->key_original_data;
-            const uint32_t key_original_data_size = current_linked_item->key_original_data_size;
+        for(current_linked_item = current_hashmap_item; current_linked_item != NULL; current_linked_item = current_linked_item->next) {
+            key_original_data = current_linked_item->key_original_data;
+            key_original_data_size = current_linked_item->key_original_data_size;
 
-            const uint64_t new_key = get_key(key_original_data, key_original_data_size, hashmap);
+            new_key = get_key(key_original_data, key_original_data_size, hashmap);
 
-            struct SwiftNetHashMapItem* new_mem_hashmap_item = hashmap->items + new_key;
+            new_mem_hashmap_item = hashmap->items + new_key;
 
-            const uint32_t byte = new_key / 32;
-            const uint8_t bit = new_key % 32;
+            byte = new_key / 32;
+            bit = new_key % 32;
 
             *(hashmap->item_occupation + byte) |= 1 << bit;
 
-            if (new_mem_hashmap_item->value != NULL) {
-                // Get last item
-                while (new_mem_hashmap_item->next != NULL) {
+            if(new_mem_hashmap_item->value != NULL) {
+                while(new_mem_hashmap_item->next != NULL) {
                     new_mem_hashmap_item = new_mem_hashmap_item->next;
                 }
 
-                struct SwiftNetHashMapItem* const hashmap_item_new_allocation = allocator_allocate(&hashmap_item_memory_allocator);
+                hashmap_item_new_allocation = allocator_allocate(&hashmap_item_memory_allocator);
                 *hashmap_item_new_allocation = (struct SwiftNetHashMapItem){
                     .key_original_data = key_original_data,
                     .key_original_data_size = key_original_data_size,
@@ -93,7 +110,7 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
     free(old_data_location);
 }
 
-struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory_allocator) {
+struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* const key_memory_allocator) {
     return (struct SwiftNetHashMap){
         .capacity = 0x40 * SWIFT_NET_MEMORY_USAGE,
         .items = calloc(sizeof(struct SwiftNetHashMapItem), 0x40 * SWIFT_NET_MEMORY_USAGE),
@@ -104,31 +121,49 @@ struct SwiftNetHashMap hashmap_create(struct SwiftNetMemoryAllocator* key_memory
 }
 
 void* hashmap_get(const void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
-    const uint64_t key = get_key(key_data, data_size, hashmap);
+    uint64_t key;
+    struct SwiftNetHashMapItem* current_item;
 
-    struct SwiftNetHashMapItem* current_item = hashmap->items + key;
 
-    while (current_item != NULL) {
-        if (data_size == current_item->key_original_data_size && memcmp(current_item->key_original_data, key_data, data_size) == 0) {
-            return current_item->value;
-        }
+    key = get_key(key_data, data_size, hashmap);
 
-        current_item = current_item->next;
+    current_item = hashmap->items + key;
 
-        continue;
+    goto loop;
+
+loop:
+    if(current_item == NULL) {
+        goto exit;
     }
 
+    if(data_size == current_item->key_original_data_size && memcmp(current_item->key_original_data, key_data, data_size) == 0) {
+        return current_item->value;
+    }
+
+    current_item = current_item->next;
+
+    goto loop;
+
+
+exit:
     return NULL;
 }
 
 void hashmap_insert(void* const key_data, const uint32_t data_size, void* const value, struct SwiftNetHashMap* const hashmap) {
-    const uint64_t key = get_key(key_data, data_size, hashmap);
+    uint64_t key;
+    struct SwiftNetHashMapItem* current_target_item;
+    struct SwiftNetHashMapItem* new_item;
+    uint32_t byte;
+    uint8_t bit;
 
-    struct SwiftNetHashMapItem* current_target_item = hashmap->items + key;
 
-    while (current_target_item->value != NULL) {
-        if (current_target_item->next == NULL) {
-            struct SwiftNetHashMapItem* const new_item = allocator_allocate(&hashmap_item_memory_allocator);
+    key = get_key(key_data, data_size, hashmap);
+
+    current_target_item = hashmap->items + key;
+
+    while(current_target_item->value != NULL) {
+        if(current_target_item->next == NULL) {
+            new_item = allocator_allocate(&hashmap_item_memory_allocator);
 
             current_target_item->next = new_item;
 
@@ -149,54 +184,70 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
 
     hashmap->size++;
 
-    const uint32_t byte = key / 32;
-    const uint8_t bit = key % 32;
+    byte = key / 32;
+    bit = key % 32;
 
     *(hashmap->item_occupation + byte) |= 0 << bit;
 
-    if (hashmap->size >= hashmap->capacity) {
+    if(hashmap->size >= hashmap->capacity) {
         hashmap_resize(hashmap);
     }
 }
 
-void free_hashmap_item_key(struct SwiftNetHashMap* const restrict hashmap, struct SwiftNetHashMapItem* const restrict hashmap_item) {
-    if (hashmap->key_memory_allocator == NULL) {
+void free_hashmap_item_key(struct SwiftNetHashMap* const hashmap, struct SwiftNetHashMapItem* const hashmap_item) {
+    if(hashmap->key_memory_allocator == NULL) {
         free(hashmap_item->key_original_data);
     } else {
         allocator_free(hashmap->key_memory_allocator, hashmap_item->key_original_data);
     }
 }
 
-void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const restrict hashmap) {
-    const uint64_t key = get_key(key_data, data_size, hashmap);
+void hashmap_remove(void* const key_data, const uint32_t data_size, struct SwiftNetHashMap* const hashmap) {
+    uint64_t key;
+    struct SwiftNetHashMapItem* previous_target_item;
+    struct SwiftNetHashMapItem* current_target_item;
+    uint32_t byte;
+    uint8_t bit;
+    struct SwiftNetHashMapItem* next;
 
-    struct SwiftNetHashMapItem* previous_target_item = hashmap->items + key;
-    struct SwiftNetHashMapItem* current_target_item = hashmap->items + key;
 
-    if (current_target_item->next == NULL) {
-        const uint32_t byte = key / 32;
-        const uint8_t bit = key % 32;
+    key = get_key(key_data, data_size, hashmap);
+
+    previous_target_item = hashmap->items + key;
+    current_target_item = hashmap->items + key;
+
+    if(current_target_item->next == NULL) {
+        byte = key / 32;
+        bit = key % 32;
 
         *(hashmap->item_occupation + byte) &= ~(0 << bit);
     }
 
-    while (current_target_item != NULL) {
-        if (data_size == current_target_item->key_original_data_size && memcmp(current_target_item->key_original_data, key_data, data_size) == 0) {
-            break;
-        }
+    goto find_item;
 
-        previous_target_item = current_target_item;
-        current_target_item = current_target_item->next;
 
-        continue;
+find_item:
+    if(current_target_item == NULL) {
+        goto exit;
     }
 
-    if (current_target_item == previous_target_item) {
+    if(data_size == current_target_item->key_original_data_size && memcmp(current_target_item->key_original_data, key_data, data_size) == 0) {
+        goto remove_item;
+    }
+
+    previous_target_item = current_target_item;
+    current_target_item = current_target_item->next;
+
+    goto find_item;
+
+
+remove_item:
+    if(current_target_item == previous_target_item) {
         current_target_item->value = NULL;
 
-        struct SwiftNetHashMapItem* const next = current_target_item->next;
+        next = current_target_item->next;
 
-        if (next != NULL) {
+        if(next != NULL) {
             free_hashmap_item_key(hashmap, current_target_item);
 
             memcpy(current_target_item, next, sizeof(struct SwiftNetHashMapItem));
@@ -218,26 +269,35 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
     }
 
     hashmap->size--;
+
+
+exit:
+    return;
 }
 
 void hashmap_destroy(struct SwiftNetHashMap* const hashmap) {
-    for (uint32_t i = 0; i < hashmap->capacity; i++) {
-        struct SwiftNetHashMapItem* const current_item = hashmap->items + i;
-        if (current_item->value == NULL) {
+    uint32_t i;
+
+
+    for(i = 0; i < hashmap->capacity; i++) {
+        struct SwiftNetHashMapItem* current_item;
+        struct SwiftNetHashMapItem* current_linked_item;
+        struct SwiftNetHashMapItem* next_item;
+
+
+        current_item = hashmap->items + i;
+        if(current_item->value == NULL) {
             continue;
         }
 
-        // Dealloc all ->next
-        for (struct SwiftNetHashMapItem* current_linked_item = current_item->next; current_linked_item != NULL;) {
-            struct SwiftNetHashMapItem* const next_item = current_linked_item->next;
+        for(current_linked_item = current_item->next; current_linked_item != NULL;) {
+            next_item = current_linked_item->next;
 
             free_hashmap_item_key(hashmap, current_linked_item);
 
             allocator_free(&hashmap_item_memory_allocator, current_linked_item);
 
             current_linked_item = next_item;
-
-            continue;
         }
     }
 

@@ -5,6 +5,7 @@ include(GNUInstallDirs)
 include(../build/profile.cmake)
 
 set(CMAKE_C_STANDARD 99)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set(SOURCE_FILES
     initialize_swiftnet.c
@@ -27,8 +28,6 @@ set(SOURCE_FILES
     internal/datatype_allocator.c
     internal/datatype_vector.c
     internal/datatype_hashmap.c
-    internal/pcap/pcap_open.c
-    internal/pcap/pcap_send.c
     internal/check_existing_listener.c
 )
 
@@ -48,16 +47,72 @@ else()
     message(STATUS "No sanitizer enabled")
 endif()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(BACKEND STREQUAL "pcap")
+    add_compile_definitions(SWIFT_NET_BACKEND_PCAP)
+
+    list(APPEND SOURCE_FILES
+        internal/pcap/pcap_send.c
+        internal/pcap/pcap_open.c
+    )
+endif()
+
 
 add_compile_options(-march=native)
 
 add_library(swiftnet STATIC ${SOURCE_FILES})
 add_library(swiftnet_shared SHARED ${SOURCE_FILES})
 
-if(BACKEND STREQUAL "pcap")
-    add_compile_definitions(SWIFT_NET_BACKEND_PCAP)
+if (SWIFT_NET_INTERNAL_TESTING)
+    message("Internal Testing Enabled")
 
+    add_compile_definitions(SWIFT_NET_INTERNAL_TESTING)
+
+    target_compile_options(swiftnet PRIVATE -O0)
+    target_link_options(swiftnet PRIVATE -O0)
+
+    target_compile_options(swiftnet_shared PRIVATE -O0)
+    target_link_options(swiftnet_shared PRIVATE -O0)
+else()
+    message("Internal Testing Disabled")
+
+    target_compile_options(swiftnet PRIVATE
+        -O3
+        -march=native
+        -flto=auto
+        -funroll-loops
+        -fomit-frame-pointer
+
+        -ffast-math
+        -fno-math-errno
+        -funsafe-math-optimizations
+        -ffinite-math-only
+
+        -falign-functions=64
+        -falign-loops=64
+    )
+
+    target_link_options(swiftnet PRIVATE -O3)
+
+    target_compile_options(swiftnet_shared PRIVATE
+        -O3
+        -march=native
+        -flto=auto
+        -funroll-loops
+        -fomit-frame-pointer
+
+        -ffast-math
+        -fno-math-errno
+        -funsafe-math-optimizations
+        -ffinite-math-only
+
+        -falign-functions=64
+        -falign-loops=64
+    )
+
+    target_link_options(swiftnet_shared PRIVATE -O3)
+endif()
+
+if(BACKEND STREQUAL "pcap")
     if(DEFINED ENV{VCPKG_ROOT} AND DEFINED CMAKE_VCPKG_TARGET_TRIPLET)
         set(VCPKG_INCLUDE_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/include")
         set(VCPKG_LIB_DIR "$ENV{VCPKG_ROOT}/installed/${CMAKE_VCPKG_TARGET_TRIPLET}/lib")

@@ -82,17 +82,25 @@ static inline void initialize_memory_cleanup_thread() {
 }
 
 void swiftnet_initialize() {
+    int temp_socket;
+    struct sockaddr_in remote = {0};
+    struct sockaddr private_sockaddr;
+    socklen_t private_sockaddr_len = sizeof(private_sockaddr);
+
     seed = rand();
 
     atomic_store_explicit(&swiftnet_closing, false, memory_order_release);
 
-    const int temp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    goto create_temp_socket;
+
+
+create_temp_socket:
+    temp_socket= socket(AF_INET, SOCK_DGRAM, 0);
     if (temp_socket < 0) {
         PRINT_ERROR("Failed to create temp socket");
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in remote = {0};
     remote.sin_family = AF_INET;
     remote.sin_port = htons(53);
     inet_pton(AF_INET, "8.8.8.8", &remote.sin_addr);
@@ -103,9 +111,10 @@ void swiftnet_initialize() {
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr private_sockaddr;
-    socklen_t private_sockaddr_len = sizeof(private_sockaddr);
+    goto extract_network_data;
 
+
+extract_network_data:
     if(getsockname(temp_socket, &private_sockaddr, &private_sockaddr_len) == -1) {
         PRINT_ERROR("Failed to get private ip address");
         close(temp_socket);
@@ -114,8 +123,7 @@ void swiftnet_initialize() {
 
     private_ip_address = ((struct sockaddr_in *)&private_sockaddr)->sin_addr;
 
-    const int got_default_interface = get_default_interface_and_mac(default_network_interface, sizeof(default_network_interface), mac_address, temp_socket);
-    if(unlikely(got_default_interface != 0)) {
+    if(unlikely(get_default_interface_and_mac(default_network_interface, sizeof(default_network_interface), mac_address, temp_socket) != 0)) {
         PRINT_ERROR("Failed to get the default interface");
         close(temp_socket);
         exit(EXIT_FAILURE);
@@ -129,7 +137,11 @@ void swiftnet_initialize() {
     }
 
     close(temp_socket);
+    
+    goto finish;
 
+
+finish:
     initialize_allocators();
     initialize_vectors();
 

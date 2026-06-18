@@ -9,7 +9,7 @@
 
 static inline void cleanup_connection_resources(const enum ConnectionType connection_type, void* const connection) {
     if (connection_type == CONNECTION_TYPE_CLIENT) {
-        struct SwiftNetClientConnection* const client = (struct SwiftNetClientConnection*)connection;
+        struct SwiftNetClientConnection* const client = connection;
 
         allocator_destroy(&client->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
         allocator_destroy(&client->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
@@ -19,7 +19,7 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
         hashmap_destroy(&client->packets_sending);
         hashmap_destroy(&client->packets_completed);
     } else {
-        struct SwiftNetServer* const server = (struct SwiftNetServer*)connection;
+        struct SwiftNetServer* const server = connection;
 
         allocator_destroy(&server->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
         allocator_destroy(&server->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
@@ -31,13 +31,16 @@ static inline void cleanup_connection_resources(const enum ConnectionType connec
     }
 }
 
-static inline void remove_listener(const enum ConnectionType connection_type, const char* const interface_name, void* const connection) {
+static inline void remove_listener(const enum ConnectionType connection_type, const char* const restrict interface_name, void* const connection) {
+    uint32_t interface_len;
+    struct Listener* listener;
+
+    interface_len = strlen(interface_name);
+
     LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
-    const uint32_t interface_len = strlen(interface_name);
-
-    struct Listener* const listener = hashmap_get(interface_name, interface_len, &listeners);
-    if (listener == NULL) {
+    listener = hashmap_get(interface_name, interface_len, &listeners);
+    if (unlikely(listener == NULL)) {
         UNLOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
         return;
@@ -111,9 +114,11 @@ static inline void close_threads(const enum ConnectionType connection_type, void
 }
 
 void swiftnet_client_cleanup(struct SwiftNetClientConnection* const client) {
+    const char* restrict interface_name;
+
     cleanup_connection_resources(CONNECTION_TYPE_CLIENT, client);
     
-    const char* const interface_name = get_interface_name(client->loopback);
+    interface_name = get_interface_name(client->loopback);
 
     remove_listener(CONNECTION_TYPE_CLIENT, interface_name, client);
 
@@ -125,9 +130,11 @@ void swiftnet_client_cleanup(struct SwiftNetClientConnection* const client) {
 }
 
 void swiftnet_server_cleanup(struct SwiftNetServer* const server) {
+    const char* restrict interface_name;
+
     cleanup_connection_resources(CONNECTION_TYPE_SERVER, server);
     
-    const char* interface_name = get_interface_name(server->loopback);
+    interface_name = get_interface_name(server->loopback);
 
     remove_listener(CONNECTION_TYPE_SERVER, interface_name, server);
 
