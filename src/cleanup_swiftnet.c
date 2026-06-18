@@ -36,7 +36,6 @@ void swiftnet_cleanup() {
     allocator_destroy(&server_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&client_packet_data_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&packet_buffer_memory_allocator ENABLE_INTERNAL_CHECK);
-    allocator_destroy(&hashmap_item_memory_allocator ENABLE_INTERNAL_CHECK);
     
     #ifdef SWIFT_NET_REQUESTS
         allocator_destroy(&requests_sent_memory_allocator ENABLE_INTERNAL_CHECK);
@@ -46,6 +45,7 @@ void swiftnet_cleanup() {
 
     close_listeners();
     
+    allocator_destroy(&hashmap_item_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&server_memory_allocator ENABLE_INTERNAL_CHECK);
     allocator_destroy(&client_connection_memory_allocator ENABLE_INTERNAL_CHECK);
 

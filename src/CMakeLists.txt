@@ -5,7 +5,6 @@ include(GNUInstallDirs)
 include(../build/profile.cmake)
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set(SOURCE_FILES
     initialize_swiftnet.c
@@ -67,13 +66,15 @@ if (SWIFT_NET_INTERNAL_TESTING)
 
     add_compile_definitions(SWIFT_NET_INTERNAL_TESTING)
 
-    target_compile_options(swiftnet PRIVATE -O0)
-    target_link_options(swiftnet PRIVATE -O0)
+    target_compile_options(swiftnet PRIVATE -O0 -g3)
+    target_link_options(swiftnet PRIVATE -O0 -g3)
 
-    target_compile_options(swiftnet_shared PRIVATE -O0)
-    target_link_options(swiftnet_shared PRIVATE -O0)
+    target_compile_options(swiftnet_shared PRIVATE -O0 -g3)
+    target_link_options(swiftnet_shared PRIVATE -O0 -g3)
 else()
     message("Internal Testing Disabled")
+
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
     target_compile_options(swiftnet PRIVATE
         -O3
