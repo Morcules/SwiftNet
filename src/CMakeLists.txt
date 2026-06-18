@@ -155,6 +155,15 @@ set_target_properties(swiftnet_shared PROPERTIES
     PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/swift_net.h"
 )
 
+add_custom_target(swiftnet_debug
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --config RelWithDebInfo --target swiftnet
+    COMMENT "Building swiftnet for AsmView (with debug symbols)"
+    USES_TERMINAL
+)
+
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3 -O3 -march=native")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g3 -O3 -march=native")
+
 add_custom_target(clean_objects
     COMMAND ${CMAKE_COMMAND} -E rm -f ${OBJ_DIR}/output/*.o
     COMMENT "Cleaning up object files"
