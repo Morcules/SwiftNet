@@ -141,8 +141,6 @@ Handlers get called with `struct SwiftNetClientPacketData*` (or the server equiv
 - Use gotos and labels for labeled progression.
 - Trying to avoid many scopes in one function.
 
-(only some files have the new style i'm working on it)
-
 ## Contributing
 
 Contributions are very welcome no matter how small. Every single PR, issue, question, or typo fix is admired and appreciated.
