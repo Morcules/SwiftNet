@@ -644,6 +644,7 @@ process_packet:
         }
         case PACKET_DELAY_UPDATE:
         {
+    #ifndef DISABLE_DYNAMIC_RATE_LIMITING
             enum PacketDelayUpdateStatus* status;
             struct SwiftNetPacketSending* target_packet_sending;
             uint32_t current_delay;
@@ -667,6 +668,7 @@ process_packet:
 
             goto next_packet;
         }
+    #endif
         default:
             break;
     }

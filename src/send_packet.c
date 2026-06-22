@@ -366,7 +366,9 @@ inline void swiftnet_send_packet(
 
                 memcpy(buffer_header_location, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE);
 
+            #ifndef DISABLE_DYNAMIC_RATE_LIMITING
                 usleep(atomic_load_explicit(&new_packet_sending->current_send_delay, memory_order_acquire));
+            #endif
             }
         }
     } else {

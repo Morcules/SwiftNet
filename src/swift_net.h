@@ -126,8 +126,10 @@ struct SwiftNetPendingMessage {
     uint8_t* packet_data_start;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
+#ifndef DISABLE_DYNAMIC_RATE_LIMITING
     uint32_t last_index_checked;
     uint32_t last_chunks_received_number;
+#endif
     uint16_t source_port;
     uint16_t packet_id;
     bool sending_lost_packets;
