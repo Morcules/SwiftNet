@@ -1,0 +1,532 @@
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- No sanitizer enabled
+Internal Testing Enabled
+using linking option: -lpcap
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/shark/Codes/Projects/SwiftNet/build
+[  2%] Building C object CMakeFiles/swiftnet_shared.dir/send_packet.c.o
+[  4%] Building C object CMakeFiles/swiftnet.dir/send_packet.c.o
+[  6%] Building C object CMakeFiles/swiftnet_shared.dir/initialize_swiftnet.c.o
+[  8%] Building C object CMakeFiles/swiftnet_shared.dir/generic_functions.c.o
+[ 12%] Building C object CMakeFiles/swiftnet.dir/initialize_swiftnet.c.o
+[ 10%] Building C object CMakeFiles/swiftnet_shared.dir/handle_packets.c.o
+[ 14%] Building C object CMakeFiles/swiftnet.dir/handle_packets.c.o
+[ 16%] Building C object CMakeFiles/swiftnet.dir/generic_functions.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_swiftnet.c:9:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/generic_functions.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_swiftnet.c:9:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/generic_functions.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/networking.h:4,
+                 from /home/shark/Codes/Projects/SwiftNet/src/handle_packets.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/networking.h:4,
+                 from /home/shark/Codes/Projects/SwiftNet/src/handle_packets.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/networking.h:4,
+                 from /home/shark/Codes/Projects/SwiftNet/src/send_packet.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/networking.h:4,
+                 from /home/shark/Codes/Projects/SwiftNet/src/send_packet.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 18%] Building C object CMakeFiles/swiftnet_shared.dir/initialize_client_connection.c.o
+[ 20%] Building C object CMakeFiles/swiftnet_shared.dir/initialize_server.c.o
+[ 22%] Building C object CMakeFiles/swiftnet.dir/initialize_client_connection.c.o
+[ 25%] Building C object CMakeFiles/swiftnet_shared.dir/cleanup_connection.c.o
+[ 27%] Building C object CMakeFiles/swiftnet_shared.dir/process_packets.c.o
+[ 29%] Building C object CMakeFiles/swiftnet_shared.dir/execute_packet_callback.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_client_connection.c:15:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_server.c:13:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_client_connection.c:15:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/cleanup_connection.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/process_packets.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/execute_packet_callback.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 31%] Building C object CMakeFiles/swiftnet_shared.dir/packet_buffer.c.o
+[ 33%] Building C object CMakeFiles/swiftnet_shared.dir/manipulate_debug_flags.c.o
+[ 35%] Building C object CMakeFiles/swiftnet.dir/initialize_server.c.o
+[ 37%] Building C object CMakeFiles/swiftnet_shared.dir/cleanup_swiftnet.c.o
+[ 39%] Building C object CMakeFiles/swiftnet_shared.dir/make_response.c.o
+[ 41%] Building C object CMakeFiles/swiftnet.dir/cleanup_connection.c.o
+[ 43%] Building C object CMakeFiles/swiftnet.dir/process_packets.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/packet_buffer.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/initialize_server.c:13:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/manipulate_debug_flags.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/cleanup_swiftnet.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/make_response.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/process_packets.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 45%] Building C object CMakeFiles/swiftnet.dir/execute_packet_callback.c.o
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 47%] Building C object CMakeFiles/swiftnet.dir/packet_buffer.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/cleanup_connection.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 50%] Building C object CMakeFiles/swiftnet.dir/manipulate_debug_flags.c.o
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 52%] Building C object CMakeFiles/swiftnet_shared.dir/memory_cleanup_background_service.c.o
+[ 54%] Building C object CMakeFiles/swiftnet.dir/cleanup_swiftnet.c.o
+[ 56%] Building C object CMakeFiles/swiftnet.dir/make_response.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/packet_buffer.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/execute_packet_callback.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/manipulate_debug_flags.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 58%] Building C object CMakeFiles/swiftnet.dir/memory_cleanup_background_service.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/memory_cleanup_background_service.c:2:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/cleanup_swiftnet.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 60%] Building C object CMakeFiles/swiftnet_shared.dir/make_request.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/make_response.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 62%] Building C object CMakeFiles/swiftnet.dir/make_request.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/memory_cleanup_background_service.c:2:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 64%] Building C object CMakeFiles/swiftnet.dir/internal/get_mtu.c.o
+[ 66%] Building C object CMakeFiles/swiftnet_shared.dir/internal/get_mtu.c.o
+[ 68%] Building C object CMakeFiles/swiftnet_shared.dir/internal/get_default_interface_and_mac.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/make_request.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 70%] Building C object CMakeFiles/swiftnet_shared.dir/internal/datatype_allocator.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/make_request.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 72%] Building C object CMakeFiles/swiftnet_shared.dir/internal/datatype_vector.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/get_mtu.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/get_default_interface_and_mac.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/get_mtu.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_allocator.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 75%] Building C object CMakeFiles/swiftnet_shared.dir/internal/check_existing_listener.c.o
+[ 77%] Building C object CMakeFiles/swiftnet_shared.dir/internal/datatype_hashmap.c.o
+[ 79%] Building C object CMakeFiles/swiftnet_shared.dir/internal/pcap/pcap_send.c.o
+[ 81%] Building C object CMakeFiles/swiftnet_shared.dir/internal/pcap/pcap_open.c.o
+[ 83%] Building C object CMakeFiles/swiftnet.dir/internal/get_default_interface_and_mac.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/check_existing_listener.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_hashmap.c:4:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 85%] Building C object CMakeFiles/swiftnet.dir/internal/datatype_allocator.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_vector.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/pcap/pcap_send.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/pcap/pcap_open.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/get_default_interface_and_mac.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 87%] Building C object CMakeFiles/swiftnet.dir/internal/datatype_vector.c.o
+[ 89%] Building C object CMakeFiles/swiftnet.dir/internal/datatype_hashmap.c.o
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_allocator.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[ 91%] Building C object CMakeFiles/swiftnet.dir/internal/check_existing_listener.c.o
+[ 93%] Building C object CMakeFiles/swiftnet.dir/internal/pcap/pcap_send.c.o
+[ 95%] Building C object CMakeFiles/swiftnet.dir/internal/pcap/pcap_open.c.o
+[ 97%] Linking C shared library output/libswiftnet.so
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_vector.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/datatype_hashmap.c:4:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/check_existing_listener.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/pcap/pcap_send.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+In file included from /home/shark/Codes/Projects/SwiftNet/src/internal/pcap/pcap_open.c:1:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h: In function ‘crc32’:
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:116:15: warning: implicit declaration of function ‘__crc32d’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  116 |         crc = __crc32d(crc, *(const uint64_t*)ptr);
+      |               ^~~~~~~~
+      |               crc32
+/home/shark/Codes/Projects/SwiftNet/src/internal/pcap/../internal.h:122:15: warning: implicit declaration of function ‘__crc32b’; did you mean ‘crc32’? [-Wimplicit-function-declaration]
+  122 |         crc = __crc32b(crc, *ptr);
+      |               ^~~~~~~~
+      |               crc32
+[100%] Linking C static library output/libswiftnet.a
+[100%] Built target swiftnet_shared
+[100%] Built target swiftnet

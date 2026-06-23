@@ -234,9 +234,11 @@ static inline struct SwiftNetPendingMessage* create_new_pending_message(struct S
         .packet_info = *packet_info,
         .packet_data_start = allocated_memory,
         .chunks_received_number = 0x00,
+        #ifndef DISABLE_DYNAMIC_RATE_LIMITING
         .last_index_checked = 0,
-        .sending_lost_packets = false,
         .last_chunks_received_number = 0,
+        #endif
+        .sending_lost_packets = false,
         .chunks_received_length = chunks_received_byte_size,
         .chunks_received = calloc(chunks_received_byte_size, 1),
         .packet_id = packet_id,
@@ -642,9 +644,9 @@ process_packet:
 
             goto next_packet;
         }
+        #ifndef DISABLE_DYNAMIC_RATE_LIMITING
         case PACKET_DELAY_UPDATE:
         {
-    #ifndef DISABLE_DYNAMIC_RATE_LIMITING
             enum PacketDelayUpdateStatus* status;
             struct SwiftNetPacketSending* target_packet_sending;
             uint32_t current_delay;
@@ -668,7 +670,7 @@ process_packet:
 
             goto next_packet;
         }
-    #endif
+        #endif
         default:
             break;
     }
