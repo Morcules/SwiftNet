@@ -234,9 +234,11 @@ static inline struct SwiftNetPendingMessage* create_new_pending_message(struct S
         .packet_info = *packet_info,
         .packet_data_start = allocated_memory,
         .chunks_received_number = 0x00,
+        #ifndef DISABLE_DYNAMIC_RATE_LIMITING
         .last_index_checked = 0,
-        .sending_lost_packets = false,
         .last_chunks_received_number = 0,
+        #endif
+        .sending_lost_packets = false,
         .chunks_received_length = chunks_received_byte_size,
         .chunks_received = calloc(chunks_received_byte_size, 1),
         .packet_id = packet_id,
@@ -271,6 +273,7 @@ static inline struct SwiftNetPacketSending* get_packet_sending(struct SwiftNetHa
     return result;
 }
 
+#ifndef DISABLE_DYNAMIC_RATE_LIMITING
 static inline void signal_delay_change(const enum PacketDelayUpdateStatus status, const struct ip* restrict const ip_header, const uint16_t source_port, const uint16_t destination_port, const struct ether_header* const eth_hdr, const struct SwiftNetNetworkData* const net_data) {
     struct ip send_server_info_ip_header;
     struct SwiftNetPacketInfo packet_info_new;
@@ -306,6 +309,7 @@ static inline void signal_delay_change(const enum PacketDelayUpdateStatus status
     
     SWIFTNET_SEND_PACKET(net_data, buffer, sizeof(buffer));
 }
+#endif
 
 struct PacketQueueNode* wait_for_next_packet(struct PacketQueue* const packet_queue) {
     struct PacketQueueNode* node_to_process;
@@ -640,6 +644,7 @@ process_packet:
 
             goto next_packet;
         }
+        #ifndef DISABLE_DYNAMIC_RATE_LIMITING
         case PACKET_DELAY_UPDATE:
         {
             enum PacketDelayUpdateStatus* status;
@@ -665,6 +670,7 @@ process_packet:
 
             goto next_packet;
         }
+        #endif
         default:
             break;
     }
@@ -873,6 +879,7 @@ process_packet:
 
             goto next_packet;
         } else {
+            #ifndef DISABLE_DYNAMIC_RATE_LIMITING
             uint32_t new_packets;
             uint32_t new_packets_validated;
             float ratio;
@@ -894,6 +901,7 @@ process_packet:
                     pending_message->last_index_checked = packet_info.chunk_index;
                 }
             }
+            #endif
 
             memcpy(pending_message->packet_data_start + (chunk_data_size * packet_info.chunk_index), packet_data, bytes_to_write);
 

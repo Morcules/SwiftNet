@@ -54,18 +54,22 @@ enum PacketType {
     REQUEST_INFORMATION = 0x02,
     SEND_LOST_PACKETS_REQUEST = 0x03,
     SEND_LOST_PACKETS_RESPONSE = 0x04,
-    SUCCESSFULLY_RECEIVED_PACKET = 0x05,    
+    SUCCESSFULLY_RECEIVED_PACKET = 0x05,   
+    #ifndef DISABLE_DYNAMIC_RATE_LIMITING 
     PACKET_DELAY_UPDATE = 0x06,
+    #endif
     #ifdef SWIFT_NET_REQUESTS
     REQUEST = 0x07,
     RESPONSE = 0x08,
     #endif
 };
 
+#ifndef DISABLE_DYNAMIC_RATE_LIMITING
 enum PacketDelayUpdateStatus {
     LOWER_DELAY,
     INCREASE_DELAY
 };
+#endif
 
 #define PACKET_INFO_ID_NONE 0xFFFF
 
@@ -126,8 +130,10 @@ struct SwiftNetPendingMessage {
     uint8_t* packet_data_start;
     uint32_t chunks_received_length;
     uint32_t chunks_received_number;
+    #ifndef DISABLE_DYNAMIC_RATE_LIMITING
     uint32_t last_index_checked;
     uint32_t last_chunks_received_number;
+    #endif
     uint16_t source_port;
     uint16_t packet_id;
     bool sending_lost_packets;
@@ -156,7 +162,9 @@ enum PacketSendingUpdated {
 struct SwiftNetPacketSending {
     uint32_t* lost_chunks;
     _Atomic enum PacketSendingUpdated updated;
+    #ifndef DISABLE_DYNAMIC_RATE_LIMITING
     _Atomic uint32_t current_send_delay;
+    #endif
     uint32_t lost_chunks_size;
     uint16_t packet_id;
     _Atomic bool locked;
