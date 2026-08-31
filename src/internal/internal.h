@@ -106,9 +106,9 @@ struct ReceiverPacketData {
 #ifdef SWIFT_NET_BACKEND_DPDK
 #define PACKET_PREPEND_SIZE(addr_type) sizeof(struct ether_header)
 #elif defined(SWIFT_NET_BACKEND_PCAP)
-#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
+#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? (uint8_t)sizeof(uint32_t) : addr_type == DLT_EN10MB ? (uint8_t)sizeof(struct ether_header) : (uint8_t)0)
 #endif
-#define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
+#define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
 
 #define DEFAULT_MAC_ADDRESS_STRUCT (struct ether_header){.ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff}, .ether_type = htons(0x0800)}
 
@@ -145,6 +145,12 @@ inline void swiftnet_reallocate_memory(const uint32_t new_size, const void* rest
     return;
 }
 */
+
+static inline ALWAYS_INLINE uint32_t calculate_chunk_amount(const uint32_t packet_length, const uint32_t mtu) {
+    const uint32_t first_packet_len = mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata);
+
+    return packet_length > first_packet_len ? ((packet_length - (mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata)) - 1) / (mtu - PACKET_HEADER_SIZE)) + 2 : 1;
+}
 
 static inline ALWAYS_INLINE uint32_t crc32(const uint8_t* const data, const uint32_t length) {
     const uint8_t* ptr = data;
@@ -337,15 +343,20 @@ extern void swiftnet_send_packet(
     #endif
 );
 
-static inline ALWAYS_INLINE struct SwiftNetPacketInfo construct_packet_info(const uint32_t packet_length, const uint8_t packet_type, const uint32_t chunk_amount, const uint32_t chunk_index, const struct SwiftNetPortInfo port_info) {
-    return (struct SwiftNetPacketInfo){
-        .packet_length = packet_length,
-        .chunk_amount = chunk_amount,
+static inline ALWAYS_INLINE struct SwiftNetChunkMetadata construct_chunk_metadata(const uint8_t packet_type, const uint32_t chunk_index, const struct SwiftNetPortInfo port_info) {
+    return (struct SwiftNetChunkMetadata){
         .chunk_index = chunk_index,
-        .maximum_transmission_unit = maximum_transmission_unit,
         .checksum = 0x00,
         .port_info = port_info,
         .packet_type = packet_type
+    };
+}
+
+static inline ALWAYS_INLINE struct SwiftNetPacketMetadata construct_packet_metadata(const uint32_t packet_length, const uint32_t chunk_amount) {
+    return (struct SwiftNetPacketMetadata){
+        .packet_length = packet_length,
+        .chunk_amount = chunk_amount,
+        .maximum_transmission_unit = maximum_transmission_unit
     };
 }
 

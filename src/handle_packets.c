@@ -138,7 +138,7 @@ exit:
 }
 
 static void handle_client_init(struct SwiftNetClientConnection* const client_connection, struct ReceiverPacketData* const restrict packet_data) {
-    struct SwiftNetPacketInfo* restrict packet_info;
+    struct SwiftNetChunkMetadata* restrict chunk_metadata;
     struct SwiftNetServerInformation* restrict server_information;
 
     uint8_t* buffer;
@@ -167,7 +167,7 @@ validate_packet_size:
     if(bytes_received != PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + prepend_size) {
         #ifndef SWIFT_NET_DISABLE_DEBUGGING
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
-                send_debug_message("Invalid packet received from server. Expected server information: {\"bytes_received\": %u, \"expected_bytes\": %lu}\n", bytes_received, PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation));
+                send_debug_message("Invalid packet received from server. Expected server information: {\"bytes_received\": %u, \"expected_bytes\": %lu}\n", bytes_received, PACKET_HEADER_SIZE + sizeof(struct SwiftNetServerInformation) + prepend_size);
             }
         #endif
 
@@ -185,23 +185,23 @@ handle_mac_address:
 
 
 validate_target:
-    packet_info = (struct SwiftNetPacketInfo*)(buffer + prepend_size + sizeof(struct ip));
-    server_information = (struct SwiftNetServerInformation*)(buffer + prepend_size+ sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo));
+    chunk_metadata = (struct SwiftNetChunkMetadata*)(buffer + prepend_size + sizeof(struct ip));
+    server_information = (struct SwiftNetServerInformation*)(buffer + prepend_size+ sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata));
 
-    if(packet_info->port_info.destination_port != client_connection->port_info.source_port || packet_info->port_info.source_port != client_connection->port_info.destination_port) {
+    if(chunk_metadata->port_info.destination_port != client_connection->port_info.source_port || chunk_metadata->port_info.source_port != client_connection->port_info.destination_port) {
         #ifndef SWIFT_NET_DISABLE_DEBUGGING
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
-                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", packet_info->port_info.destination_port, packet_info->port_info.source_port, inet_ntoa(((struct ip*)(buffer + prepend_size))->ip_src));
+                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", chunk_metadata->port_info.destination_port, chunk_metadata->port_info.source_port, inet_ntoa(((struct ip*)(buffer + prepend_size))->ip_src));
             }
         #endif
 
         goto exit;
     }
 
-    if(packet_info->packet_type != REQUEST_INFORMATION) {
+    if(chunk_metadata->packet_type != REQUEST_INFORMATION) {
         #ifndef SWIFT_NET_DISABLE_DEBUGGING
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
-                send_debug_message("Invalid packet type: {\"packet_type\": %d}\n", packet_info->packet_type);
+                send_debug_message("Invalid packet type: {\"packet_type\": %d}\n", chunk_metadata->packet_type);
             }
         #endif
 
@@ -270,7 +270,7 @@ static inline uint8_t handle_correct_receiver(const enum ConnectionType connecti
 #ifdef SWIFT_NET_BACKEND_PCAP
 static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* restrict const hdr, const uint8_t* const packet) {
     struct Listener* const listener = (struct Listener*)user;
-    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, port_info));
+    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, port_info));
     struct ReceiverPacketData packet_data = (struct ReceiverPacketData){.data = packet, .data_len = hdr->caplen};
 
     if(handle_correct_receiver(CONNECTION_TYPE_CLIENT, listener, port_info, &packet_data) == 0) handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, port_info, &packet_data);

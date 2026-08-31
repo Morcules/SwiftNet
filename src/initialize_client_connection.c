@@ -130,7 +130,8 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     uint32_t ip;
     bool loopback;
     struct SwiftNetClientConnection* new_connection;
-    struct SwiftNetPacketInfo request_server_information_packet_info;
+    struct SwiftNetChunkMetadata request_server_information_chunk_metadata;
+    struct SwiftNetPacketMetadata request_server_information_packet_metadata;
     struct ip request_server_info_ip_header;
     pthread_t send_request_thread;
     struct RequestServerInformationArgs thread_args;
@@ -161,17 +162,19 @@ init_connection:
 
 request_initialization:
     // Request the server information, and proccess it
-    request_server_information_packet_info = construct_packet_info(
-        0x00,
+    request_server_information_chunk_metadata = construct_chunk_metadata(
         REQUEST_INFORMATION,
-        1,
         0,
         new_connection->port_info
     );
 
-    request_server_info_ip_header = construct_ip_header(new_connection->server_addr, PACKET_HEADER_SIZE, (uint16_t)rand());
+    request_server_information_packet_metadata = construct_packet_metadata(0x00, 1);
 
-    HANDLE_PACKET_CONSTRUCTION(&request_server_info_ip_header, &request_server_information_packet_info, &net_data, &new_connection->eth_header, PACKET_HEADER_SIZE + GET_PREPEND_SIZE(&new_connection->network_data), request_server_info_buffer);
+    request_server_info_ip_header = construct_ip_header(new_connection->server_addr, PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata), (uint16_t)rand());
+
+    HANDLE_PACKET_CONSTRUCTION(&request_server_info_ip_header, &request_server_information_chunk_metadata, &net_data, &new_connection->eth_header, PACKET_HEADER_SIZE + GET_PREPEND_SIZE(&new_connection->network_data) + sizeof(struct SwiftNetPacketMetadata), request_server_info_buffer);
+
+    memcpy(request_server_info_buffer + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata) + net_data.prepend_size, &request_server_information_packet_metadata, sizeof(request_server_information_packet_metadata));
 
     HANDLE_CHECKSUM(request_server_info_buffer + sizeof(struct ip) + net_data.prepend_size, (uint32_t)sizeof(request_server_info_buffer) - net_data.prepend_size - sizeof(struct ip), &net_data);
 

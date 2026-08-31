@@ -73,7 +73,7 @@ static void on_client_packet(struct SwiftNetClientPacketData* packet, void* cons
     for (uint32_t i = 0; i < packet->metadata.data_length; i++) {
         uint8_t byte_received = *(uint8_t*)swiftnet_client_read_packet(packet, 1);
         if (data[i] != byte_received) {
-            PRINT_ERROR("Client received invalid data");
+            PRINT_ERROR("Client received invalid data at byte: %d", i);
 
             swiftnet_client_destroy_packet_data(packet, client_conn);
 
@@ -120,7 +120,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
         for (uint32_t i = 0; i < packet->metadata.data_length; i++) {
             uint8_t byte_received = *(uint8_t*)swiftnet_server_read_packet(packet, 1);
             if (data[i] != byte_received) {
-                PRINT_ERROR("Server received invalid data");
+                PRINT_ERROR("Server received invalid data at byte: %d %d %d", i, data[i], byte_received);
 
                 swiftnet_server_destroy_packet_data(packet, server);
 
@@ -262,10 +262,18 @@ int test_making_request(const union Args* args_ptr) {
         return -1;
     }
 
+    for (uint32_t i = 0; i < args.request_data_len; i++) {
+        req_data[i] = rand();
+    }
+
     uint8_t* res_data = malloc(args.response_data_len);
     if (!res_data) {
         PRINT_ERROR("Failed to allocate memory");
         return -1;
+    }
+
+    for (uint32_t i = 0; i < args.response_data_len; i++) {
+        res_data[i] = rand();
     }
 
     atomic_store_explicit(&g_request_data, req_data, memory_order_release);

@@ -16,7 +16,7 @@
     #define HANDLE_CHECKSUM(buffer, size, network_data) \
         { \
         const uint32_t checksum = crc32(buffer, size); \
-        memcpy(buffer + offsetof(struct SwiftNetPacketInfo, checksum), &checksum, sizeof(checksum)); \
+        memcpy(buffer + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type
@@ -90,7 +90,7 @@
     #define HANDLE_CHECKSUM(buffer, size, network_data) \
         { \
         const uint32_t checksum = crc32(buffer, size); \
-        memcpy((uint8_t*)buffer + offsetof(struct SwiftNetPacketInfo, checksum), &checksum, sizeof(checksum)); \
+        memcpy((uint8_t*)buffer + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type

@@ -10,6 +10,8 @@
 #include <netinet/ip.h>
 #include <stdbool.h>
 
+//#define SWIFT_NET_BACKEND_PCAP
+
 #ifdef SWIFT_NET_BACKEND_PCAP
 #include <pcap/pcap.h>
 #endif
@@ -27,6 +29,7 @@ extern "C" {
 #endif
 
 #define SWIFT_NET_ALIGNED(bytes) __attribute__((aligned(bytes)))
+#define SWIFT_NET_PACKED __attribute__((packed))
 
 // Multiplication of memory pre allocated.
 // More memory = better performance
@@ -51,16 +54,17 @@ struct SwiftNetNetworkData {
 
 enum PacketType : uint8_t {
     MESSAGE = 0x01,
-    REQUEST_INFORMATION = 0x02,
-    SEND_LOST_PACKETS_REQUEST = 0x03,
-    SEND_LOST_PACKETS_RESPONSE = 0x04,
-    SUCCESSFULLY_RECEIVED_PACKET = 0x05,   
+    PACKET_METADATA = 0x02,
+    REQUEST_INFORMATION = 0x03,
+    SEND_LOST_PACKETS_REQUEST = 0x04,
+    SEND_LOST_PACKETS_RESPONSE = 0x05,
+    SUCCESSFULLY_RECEIVED_PACKET = 0x06,   
     #ifndef DISABLE_DYNAMIC_RATE_LIMITING 
-    PACKET_DELAY_UPDATE = 0x06,
+    PACKET_DELAY_UPDATE = 0x07,
     #endif
     #ifndef SWIFT_NET_DISABLE_REQUESTS
-    REQUEST = 0x07,
-    RESPONSE = 0x08,
+    REQUEST = 0x08,
+    RESPONSE = 0x09,
     #endif
 };
 
@@ -110,20 +114,23 @@ struct SwiftNetPacketClientMetadata {
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     bool expecting_response;
     #endif
-} SWIFT_NET_ALIGNED(4);
+} SWIFT_NET_PACKED;
 
-struct SwiftNetPacketInfo {
+struct SwiftNetPacketMetadata {
     uint32_t packet_length;
     uint32_t chunk_amount;
+    uint16_t maximum_transmission_unit;
+} SWIFT_NET_PACKED;
+
+struct SwiftNetChunkMetadata {
     uint32_t chunk_index;
     uint32_t checksum;
     struct SwiftNetPortInfo port_info;
-    uint16_t maximum_transmission_unit;
     uint8_t packet_type;
 } SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPendingMessage {
-    struct SwiftNetPacketInfo packet_info;
+    struct SwiftNetPacketMetadata packet_metadata;
     uint8_t* chunks_received;
     uint8_t* packet_data_start;
     uint32_t chunks_received_length;
@@ -311,7 +318,7 @@ struct SwiftNetClientConnection {
     _Atomic bool executing_packets;
     _Atomic bool closing;
     _Atomic bool initialized;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetServer {
     struct SwiftNetHashMap packets_completed;
@@ -480,5 +487,5 @@ extern void swiftnet_remove_debug_flags(const SwiftNetDebugFlags flags);
 
 
 #ifdef __cplusplus
-}
+}req_data
 #endif
