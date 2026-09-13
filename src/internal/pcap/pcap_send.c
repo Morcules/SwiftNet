@@ -8,6 +8,8 @@ int swiftnet_pcap_send(pcap_t* const pcap, const uint8_t* restrict const data, c
 
     ret = pcap_inject(pcap, data, (size_t)len);
 
+    printf("injecting packet\n");
+
     if(ret == -1) {
         if(errno == ENOBUFS) {
             return -2;

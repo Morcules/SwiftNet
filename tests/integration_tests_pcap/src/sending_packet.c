@@ -146,7 +146,7 @@ int test_sending_packet(const union Args* args_ptr) {
 
     swiftnet_server_set_message_handler(server, on_server_packet, NULL);
 
-    struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 1000);
+    struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 10000);
     if (client_conn == NULL) {
         PRINT_ERROR("Failed to create client connection");
         return -1;

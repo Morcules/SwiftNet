@@ -116,6 +116,13 @@ static inline bool is_already_free(struct SwiftNetMemoryAllocator* const memory_
             casted_memory_loc < casted_data + (memory_allocator->item_size * memory_allocator->chunk_item_amount)
         ) {
             offset = (uint32_t)(casted_memory_loc - casted_data);
+
+            // Check if offset is invalid
+            if (offset % memory_allocator->item_size != 0) {
+                PRINT_ERROR("Freeing non-base pointer %p {\"offset\": %u}", memory_location, offset);
+                exit(EXIT_FAILURE);
+            }
+
             index = offset / memory_allocator->item_size;
 
             byte = index / 8;
@@ -241,6 +248,8 @@ struct SwiftNetMemoryAllocator allocator_create(const uint32_t item_size, const 
         (*((void **)pointers_memory + i) = (uint8_t*)allocated_memory + (i * item_size));
     }
 
+    ASAN_POISON(first_stack->data, new_allocator.item_size * chunk_item_amount);
+
     atomic_store_explicit(&new_allocator.creating_stack, STACK_CREATING_UNLOCKED, memory_order_release);
 
     #ifdef SWIFT_NET_INTERNAL_TESTING
@@ -312,6 +321,8 @@ allocate_stack:
         stack->ptr_status = calloc(sizeof(uint8_t), (chunk_item_amount / 8) + 1);
     #endif
 
+    ASAN_POISON(stack->data, memory_allocator->item_size * chunk_item_amount);
+
     atomic_store_explicit(&memory_allocator->stacks[stacks_allocated], stack, memory_order_release);
 
     atomic_fetch_add_explicit(&memory_allocator->stacks_allocated, 1, memory_order_release);
@@ -349,6 +360,8 @@ void* allocator_allocate(struct SwiftNetMemoryAllocator* const memory_allocator)
 
     free_stack_lock(valid_stack, memory_allocator);
 
+    ASAN_UNPOISON(item_ptr, memory_allocator->item_size);
+
     return item_ptr;
 }
 
@@ -358,8 +371,6 @@ void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void
     #ifdef SWIFT_NET_INTERNAL_TESTING
     bool already_free;
     #endif
-
-
 
     #ifdef SWIFT_NET_INTERNAL_TESTING
         already_free = is_already_free(memory_allocator, memory_location);
@@ -388,6 +399,9 @@ void allocator_free(struct SwiftNetMemoryAllocator* const memory_allocator, void
     #endif
 
     free_stack_lock(free_stack, memory_allocator);
+
+
+    ASAN_POISON(memory_location, memory_allocator->item_size);
 }
 
 void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator
@@ -442,6 +456,7 @@ void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator
                         allocated = (mask & (1u << bit)) != 0;
 
                         if(allocated) {
+                            PRINT_ERROR("Memory leak {\"item_size\": %d}", memory_allocator->item_size);
                             items_leaked++;
                             bytes_leaked += memory_allocator->item_size;
                         }

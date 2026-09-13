@@ -13,6 +13,15 @@
 #include <net/if.h>
 #include "../swift_net.h"
 
+#ifdef __SANITIZE_ADDRESS__
+#include <sanitizer/asan_interface.h>
+    #define ASAN_UNPOISON(addr, size) __asan_unpoison_memory_region((addr), (size))
+    #define ASAN_POISON(addr, size)   __asan_poison_memory_region((addr), (size))
+#else
+    #define ASAN_UNPOISON(addr, size) ((void)(addr), (void)(size))
+    #define ASAN_POISON(addr, size)   ((void)(addr), (void)(size))
+#endif
+
 #ifdef __APPLE__
     #include <sys/_endian.h>
 #elif __linux__

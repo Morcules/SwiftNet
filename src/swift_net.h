@@ -75,7 +75,7 @@ enum SwiftNetPacketDelayUpdateStatus : uint8_t {
 };
 #endif
 
-#define PACKET_INFO_ID_NONE 0xFFFF
+#define PACKET_INFO_ID_NONE UINT16_C(0xFFFF)
 
 #ifndef likely
 #define unlikely(x) __builtin_expect((x), 0x00)
@@ -114,7 +114,7 @@ struct SwiftNetPacketClientMetadata {
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     bool expecting_response;
     #endif
-} SWIFT_NET_PACKED;
+} SWIFT_NET_ALIGNED(4);
 
 struct SwiftNetPacketMetadata {
     uint32_t packet_length;
@@ -127,9 +127,15 @@ struct SwiftNetChunkMetadata {
     uint32_t checksum;
     struct SwiftNetPortInfo port_info;
     uint8_t packet_type;
-} SWIFT_NET_ALIGNED(4);
+} SWIFT_NET_PACKED;
+
+struct SwiftNetPendingMessageCache {
+    struct SwiftNetPacketQueueNode* cache[0xFF];
+    uint32_t cache_size;
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetPendingMessage {
+    struct SwiftNetPendingMessageCache cache;
     struct SwiftNetPacketMetadata packet_metadata;
     uint8_t* chunks_received;
     uint8_t* packet_data_start;
@@ -217,6 +223,7 @@ struct SwiftNetPacketCallbackQueueNode {
 struct SwiftNetServerPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
+    uint8_t* buffer_start;
     uint8_t* current_pointer;
     struct SwiftNetPacketServerMetadata metadata;
 } SWIFT_NET_ALIGNED(8);
@@ -224,6 +231,7 @@ struct SwiftNetServerPacketData {
 struct SwiftNetClientPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
+    uint8_t* buffer_start;
     uint8_t* current_pointer;
     struct SwiftNetPacketClientMetadata metadata;
 } SWIFT_NET_ALIGNED(8);
@@ -451,30 +459,34 @@ extern void swiftnet_cleanup();
 // Make a request from a client and wait for a response.
 extern struct SwiftNetClientPacketData* swiftnet_client_make_request(
     struct SwiftNetClientConnection* const client,
-    struct SwiftNetPacketBuffer* restrict const packet,
-    const uint32_t timeout_ms
+    struct SwiftNetPacketBuffer* const packet,
+    const uint32_t timeout_ms,
+    const uint32_t bytes_to_send
 );
 
 // Make a request from the server to a specific client and wait for response.
 extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
     struct SwiftNetServer* const server,
-    struct SwiftNetPacketBuffer* restrict const packet,
+    struct SwiftNetPacketBuffer* const packet,
     const struct SwiftNetClientAddrData addr_data,
-    const uint32_t timeout_ms
+    const uint32_t timeout_ms,
+    const uint32_t bytes_to_send
 );
 
 // Send a response from a client.
 extern void swiftnet_client_make_response(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetClientPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* restrict const buffer
+    struct SwiftNetPacketBuffer* const buffer,
+    const uint32_t bytes_to_send
 );
 
 // Send a response from the server.
 extern void swiftnet_server_make_response(
     struct SwiftNetServer* const server,
     struct SwiftNetServerPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* restrict const buffer
+    struct SwiftNetPacketBuffer* const buffer,
+    const uint32_t bytes_to_send
 );
 #endif
 
@@ -487,5 +499,5 @@ extern void swiftnet_remove_debug_flags(const SwiftNetDebugFlags flags);
 
 
 #ifdef __cplusplus
-}req_data
+}
 #endif

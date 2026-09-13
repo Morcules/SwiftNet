@@ -12,7 +12,7 @@
 #include <stddef.h>
 
 static inline void insert_queue_node(
-    struct SwiftNetPacketQueueNode* restrict const new_node,
+    struct SwiftNetPacketQueueNode* const new_node,
     struct SwiftNetPacketQueue* const packet_queue
 ) {
     if(unlikely(new_node == NULL)) {
@@ -38,8 +38,8 @@ static inline void insert_queue_node(
     return;
 }
 
-static inline struct SwiftNetPacketQueueNode* construct_node(const uint32_t data_read, void* restrict const data, const uint32_t sender_address) {
-    struct SwiftNetPacketQueueNode* restrict node;
+static inline struct SwiftNetPacketQueueNode* construct_node(const uint32_t data_read, void* const data, const uint32_t sender_address) {
+    struct SwiftNetPacketQueueNode* node;
 
 
     node = allocator_allocate(&packet_queue_node_memory_allocator);
@@ -76,7 +76,7 @@ static inline void swiftnet_handle_packets(
     uint16_t addr_type;
 
     uint32_t sender_address;
-    uint8_t* restrict packet_buffer;
+    uint8_t* packet_buffer;
 
 
     addr_type = GET_ADDR_TYPE(network_data);

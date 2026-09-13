@@ -215,33 +215,56 @@ static inline void chunk_received(uint8_t* restrict const chunks_received, const
     chunks_received[byte] |= (uint8_t)(1U << bit);
 }
 
-static inline struct SwiftNetPendingMessage* create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetChunkMetadata* restrict const chunk_metadata, const struct SwiftNetPacketMetadata* restrict const packet_metadata, const uint16_t packet_id) {
-    struct SwiftNetPendingMessage* new_pending_message;
+static inline void assign_metadata_pending_message(struct SwiftNetPendingMessage* const pending_message, const struct SwiftNetPacketMetadata* const packet_metadata) {
     uint8_t* allocated_memory;
-    struct PendingMessagesKey* key;
     uint32_t chunks_received_byte_size;
 
-
     chunks_received_byte_size = (packet_metadata->chunk_amount + 7) / 8;
+    allocated_memory = malloc(packet_metadata->packet_length);
+
+    pending_message->packet_metadata = *packet_metadata;
+    pending_message->packet_data_start = allocated_memory;
+    pending_message->chunks_received_length = chunks_received_byte_size;
+    pending_message->chunks_received = calloc(chunks_received_byte_size, 1);
+}
+
+static inline void packet_into_pending_message_cache(struct SwiftNetPendingMessage* const pending_message, struct SwiftNetPacketQueueNode* const node) {
+    if (unlikely(pending_message->cache.cache_size >= sizeof(pending_message->cache.cache) / sizeof(void*))) {
+        return;
+    }
+
+    printf("Inserting into cache\n");
+
+    pending_message->cache.cache[pending_message->cache.cache_size] = node;
+    pending_message->cache.cache_size++;
+}
+
+static inline struct SwiftNetPendingMessage* create_new_pending_message(struct SwiftNetHashMap* const pending_messages, struct SwiftNetMemoryAllocator* const pending_messages_memory_allocator, const struct SwiftNetChunkMetadata* const chunk_metadata, const struct SwiftNetPacketMetadata* const packet_metadata, const uint16_t packet_id) {
+    struct SwiftNetPendingMessage* new_pending_message;
+    struct PendingMessagesKey* key;
 
     new_pending_message = allocator_allocate(pending_messages_memory_allocator);
 
-    allocated_memory = malloc(packet_metadata->packet_length);
-
     *new_pending_message = (struct SwiftNetPendingMessage){
-        .packet_metadata = *packet_metadata,
-        .packet_data_start = allocated_memory,
-        .chunks_received_number = 0x00,
+        .packet_data_start = NULL,
+        .chunks_received_number = 0,
         #ifndef DISABLE_DYNAMIC_RATE_LIMITING
         .last_index_checked = 0,
         .last_chunks_received_number = 0,
         #endif
         .sending_lost_packets = false,
-        .chunks_received_length = chunks_received_byte_size,
-        .chunks_received = calloc(chunks_received_byte_size, 1),
+        .chunks_received_length = 0,
+        .chunks_received = NULL,
         .packet_id = packet_id,
         .source_port = chunk_metadata->port_info.source_port,
+        .cache = (struct SwiftNetPendingMessageCache){
+            .cache_size = 0
+        }
     };
+
+    if (packet_metadata != NULL) {
+        assign_metadata_pending_message(new_pending_message, packet_metadata);
+    }
 
     LOCK_ATOMIC_DATA_TYPE(&pending_messages->atomic_lock);
 
@@ -324,12 +347,15 @@ struct SwiftNetPacketQueueNode* wait_for_next_packet(struct SwiftNetPacketQueue*
 
         UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
 
+        printf("queue node\n");
+
         return node_to_process;
     }
 
     packet_queue->first_node = node_to_process->next;
 
     UNLOCK_ATOMIC_DATA_TYPE(&packet_queue->locked);
+    printf("queue node\n");
 
     return node_to_process;
 }
@@ -372,9 +398,12 @@ static inline void swiftnet_process_packets(
     struct SwiftNetPendingMessage* pending_message;
     uint16_t prepend_size;
     uint16_t addr_type;
+    struct SwiftNetPendingMessageCache* cache_processing;
 
 
     idle_stage = 0;
+
+    cache_processing = NULL;
 
     addr_type = GET_ADDR_TYPE(&network_data);
     prepend_size = GET_PREPEND_SIZE(&network_data);
@@ -385,6 +414,21 @@ static inline void swiftnet_process_packets(
 process_packet:
     if (atomic_load(closing) == true) {
         goto exit;
+    }
+
+    if (cache_processing != NULL) {
+        if (cache_processing->cache_size == 0) {
+            cache_processing = NULL;
+
+            goto process_packet;
+        }
+
+        node = cache_processing->cache[cache_processing->cache_size - 1];
+        cache_processing->cache_size--;
+
+        printf("processing from cache\n");
+
+        goto process_node;
     }
 
     node = wait_for_next_packet(packet_queue);
@@ -415,6 +459,13 @@ process_packet:
         goto process_packet;
     }
 
+    printf("processing from queue %d\n", connection_type);
+
+    goto process_node;
+
+process_node:
+    printf("processing node\n");
+
     idle_stage = 0;
 
     packet_buffer = node->data;
@@ -435,11 +486,47 @@ process_packet:
 
     pending_message = get_pending_message(pending_messages, ip_header.ip_id, chunk_metadata.port_info.source_port);
     if(pending_message == NULL) {
+        if (chunk_metadata.chunk_index != 0) {
+            pending_message = create_new_pending_message(pending_messages, pending_messages_memory_allocator, &chunk_metadata, NULL, ip_header.ip_id);
+
+            packet_into_pending_message_cache(pending_message, node);
+
+            goto process_packet;
+        }
+
         memcpy(&packet_metadata, packet_buffer + prepend_size + PACKET_HEADER_SIZE, sizeof(struct SwiftNetPacketMetadata));
         packet_data = &packet_buffer[prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata)];
+
+        if(packet_metadata.chunk_amount > 1) {
+            printf("new valid pending message\n");
+            pending_message = create_new_pending_message(pending_messages, pending_messages_memory_allocator, &chunk_metadata, &packet_metadata, ip_header.ip_id);
+        }
     } else {
-        memcpy(&packet_metadata, &pending_message->packet_metadata, sizeof(struct SwiftNetPacketMetadata));
-        packet_data = &packet_buffer[prepend_size + PACKET_HEADER_SIZE];
+        if (pending_message->packet_data_start == NULL) {
+            if (chunk_metadata.chunk_index != 0) {
+                packet_into_pending_message_cache(pending_message, node);
+
+                goto process_packet;
+            }
+
+            packet_data = &packet_buffer[prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata)];
+            memcpy(&packet_metadata, packet_buffer + prepend_size + PACKET_HEADER_SIZE, sizeof(struct SwiftNetPacketMetadata));
+
+            assign_metadata_pending_message(pending_message, &packet_metadata);
+
+            if (pending_message->cache.cache_size != 0) {
+                cache_processing = &pending_message->cache;
+            }
+        } else {
+            if (chunk_metadata.chunk_index == 0) {
+                allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+
+                goto next_packet;
+            }
+
+            memcpy(&packet_metadata, &pending_message->packet_metadata, sizeof(struct SwiftNetPacketMetadata));
+            packet_data = &packet_buffer[prepend_size + PACKET_HEADER_SIZE];
+        }
     }
 
     checksum_received = chunk_metadata.checksum;
@@ -536,6 +623,8 @@ process_packet:
                     send_packet_metadata = construct_packet_metadata(0, 1);
 
                     HANDLE_PACKET_CONSTRUCTION(&send_packet_ip_header, &send_chunk_metadata, &network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata), buffer);
+
+                    memcpy(buffer + PACKET_HEADER_SIZE + prepend_size, &packet_metadata, sizeof(packet_metadata));
 
                     HANDLE_CHECKSUM(buffer + prepend_size + sizeof(struct ip), (uint32_t)sizeof(buffer) - sizeof(struct ip) - prepend_size, &network_data);
 
@@ -697,7 +786,10 @@ process_packet:
 
     if(pending_message == NULL) {
         if(packet_metadata.packet_length > chunk_data_size - sizeof(struct SwiftNetPacketMetadata)) {
-            struct SwiftNetPendingMessage* new_pending_message;
+            PRINT_ERROR("Unreachable");
+            exit(EXIT_FAILURE);
+
+            /*struct SwiftNetPendingMessage* new_pending_message;
 
 
             new_pending_message = create_new_pending_message(pending_messages, pending_messages_memory_allocator, &chunk_metadata, &packet_metadata, ip_header.ip_id);
@@ -711,6 +803,7 @@ process_packet:
             allocator_free(&packet_buffer_memory_allocator, packet_buffer);
 
             goto next_packet;
+            */
         } else {
             packet_completed(ip_header.ip_id, chunk_metadata.port_info.source_port, packets_completed_history, packets_completed_history_memory_allocator);
 
@@ -720,6 +813,7 @@ process_packet:
 
                 new_packet_data = allocator_allocate(&server_packet_data_memory_allocator);
                 new_packet_data->data = packet_data;
+                new_packet_data->buffer_start = packet_buffer;
                 new_packet_data->current_pointer = packet_data;
                 new_packet_data->internal_pending_message = NULL;
                 new_packet_data->metadata = (struct SwiftNetPacketServerMetadata){
@@ -747,6 +841,8 @@ process_packet:
 
                 new_packet_data = allocator_allocate(&client_packet_data_memory_allocator);
                 new_packet_data->data = packet_data;
+                new_packet_data->buffer_start = packet_data;
+                new_packet_data->buffer_start = packet_buffer;
                 new_packet_data->current_pointer = packet_data;
                 new_packet_data->internal_pending_message = NULL;
                 new_packet_data->metadata = (struct SwiftNetPacketClientMetadata){
@@ -780,7 +876,7 @@ process_packet:
             goto next_packet;
         }
 
-        bytes_to_write = (chunk_metadata.chunk_index + 1) >= packet_metadata.chunk_amount ? (packet_metadata.packet_length - chunk_data_size + sizeof(struct SwiftNetPacketMetadata)) % chunk_data_size : chunk_data_size;
+        bytes_to_write = chunk_metadata.chunk_index == 0 ? chunk_data_size - sizeof(struct SwiftNetPacketMetadata) : (chunk_metadata.chunk_index + 1) >= packet_metadata.chunk_amount ? (packet_metadata.packet_length - chunk_data_size + sizeof(struct SwiftNetPacketMetadata)) % chunk_data_size : chunk_data_size;
 
         if (GET_ADDR_TYPE(&network_data) != 0) {
             memcpy(&sender.mac_address, eth_hdr.ether_shost, sizeof(sender.mac_address));
@@ -794,6 +890,8 @@ process_packet:
             memcpy(pending_message->packet_data_start + chunk_data_size - sizeof(struct SwiftNetPacketMetadata) + (chunk_data_size * (chunk_metadata.chunk_index - 1)), packet_data, bytes_to_write);
 
             chunk_received(pending_message->chunks_received, chunk_metadata.chunk_index);
+
+            printf("byte at 1430 processing: %d\n", *(pending_message->packet_data_start + 1430));
 
             #ifndef SWIFT_NET_DISABLE_DEBUGGING
             {
@@ -904,7 +1002,7 @@ process_packet:
             }
             #endif
 
-            memcpy(pending_message->packet_data_start + chunk_data_size - sizeof(struct SwiftNetPacketMetadata) + (chunk_data_size * (chunk_metadata.chunk_index - 1)), packet_data, bytes_to_write);
+            memcpy(chunk_metadata.chunk_index == 0 ? pending_message->packet_data_start : pending_message->packet_data_start + chunk_data_size - sizeof(struct SwiftNetPacketMetadata) + (chunk_data_size * (chunk_metadata.chunk_index - 1)), packet_data, bytes_to_write);
 
             chunk_received(pending_message->chunks_received, chunk_metadata.chunk_index);
 

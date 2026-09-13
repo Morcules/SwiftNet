@@ -26,22 +26,15 @@ static inline struct RequestSent* construct_request_sent(const struct in_addr ad
     return request_sent;
 }
 
-struct SwiftNetClientPacketData* swiftnet_client_make_request(struct SwiftNetClientConnection* const client, struct SwiftNetPacketBuffer* restrict const packet, const uint32_t timeout_ms) {
+struct SwiftNetClientPacketData* swiftnet_client_make_request(struct SwiftNetClientConnection* const client, struct SwiftNetPacketBuffer* const packet, const uint32_t timeout_ms, const uint32_t bytes_to_send) {
     struct RequestSent* request_sent;
-    uint32_t packet_length;
     struct timeval tv;
     uint32_t start;
     uint32_t end;
 
     request_sent = construct_request_sent(client->server_addr);
 
-    #ifdef SWIFT_NET_BACKEND_DPDK
-    packet_length = packet->total_data_size;
-    #else
-    packet_length = (uint32_t)(packet->packet_append_pointer - packet->packet_data_start);
-    #endif
-
-    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, packet_length, &client->server_addr, &client->packets_sending, &client->packets_sending_memory_allocator, client->eth_header, client->network_data, request_sent, false, 0);
+    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, bytes_to_send, &client->server_addr, &client->packets_sending, &client->packets_sending_memory_allocator, client->eth_header, client->network_data, request_sent, false, 0);
 
 
     gettimeofday(&tv, NULL);
@@ -68,14 +61,13 @@ check_response:
         return packet_data;
     }
 
-    usleep(5000);
+    usleep(10);
 
     goto check_response;
 }
 
-struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetServer* const server, struct SwiftNetPacketBuffer* restrict const packet, const struct SwiftNetClientAddrData addr_data, const uint32_t timeout_ms) {
+struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetServer* const server, struct SwiftNetPacketBuffer* const packet, const struct SwiftNetClientAddrData addr_data, const uint32_t timeout_ms, const uint32_t bytes_to_send) {
     struct RequestSent* request_sent;
-    uint32_t packet_length;
     struct SwiftNetPortInfo port_info;
     struct timeval tv;
     uint32_t start;
@@ -83,15 +75,9 @@ struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetSer
 
     request_sent = construct_request_sent(addr_data.sender_address);
 
-    #ifdef SWIFT_NET_BACKEND_DPDK
-    packet_length = packet->total_data_size;
-    #else
-    packet_length = (uint32_t)(packet->packet_append_pointer - packet->packet_data_start);
-    #endif
-
     port_info = (struct SwiftNetPortInfo){.destination_port = addr_data.port, .source_port = server->server_port};
 
-    swiftnet_send_packet(addr_data.maximum_transmission_unit, port_info, packet, packet_length, &addr_data.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->eth_header, server->network_data, request_sent, false, 0);
+    swiftnet_send_packet(addr_data.maximum_transmission_unit, port_info, packet, bytes_to_send, &addr_data.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->eth_header, server->network_data, request_sent, false, 0);
 
     gettimeofday(&tv, NULL);
     start = (uint32_t)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
@@ -109,10 +95,10 @@ check_response:
         return NULL;
     }
 
-    if (request_sent->packet_data != NULL) {
+    if (atomic_load_explicit(&request_sent->packet_data, memory_order_acquire) != NULL) {
         struct SwiftNetServerPacketData* const packet_data = request_sent->packet_data;
 
-        allocator_free(&requests_sent_memory_allocator, (void*)request_sent);
+        allocator_free(&requests_sent_memory_allocator, request_sent);
 
         return packet_data;
     }

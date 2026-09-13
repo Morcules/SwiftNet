@@ -67,7 +67,7 @@ void swiftnet_client_destroy_packet_data(struct SwiftNetClientPacketData* restri
 
         free(packet_data->data);
     } else {
-        allocator_free(&packet_buffer_memory_allocator, packet_data->data - PACKET_HEADER_SIZE - GET_PREPEND_SIZE(&client_conn->network_data));
+        allocator_free(&packet_buffer_memory_allocator, packet_data->buffer_start);
         allocator_free(&client_packet_data_memory_allocator, packet_data);
     }
 }
@@ -80,7 +80,7 @@ void swiftnet_server_destroy_packet_data(struct SwiftNetServerPacketData* restri
 
         free(packet_data->data);
     } else {
-        allocator_free(&packet_buffer_memory_allocator, packet_data->data - PACKET_HEADER_SIZE - GET_PREPEND_SIZE(&server->network_data));
+        allocator_free(&packet_buffer_memory_allocator, packet_data->buffer_start);
         allocator_free(&server_packet_data_memory_allocator, packet_data);
     }
 }

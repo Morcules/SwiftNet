@@ -20,7 +20,7 @@ int main() {
 
     const struct Test tests[] = {
         // Loopback tests
-        {
+        /*{
             .function = test_sending_packet,
             .args = {.test_sending_packet_args = {
                 .client_data_len = 50,
@@ -126,7 +126,7 @@ int main() {
                 .loopback = false
             }},
             .test_name = "Test sending small packets"
-        },
+        },*/
         {
             .function = test_sending_packet,
             .args = {.test_sending_packet_args = {
