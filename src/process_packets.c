@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <net/ethernet.h>
+#include <sys/_endian.h>
 #include <sys/cdefs.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -486,6 +487,12 @@ process_node:
 
     pending_message = get_pending_message(pending_messages, ip_header.ip_id, chunk_metadata.port_info.source_port);
     if(pending_message == NULL) {
+        if(!IS_NET_MESSAGE(chunk_metadata.packet_type) && check_packet_already_completed(ip_header.ip_id, chunk_metadata.port_info.source_port, packets_completed_history)) {
+            allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+
+            goto next_packet;
+        }
+
         if (chunk_metadata.chunk_index != 0) {
             pending_message = create_new_pending_message(pending_messages, pending_messages_memory_allocator, &chunk_metadata, NULL, ip_header.ip_id);
 
@@ -526,6 +533,14 @@ process_node:
 
             memcpy(&packet_metadata, &pending_message->packet_metadata, sizeof(struct SwiftNetPacketMetadata));
             packet_data = &packet_buffer[prepend_size + PACKET_HEADER_SIZE];
+        }
+    }
+
+    if(pending_message != NULL) {
+        if (chunk_already_received(pending_message->chunks_received, chunk_metadata.chunk_index)) {
+            allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+
+            goto next_packet;
         }
     }
 
@@ -624,7 +639,7 @@ process_node:
 
                     HANDLE_PACKET_CONSTRUCTION(&send_packet_ip_header, &send_chunk_metadata, &network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata), buffer);
 
-                    memcpy(buffer + PACKET_HEADER_SIZE + prepend_size, &packet_metadata, sizeof(packet_metadata));
+                    memcpy(buffer + PACKET_HEADER_SIZE + prepend_size, &send_packet_metadata, sizeof(send_packet_metadata));
 
                     HANDLE_CHECKSUM(buffer + prepend_size + sizeof(struct ip), (uint32_t)sizeof(buffer) - sizeof(struct ip) - prepend_size, &network_data);
 
@@ -658,6 +673,25 @@ process_node:
             header_size = PACKET_HEADER_SIZE + prepend_size + sizeof(struct SwiftNetPacketMetadata);
 
             HANDLE_PACKET_CONSTRUCTION(&send_lost_packets_ip_header, &send_chunk_metadata, &network_data, &eth_hdr, case_mtu + prepend_size, buffer)
+
+            if (pending_message->packet_data_start == NULL) {
+                packet_length = PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata) + sizeof(uint32_t);
+                packet_length_net_order = htons((uint16_t)packet_length);
+
+                memcpy(buffer + prepend_size + offsetof(struct ip, ip_len), &packet_length_net_order, SIZEOF_FIELD(struct ip, ip_len));
+
+                send_packet_metadata.packet_length = sizeof(uint32_t);
+
+                memcpy(buffer + prepend_size + PACKET_HEADER_SIZE, &send_packet_metadata, sizeof(send_packet_metadata));
+
+                HANDLE_CHECKSUM(buffer + prepend_size + sizeof(struct ip), packet_length - sizeof(struct ip), &network_data);
+
+                SWIFTNET_SEND_INTERNAL_PACKET(&network_data, buffer, packet_length + prepend_size);
+
+                allocator_free(&packet_buffer_memory_allocator, packet_buffer);
+
+                goto next_packet;
+            }
 
             lost_chunk_indexes = return_lost_chunk_indexes(pending_message->chunks_received, packet_metadata.chunk_amount, case_mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata), (uint32_t*)(buffer + header_size));
 
@@ -869,12 +903,6 @@ process_node:
         }
     } else {
         uint32_t bytes_to_write;
-
-        if (chunk_already_received(pending_message->chunks_received, chunk_metadata.chunk_index)) {
-            allocator_free(&packet_buffer_memory_allocator, packet_buffer);
-
-            goto next_packet;
-        }
 
         bytes_to_write = chunk_metadata.chunk_index == 0 ? chunk_data_size - sizeof(struct SwiftNetPacketMetadata) : (chunk_metadata.chunk_index + 1) >= packet_metadata.chunk_amount ? (packet_metadata.packet_length - chunk_data_size + sizeof(struct SwiftNetPacketMetadata)) % chunk_data_size : chunk_data_size;
 

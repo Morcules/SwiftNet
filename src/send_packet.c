@@ -146,7 +146,7 @@ static inline ALWAYS_INLINE void handle_lost_packets(
 
     memcpy(prepend_buffer + prepend_size + PACKET_HEADER_SIZE, packet_metadata, sizeof(struct SwiftNetPacketMetadata));
     
-    #elif defined(SWIFT_NET_BACKEND_PCAP)
+    #elif defined(SWIFT_NET_BACKEND_DPDK)
     #endif
 
     while(1) {
@@ -467,7 +467,7 @@ void swiftnet_send_packet(
 
                 cleanup_sent_packet(buffer_header_location, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE);
                 
-                usleep(3000000);
+                //usleep(300000);
 
                 #ifndef DISABLE_DYNAMIC_RATE_LIMITING
                 usleep(atomic_load_explicit(&new_packet_sending->current_send_delay, memory_order_acquire));

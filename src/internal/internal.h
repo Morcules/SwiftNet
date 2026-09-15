@@ -22,6 +22,8 @@
     #define ASAN_POISON(addr, size)   ((void)(addr), (void)(size))
 #endif
 
+#define IS_NET_MESSAGE(packet_type) (packet_type >= REQUEST_INFORMATION)
+
 #ifdef __APPLE__
     #include <sys/_endian.h>
 #elif __linux__
