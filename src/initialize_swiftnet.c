@@ -37,6 +37,12 @@ struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
 struct SwiftNetMemoryAllocator uint16_memory_allocator;
 struct SwiftNetMemoryAllocator pending_message_key_allocator;
 struct SwiftNetMemoryAllocator packet_completed_key_allocator;
+struct SwiftNetMemoryAllocator request_sent_key_allocator;
+struct SwiftNetMemoryAllocator packet_sending_key_allocator;
+struct SwiftNetMemoryAllocator pending_message_memory_allocator;
+struct SwiftNetMemoryAllocator packet_completed_memory_allocator;
+struct SwiftNetMemoryAllocator packet_sending_memory_allocator;
+
 
 #ifndef SWIFT_NET_DISABLE_REQUESTS
     struct SwiftNetMemoryAllocator requests_sent_memory_allocator;
@@ -62,15 +68,20 @@ static inline void initialize_allocators() {
     uint16_memory_allocator = allocator_create(sizeof(uint16_t), 0xFF * SWIFT_NET_MEMORY_USAGE);
     pending_message_key_allocator = allocator_create(sizeof(struct PendingMessagesKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
     packet_completed_key_allocator = allocator_create(sizeof(struct PacketCompletedKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
+    packet_sending_key_allocator = allocator_create(sizeof(struct PacketSendingKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
+    packet_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 40 * SWIFT_NET_MEMORY_USAGE);
+    packet_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 40 * SWIFT_NET_MEMORY_USAGE);
+    pending_message_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 40 * SWIFT_NET_MEMORY_USAGE);
     
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     requests_sent_memory_allocator = allocator_create(sizeof(struct RequestSent), 40 * SWIFT_NET_MEMORY_USAGE);
+    request_sent_key_allocator = allocator_create(sizeof(struct RequestSentKey), 0xFF * SWIFT_NET_MEMORY_USAGE);
     #endif
 }
 
 static inline void initialize_vectors() {
     #ifndef SWIFT_NET_DISABLE_REQUESTS
-    requests_sent = hashmap_create(&uint16_memory_allocator);
+    requests_sent = hashmap_create(&request_sent_key_allocator);
     #endif
 
     listeners = hashmap_create(NULL);

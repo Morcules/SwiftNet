@@ -8,7 +8,7 @@
 uint32_t lcores_used[] = {DPDK_LCORES};
 #endif
            
-void* check_existing_listener(const char* restrict const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback) {
+void* check_existing_listener(const char* const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback) {
     uint32_t interface_len;
     struct Listener* existing_listener;
     struct Listener* new_listener;

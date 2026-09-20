@@ -147,6 +147,8 @@ struct SwiftNetPendingMessage {
     uint16_t source_port;
     uint16_t packet_id;
     bool sending_lost_packets;
+    bool marked_cleanup;
+    uint32_t bg_last_chunks_received;
 } SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetPacketServerMetadata {
@@ -302,9 +304,6 @@ struct SwiftNetClientConnection {
     struct SwiftNetHashMap packets_completed;
     struct SwiftNetHashMap pending_messages;
     struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetNetworkData network_data;
     struct SwiftNetPacketQueue packet_queue;
     struct SwiftNetPacketCallbackQueue packet_callback_queue;
@@ -331,9 +330,6 @@ struct SwiftNetServer {
     struct SwiftNetHashMap packets_completed;
     struct SwiftNetHashMap pending_messages;
     struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetNetworkData network_data;
     struct SwiftNetPacketQueue packet_queue;
     struct SwiftNetPacketCallbackQueue packet_callback_queue;

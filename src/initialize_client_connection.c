@@ -91,11 +91,8 @@ static inline struct SwiftNetClientConnection* construct_client_connection(const
         .server_addr.s_addr = server_address,
         .packet_handler = NULL,
         .loopback = loopback,
-        .pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 40 * SWIFT_NET_MEMORY_USAGE),
-        .packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 40 * SWIFT_NET_MEMORY_USAGE),
-        .packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 40 * SWIFT_NET_MEMORY_USAGE),
         .packets_completed = hashmap_create(&packet_completed_key_allocator),
-        .packets_sending = hashmap_create(&uint16_memory_allocator),
+        .packets_sending = hashmap_create(&packet_sending_key_allocator),
         .pending_messages = hashmap_create(&pending_message_key_allocator),
         .packet_queue = (struct SwiftNetPacketQueue){
             .first_node = NULL,

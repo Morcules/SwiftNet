@@ -1,4 +1,6 @@
 #include "../internal.h"
+
+#ifdef SWIFT_NET_BACKEND_DPDK
 #include <rte_ethdev.h>
 
 int swiftnet_dpdk_send(const struct SwiftNetNetworkData* const network_data, struct rte_mbuf* buf) {
@@ -10,3 +12,4 @@ int swiftnet_dpdk_send(const struct SwiftNetNetworkData* const network_data, str
 
     return 0;
 }
+#endif

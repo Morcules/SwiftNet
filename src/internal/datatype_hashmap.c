@@ -80,7 +80,7 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
             byte = (uint32_t)(new_key / 32);
             bit = (uint8_t)(new_key % 32);
 
-            *(hashmap->item_occupation + byte) |= 1 << bit;
+            *(hashmap->item_occupation + byte) |= 1U << bit;
 
             if(new_mem_hashmap_item->value != NULL) {
                 while(new_mem_hashmap_item->next != NULL) {
@@ -187,7 +187,7 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
     byte = (uint32_t)(key / 32);
     bit = (uint8_t)(key % 32);
 
-    *(hashmap->item_occupation + byte) |= (uint32_t)(0 << bit);
+    *(hashmap->item_occupation + byte) |= (uint32_t)(1U << bit);
 
     if(hashmap->size >= hashmap->capacity) {
         hashmap_resize(hashmap);
@@ -220,7 +220,7 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
         byte = (uint32_t)(key / 32);
         bit = (uint8_t)(key % 32);
 
-        *(hashmap->item_occupation + byte) &= (uint32_t)(~(0 << bit));
+        *(hashmap->item_occupation + byte) &= ~(1U << bit);
     }
 
     goto find_item;

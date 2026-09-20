@@ -64,7 +64,8 @@ extern uint32_t lcores_used[];
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
     #define ENABLE_INTERNAL_CHECK , 0
-    #define DISABLE_INTERNAL_CHECK , 1
+    //#define DISABLE_INTERNAL_CHECK , 1
+    #define DISABLE_INTERNAL_CHECK , 0
 #else
     #define ENABLE_INTERNAL_CHECK
     #define DISABLE_INTERNAL_CHECK
@@ -84,19 +85,28 @@ struct ReceiverPacketData {
 // in body use variables "hashmap_item" and "hashmap_data"
 // "hashmap_item" contains pointer to current struct SwiftNetHashMapItem 
 // "hashmap_data" contains data stored inside struct SwiftNetHashMapItem
-#define LOOP_HASHMAP(hashmap, loop_body) \
+#define LOOP_HASHMAP(hashmap, data_cast, loop_body) \
     for(uint32_t i = 0; i < ((hashmap)->capacity + 31) / 32; i++) { \
         uint32_t current_index = *((hashmap)->item_occupation + i); \
-        if(current_index == 0x00) { \
-            continue; \
-        } \
-        uint32_t inverted = ~(current_index); \
-        while(inverted != UINT32_MAX) { \
-            uint32_t bit_index = (uint32_t)(__builtin_ctzl(inverted)); \
-            inverted |= 1 << bit_index; \
-            for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
-                void* const hashmap_data = hashmap_item->value; \
+        printf("index: %d\n", current_index); \
+        while(current_index != 0) { \
+            uint32_t bit_index = (uint32_t)(__builtin_ctz(current_index)); \
+            void* next_value; \
+            current_index &= ~(1 << bit_index); \
+            for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; ) { \
+                if(hashmap_item->next != NULL) { \
+                    next_value = hashmap_item->next->value; \
+                } else { next_value = NULL; } \
+                MAYBE_UNUSED data_cast const hashmap_data = hashmap_item->value; \
                 loop_body \
+                if(hashmap_item->value == NULL) {break;} else { \
+                    if(hashmap_item->value == next_value) { \
+                        continue; \
+                    } else { \
+                        hashmap_item = hashmap_item->next; \
+                        continue; \
+                    } \
+                } \
             } \
         } \
     }
@@ -198,6 +208,14 @@ struct PacketCompletedKey {
     uint16_t packet_id;
 };
 
+struct RequestSentKey {
+    uint16_t packet_id;
+};
+
+struct PacketSendingKey {
+    uint16_t packet_id;
+};
+
 struct Listener {
     struct SwiftNetNetworkData network_data;
     #ifdef SWIFT_NET_BACKEND_PCAP
@@ -224,6 +242,11 @@ extern struct SwiftNetHashMap listeners;
 
 extern struct SwiftNetMemoryAllocator pending_message_key_allocator;
 extern struct SwiftNetMemoryAllocator packet_completed_key_allocator;
+
+#ifndef SWIFT_NET_DISABLE_REQUESTS
+extern struct SwiftNetMemoryAllocator request_sent_key_allocator;
+#endif
+extern struct SwiftNetMemoryAllocator packet_sending_key_allocator;
 
 extern pthread_t memory_cleanup_thread;
 extern _Atomic bool swiftnet_closing;
@@ -305,6 +328,9 @@ extern struct SwiftNetMemoryAllocator server_memory_allocator;
 extern struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 extern struct SwiftNetMemoryAllocator listener_memory_allocator;
 extern struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
+extern struct SwiftNetMemoryAllocator pending_message_memory_allocator;
+extern struct SwiftNetMemoryAllocator packet_completed_memory_allocator;
+extern struct SwiftNetMemoryAllocator packet_sending_memory_allocator;
 
 extern void* interface_start_listening_pcap(void* const listener_void);
 extern int interface_start_listening_dpdk(void* const listener_void);
@@ -344,7 +370,6 @@ extern void swiftnet_send_packet(
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
     struct SwiftNetHashMap* const packets_sending,
-    struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     const struct ether_header eth_hdr,
     const struct SwiftNetNetworkData network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS

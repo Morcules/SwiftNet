@@ -34,7 +34,7 @@ struct SwiftNetClientPacketData* swiftnet_client_make_request(struct SwiftNetCli
 
     request_sent = construct_request_sent(client->server_addr);
 
-    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, bytes_to_send, &client->server_addr, &client->packets_sending, &client->packets_sending_memory_allocator, client->eth_header, client->network_data, request_sent, false, 0);
+    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, bytes_to_send, &client->server_addr, &client->packets_sending, client->eth_header, client->network_data, request_sent, false, 0);
 
 
     gettimeofday(&tv, NULL);
@@ -77,7 +77,7 @@ struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetSer
 
     port_info = (struct SwiftNetPortInfo){.destination_port = addr_data.port, .source_port = server->server_port};
 
-    swiftnet_send_packet(addr_data.maximum_transmission_unit, port_info, packet, bytes_to_send, &addr_data.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, server->eth_header, server->network_data, request_sent, false, 0);
+    swiftnet_send_packet(addr_data.maximum_transmission_unit, port_info, packet, bytes_to_send, &addr_data.sender_address, &server->packets_sending, server->eth_header, server->network_data, request_sent, false, 0);
 
     gettimeofday(&tv, NULL);
     start = (uint32_t)(tv.tv_sec * 1000 + tv.tv_usec / 1000);

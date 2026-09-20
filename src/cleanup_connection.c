@@ -3,31 +3,43 @@
 #include "internal/networking.h"
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+static inline void cleanup_hashmap(struct SwiftNetHashMap* const hashmap, struct SwiftNetMemoryAllocator* const allocator) {
+    LOCK_ATOMIC_DATA_TYPE(&hashmap->atomic_lock);
+
+    LOOP_HASHMAP(hashmap, struct SwiftNetPacketCompleted*, 
+        hashmap_remove(hashmap_item->key_original_data, hashmap_item->key_original_data_size, hashmap);
+        allocator_free(allocator, hashmap_data);
+    )
+
+
+    if (hashmap->size != 0) {
+        exit(EXIT_FAILURE);
+    }
+    UNLOCK_ATOMIC_DATA_TYPE(&hashmap->atomic_lock);
+
+    hashmap_destroy(hashmap);
+}
 
 static inline void cleanup_connection_resources(const enum ConnectionType connection_type, void* const connection) {
     if (connection_type == CONNECTION_TYPE_CLIENT) {
         struct SwiftNetClientConnection* const client = connection;
 
-        allocator_destroy(&client->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
-        allocator_destroy(&client->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
-        allocator_destroy(&client->packets_completed_memory_allocator DISABLE_INTERNAL_CHECK);
-
         hashmap_destroy(&client->pending_messages);
         hashmap_destroy(&client->packets_sending);
-        hashmap_destroy(&client->packets_completed);
+
+        cleanup_hashmap(&client->packets_completed, &packet_completed_memory_allocator);
     } else {
         struct SwiftNetServer* const server = connection;
 
-        allocator_destroy(&server->packets_sending_memory_allocator ENABLE_INTERNAL_CHECK);
-        allocator_destroy(&server->pending_messages_memory_allocator ENABLE_INTERNAL_CHECK);
-        allocator_destroy(&server->packets_completed_memory_allocator DISABLE_INTERNAL_CHECK);
-
         hashmap_destroy(&server->pending_messages);
         hashmap_destroy(&server->packets_sending);
-        hashmap_destroy(&server->packets_completed);
+
+        cleanup_hashmap(&server->packets_completed, &packet_completed_memory_allocator);
     }
 }
 
@@ -86,7 +98,7 @@ static inline void remove_listener(const enum ConnectionType connection_type, ch
 }
 
 static inline char* get_interface_name(const bool loopback, const enum ConnectionType con_type) {
-    return loopback ? con_type == CONNECTION_TYPE_CLIENT ? CLIENT_LOOPBACK_INTERFACE_NAME : SERVER_LOOPBACK_INTERFACE_NAME : default_network_interface;
+    return loopback ? (con_type == CONNECTION_TYPE_CLIENT ? CLIENT_LOOPBACK_INTERFACE_NAME : SERVER_LOOPBACK_INTERFACE_NAME) : default_network_interface;
 }
 
 static inline void close_threads(const enum ConnectionType connection_type, void* const connection) {
