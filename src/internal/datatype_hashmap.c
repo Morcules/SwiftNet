@@ -132,7 +132,7 @@ void* hashmap_get(const void* const key_data, const uint32_t data_size, struct S
     goto loop;
 
 loop:
-    if(current_item == NULL) {
+    if(current_item == NULL || current_item->value == NULL) {
         goto exit;
     }
 
@@ -216,7 +216,7 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
     previous_target_item = hashmap->items + key;
     current_target_item = hashmap->items + key;
 
-    if(current_target_item->next == NULL) {
+    if(current_target_item != NULL && current_target_item->next == NULL) {
         byte = (uint32_t)(key / 32);
         bit = (uint8_t)(key % 32);
 
@@ -228,6 +228,7 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
 
 find_item:
     if(current_target_item == NULL) {
+        PRINT_ERROR("NULL OBJECT PROVIDED TO HASHMAP REMOVE");
         goto exit;
     }
 
@@ -256,6 +257,8 @@ remove_item:
             next->next = NULL;
 
             allocator_free(&hashmap_item_memory_allocator, next);
+        } else {
+            free_hashmap_item_key(hashmap, current_target_item);
         }
     } else {
         previous_target_item->next = current_target_item->next;

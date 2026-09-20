@@ -88,7 +88,6 @@ struct ReceiverPacketData {
 #define LOOP_HASHMAP(hashmap, data_cast, loop_body) \
     for(uint32_t i = 0; i < ((hashmap)->capacity + 31) / 32; i++) { \
         uint32_t current_index = *((hashmap)->item_occupation + i); \
-        printf("index: %d\n", current_index); \
         while(current_index != 0) { \
             uint32_t bit_index = (uint32_t)(__builtin_ctz(current_index)); \
             void* next_value; \
