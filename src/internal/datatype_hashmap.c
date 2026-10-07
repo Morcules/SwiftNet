@@ -129,8 +129,6 @@ void* hashmap_get(const void* const key_data, const uint32_t data_size, struct S
 
     current_item = hashmap->items + key;
 
-    goto loop;
-
 loop:
     if(current_item == NULL || current_item->value == NULL) {
         goto exit;
@@ -306,3 +304,4 @@ void hashmap_destroy(struct SwiftNetHashMap* const hashmap) {
 
     free(hashmap->items);
 }
+

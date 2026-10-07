@@ -1,3 +1,4 @@
+#ifdef SWIFT_NET_BACKEND_DPDK
 #include "../internal.h"
 #include "../networking.h"
 #include "../../swift_net.h"
@@ -261,3 +262,4 @@ void swiftnet_client_destroy_packet_buffer(const struct SwiftNetPacketBuffer* re
 void swiftnet_server_destroy_packet_buffer(const struct SwiftNetPacketBuffer* restrict const packet, MAYBE_UNUSED const struct SwiftNetServer* const server) {
     destroy_packet_buffer(packet);
 }
+#endif

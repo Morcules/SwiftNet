@@ -16,10 +16,6 @@ static inline void cleanup_hashmap(struct SwiftNetHashMap* const hashmap, struct
         allocator_free(allocator, hashmap_data);
     )
 
-
-    if (hashmap->size != 0) {
-        exit(EXIT_FAILURE);
-    }
     UNLOCK_ATOMIC_DATA_TYPE(&hashmap->atomic_lock);
 
     hashmap_destroy(hashmap);
@@ -175,3 +171,4 @@ void swiftnet_server_cleanup(struct SwiftNetServer* const server) {
 
     allocator_free(&server_memory_allocator, server);
 }
+

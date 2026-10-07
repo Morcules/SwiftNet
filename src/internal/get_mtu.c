@@ -24,3 +24,4 @@ uint16_t get_mtu(const char* restrict const interface, const int sockfd) {
 
     return (uint16_t)ifr.ifr_mtu;
 }
+

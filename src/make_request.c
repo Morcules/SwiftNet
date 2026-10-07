@@ -40,8 +40,6 @@ struct SwiftNetClientPacketData* swiftnet_client_make_request(struct SwiftNetCli
     gettimeofday(&tv, NULL);
     start = (uint32_t)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
-    goto check_response;
-
 
 check_response:
     gettimeofday(&tv, NULL);
@@ -61,7 +59,7 @@ check_response:
         return packet_data;
     }
 
-    usleep(10);
+    usleep(5000);
 
     goto check_response;
 }
@@ -81,8 +79,6 @@ struct SwiftNetServerPacketData* swiftnet_server_make_request(struct SwiftNetSer
 
     gettimeofday(&tv, NULL);
     start = (uint32_t)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
-
-    goto check_response;
 
 
 check_response:
@@ -109,3 +105,4 @@ check_response:
 }
 
 #endif
+

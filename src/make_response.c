@@ -8,9 +8,8 @@ void swiftnet_client_make_response(struct SwiftNetClientConnection* const client
 }
 
 void swiftnet_server_make_response(struct SwiftNetServer* const server, struct SwiftNetServerPacketData* const packet_data, struct SwiftNetPacketBuffer* const buffer, const uint32_t bytes_to_send) {
-    const struct SwiftNetPortInfo port_info = {.source_port = server->server_port, .destination_port = packet_data->metadata.port_info.source_port};
-
-    swiftnet_send_packet(packet_data->metadata.sender.maximum_transmission_unit, port_info, buffer, bytes_to_send, &packet_data->metadata.sender.sender_address, &server->packets_sending, server->eth_header, server->network_data, NULL, true, packet_data->metadata.packet_id);
+    swiftnet_send_packet(packet_data->metadata.sender.maximum_transmission_unit, (struct SwiftNetPortInfo){.source_port = server->server_port, .destination_port = packet_data->metadata.port_info.source_port}, buffer, bytes_to_send, &packet_data->metadata.sender.sender_address, &server->packets_sending, server->eth_header, server->network_data, NULL, true, packet_data->metadata.packet_id);
 }
 
 #endif
+

@@ -1,5 +1,4 @@
 #include "internal/internal.h"
-#include "internal/networking.h"
 #include "swift_net.h"
 #include <stdatomic.h>
 #include <stdio.h>
@@ -88,3 +87,4 @@ void swiftnet_server_destroy_packet_data(struct SwiftNetServerPacketData* restri
         allocator_free(&server_packet_data_memory_allocator, packet_data);
     }
 }
+

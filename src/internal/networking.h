@@ -13,26 +13,28 @@
         pthread_join((listener)->listener_thread, NULL);
 
     // Simple crc16 call with proper memory order
-    #define HANDLE_CHECKSUM(buffer, size, network_data) \
+    #define HANDLE_CHECKSUM(buffer, size, network_data, packet_metadata) \
         { \
-        const uint32_t checksum = crc32(buffer, size); \
-        memcpy(buffer + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
+        const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
+        memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type
     #define GET_PREPEND_SIZE(network_data) (network_data)->prepend_size
 
-    #define HANDLE_PACKET_CONSTRUCTION(ip_header, packet_info, network_data, eth_hdr, buffer_size, buffer_name) \
-        uint8_t buffer_name[buffer_size]; \
+    #define HANDLE_PACKET_CONSTRUCTION(ip_header, chunk_metadata, packet_metadata, network_data, eth_hdr, buffer_size, buffer_name) \
+        uint8_t buffer_name[buffer_size + (packet_metadata == NULL ? 0 : sizeof(struct SwiftNetPacketMetadata)) + PACKET_HEADER_SIZE + GET_PREPEND_SIZE(network_data)]; \
         if((network_data)->addr_type == DLT_NULL) { \
             uint32_t family = PF_INET; \
             memcpy(buffer_name, &family, sizeof(family)); \
             memcpy(buffer_name + sizeof(family), ip_header, sizeof(*ip_header)); \
-            memcpy(buffer_name + sizeof(family) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
+            memcpy(buffer_name + sizeof(family) + sizeof(*ip_header), chunk_metadata, sizeof(*chunk_metadata)); \
+            if(packet_metadata != NULL) memcpy(buffer_name + sizeof(family) + sizeof(*ip_header) + sizeof(*chunk_metadata), packet_metadata, sizeof(struct SwiftNetPacketMetadata)); \
         } else if((network_data)->addr_type == DLT_EN10MB){ \
             memcpy(buffer_name, eth_hdr, sizeof(*eth_hdr)); \
             memcpy(buffer_name + sizeof(*eth_hdr), ip_header, sizeof(*ip_header)); \
-            memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header), packet_info, sizeof(*packet_info)); \
+            memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header), chunk_metadata, sizeof(*chunk_metadata)); \
+            if(packet_metadata != NULL) memcpy(buffer_name + sizeof(*eth_hdr) + sizeof(*ip_header) + sizeof(*chunk_metadata), packet_metadata, sizeof(struct SwiftNetPacketMetadata)); \
         }
 
     #define FREE_PACKET_CONSTRUCTION(buffer_name, network_data)
@@ -71,15 +73,16 @@
     #define SWIFTNET_CLOSE_CONNECTION(network_data) \
         pcap_close((network_data)->pcap);
 
-    #define SWIFTNET_SEND_PACKET(network_data, buffer, len) \
-	while(swiftnet_pcap_send((network_data)->pcap, buffer, len) == -2) { \
+    #define SWIFTNET_SEND_PACKET(network_data, buffer, len, packet_metadata) \
+	while(swiftnet_pcap_send((network_data)->pcap, buffer, len + GET_PREPEND_SIZE(network_data) + PACKET_HEADER_SIZE + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)) == -2) { \
         usleep(2000); \
     }
 
-    #define SWIFTNET_SEND_INTERNAL_PACKET(network_data, buffer, len) \
-	while(swiftnet_pcap_send((network_data)->pcap, buffer, len) == -2) { \
+    #define SWIFTNET_SEND_INTERNAL_PACKET(network_data, buffer, len, packet_metadata) \
+	while(swiftnet_pcap_send((network_data)->pcap, buffer, len + GET_PREPEND_SIZE(network_data) + PACKET_HEADER_SIZE + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)) == -2) { \
         usleep(2000); \
     }
+
 #elif defined(SWIFT_NET_BACKEND_DPDK)
     #include <rte_ethdev.h>
     #include <rte_mbuf.h>
@@ -175,3 +178,4 @@
     #define SWIFTNET_SEND_PACKET(network_data, buffer) \
         swiftnet_dpdk_send((network_data), buffer);
 #endif
+

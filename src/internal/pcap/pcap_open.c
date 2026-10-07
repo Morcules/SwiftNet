@@ -36,3 +36,4 @@ pcap_t* swiftnet_pcap_open(const char* const restrict interface) {
 
     return p;
 }
+

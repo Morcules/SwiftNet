@@ -472,3 +472,4 @@ void allocator_destroy(struct SwiftNetMemoryAllocator* const memory_allocator
         free(current_stack);
     }
 }
+

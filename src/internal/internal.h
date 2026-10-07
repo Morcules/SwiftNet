@@ -62,6 +62,14 @@ extern uint32_t lcores_used[];
 #define SERVER_LOOPBACK_INTERFACE_NAME "net_ring0\0"
 #endif
 
+#define GET_INTERFACE_NAME(loopback, connection_type) \
+    (connection_type == CONNECTION_TYPE_CLIENT ? (loopback ? CLIENT_LOOPBACK_INTERFACE_NAME : default_network_interface) : (loopback ? SERVER_LOOPBACK_INTERFACE_NAME : default_network_interface))
+
+#define IP_HEADER_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data))
+#define CHUNK_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip))
+#define PACKET_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
+#define DATA_LOCATION(buffer, network_data, packet_metadata_present) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata_present ? sizeof(struct SwiftNetPacketMetadata) : 0))
+
 #ifdef SWIFT_NET_INTERNAL_TESTING
     #define ENABLE_INTERNAL_CHECK , 0
     //#define DISABLE_INTERNAL_CHECK , 1
@@ -265,7 +273,7 @@ extern struct in_addr private_ip_address;
 extern uint8_t mac_address[6];
 extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
 
-extern void* check_existing_listener(const char* restrict const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
+extern void* check_existing_listener(void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
 extern uint32_t bytes_leaked;
@@ -415,3 +423,4 @@ static inline ALWAYS_INLINE struct ip construct_ip_header(const struct in_addr d
 
     return ip_header;
 }
+

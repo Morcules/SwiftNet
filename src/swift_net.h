@@ -496,3 +496,4 @@ extern void swiftnet_remove_debug_flags(const SwiftNetDebugFlags flags);
 #ifdef __cplusplus
 }
 #endif
+

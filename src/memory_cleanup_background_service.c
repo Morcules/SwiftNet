@@ -82,8 +82,6 @@ void* memory_cleanup_background_service(MAYBE_UNUSED void* user) {
     suseconds_t target_us = (suseconds_t)(PACKET_HISTORY_STORE_TIME * 1000000ULL);
     bool closing;
 
-    goto start_loop;
-
 
 start_loop:
     gettimeofday(&start, NULL);
@@ -110,3 +108,4 @@ start_loop:
 
     goto start_loop;
 }
+

@@ -84,3 +84,4 @@ void swiftnet_cleanup() {
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);
     #endif
 }
+

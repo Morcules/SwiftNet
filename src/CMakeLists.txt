@@ -5,6 +5,7 @@ include(GNUInstallDirs)
 include(../build/profile.cmake)
 
 set(CMAKE_C_STANDARD 23)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SOURCE_FILES
     initialize_swiftnet.c
