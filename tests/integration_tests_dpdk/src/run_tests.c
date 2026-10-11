@@ -15,7 +15,7 @@
 
 char private_ip_address_testing[INET_ADDRSTRLEN];
 
-int main() {
+int main(void) {
     get_private_ip_from_socket();
 
     const struct Test tests[] = {

@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static inline void close_listeners() {
+static inline void close_listeners(void) {
     LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
     
     LOOP_HASHMAP(&listeners, struct Listener*,
@@ -22,13 +22,13 @@ static inline void close_listeners() {
     hashmap_destroy(&listeners);
 }
 
-static inline void close_background_service() {
+static inline void close_background_service(void) {
     atomic_store_explicit(&swiftnet_closing, true, memory_order_release);
 
     pthread_join(memory_cleanup_thread, NULL);
 }
 
-void swiftnet_cleanup() {
+void swiftnet_cleanup(void) {
     close_background_service();
 
     allocator_destroy(&packet_queue_node_memory_allocator ENABLE_INTERNAL_CHECK);

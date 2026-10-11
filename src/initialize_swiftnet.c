@@ -55,7 +55,7 @@ pthread_t memory_cleanup_thread;
 
 _Atomic bool swiftnet_closing;
 
-static inline void initialize_allocators() {
+static inline void initialize_allocators(void) {
     packet_queue_node_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketQueueNode), 40 * SWIFT_NET_MEMORY_USAGE);
     packet_callback_queue_node_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCallbackQueueNode), 40 * SWIFT_NET_MEMORY_USAGE);
     server_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetServerPacketData), 40 * SWIFT_NET_MEMORY_USAGE);
@@ -79,7 +79,7 @@ static inline void initialize_allocators() {
     #endif
 }
 
-static inline void initialize_vectors() {
+static inline void initialize_vectors(void) {
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     requests_sent = hashmap_create(&request_sent_key_allocator);
     #endif
@@ -87,11 +87,11 @@ static inline void initialize_vectors() {
     listeners = hashmap_create(NULL);
 }
 
-static inline void initialize_memory_cleanup_thread() {
+static inline void initialize_memory_cleanup_thread(void) {
     pthread_create(&memory_cleanup_thread, NULL, memory_cleanup_background_service, NULL);
 }
 
-void swiftnet_initialize() {
+void swiftnet_initialize(void) {
     #ifdef SWIFT_NET_BACKEND_DPDK
     char dpdk_args[1024];
     char* argv[32];

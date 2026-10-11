@@ -29,7 +29,7 @@ enum ConnectionType {
 
 extern char private_ip_address_testing[INET_ADDRSTRLEN];
 
-static inline int get_private_ip_from_socket() {
+static inline int get_private_ip_from_socket(void) {
     const int temp_socket = socket(AF_INET, SOCK_DGRAM, 0);
     if (temp_socket < 0) {
         PRINT_ERROR("Failed to create temp socket");
