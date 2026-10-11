@@ -254,7 +254,7 @@ static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* re
 }
 #elif defined(SWIFT_NET_BACKEND_DPDK)
 static void dpdk_packet_handle(struct Listener* const listener, struct rte_mbuf* const restrict dpdk_buf, uint8_t* restrict const packet) {
-    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, port_info));
+    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, port_info));
     struct ReceiverPacketData packet_data = (struct ReceiverPacketData){.data = packet, .data_len = dpdk_buf->data_len, .dpdk_buf = dpdk_buf};
 
     if(handle_correct_receiver(CONNECTION_TYPE_CLIENT, listener, port_info, &packet_data) == 0) handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, port_info, &packet_data);

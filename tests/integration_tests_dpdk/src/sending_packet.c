@@ -106,7 +106,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
     for (uint32_t i = 0; i < packet->metadata.data_length; i++) {
         uint8_t byte_received = *(uint8_t*)swiftnet_server_read_packet(packet, 1);
         if (data[i] != byte_received) {
-            PRINT_ERROR("Server received invalid data");
+            PRINT_ERROR("Server received invalid data %d", i);
 
             swiftnet_server_destroy_packet_data(packet, server);
 
