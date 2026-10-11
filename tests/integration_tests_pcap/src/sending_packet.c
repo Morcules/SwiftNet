@@ -20,7 +20,7 @@ static _Atomic (uint8_t*) g_server_data = NULL;
 static _Atomic uint32_t g_client_data_len = 0;
 static _Atomic uint32_t g_server_data_len = 0;
 
-static void reset_test_state() {
+static void reset_test_state(void) {
     swiftnet_server_cleanup(atomic_load_explicit(&g_server, memory_order_acquire));
     swiftnet_client_cleanup(atomic_load_explicit(&g_client_conn, memory_order_acquire));
 

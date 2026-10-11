@@ -374,7 +374,7 @@ extern void swiftnet_client_cleanup(struct SwiftNetClientConnection* const clien
 extern void swiftnet_server_cleanup(struct SwiftNetServer* const server);
 
 // Initialize the SwiftNet library.
-extern void swiftnet_initialize();
+extern void swiftnet_initialize(void);
 
 // Send a packet from the client to its connected server.
 extern void swiftnet_client_send_packet(
@@ -445,7 +445,7 @@ extern void swiftnet_server_destroy_packet_data(
 );
 
 // Clean up the entire SwiftNet library.
-extern void swiftnet_cleanup();
+extern void swiftnet_cleanup(void);
 
 #ifndef SWIFT_NET_DISABLE_REQUESTS
 

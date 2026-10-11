@@ -22,13 +22,13 @@ static _Atomic uint32_t g_response_data_len = 0;
 
 const uint8_t g_make_request_code = 0xFF;
 
-static void wait_until_response_sent() {
+static void wait_until_response_sent(void) {
     while (atomic_load_explicit(&g_sent_response, memory_order_acquire) == false) {
         usleep(1000);
     }
 }
 
-static void reset_test_state() {
+static void reset_test_state(void) {
     swiftnet_server_cleanup(atomic_load_explicit(&g_server, memory_order_acquire));
     swiftnet_client_cleanup(atomic_load_explicit(&g_client_conn, memory_order_acquire));
 
