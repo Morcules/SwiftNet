@@ -10,8 +10,6 @@
 #include <netinet/ip.h>
 #include <stdbool.h>
 
-//#define SWIFT_NET_BACKEND_PCAP
-
 #ifdef SWIFT_NET_BACKEND_PCAP
 #include <pcap/pcap.h>
 #endif
