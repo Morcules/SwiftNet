@@ -12,6 +12,8 @@ Makefile
 !/build/profile_template.cmake
 !/build/profiles/*
 
+**/diff.git
+
 !/build/cmake
 
 compile_commands.json

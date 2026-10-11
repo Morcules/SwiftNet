@@ -5,7 +5,7 @@ add_compile_definitions(
     SWIFT_NET_MEMORY_USAGE=5 # Multiplier of memory preallocated
 
     # DPDK SPECIFIC SETTINGS
-    DPDK_LCORES=1,2 # List of cores to use for DPDK (every unique interface used requires one lcore)
+    DPDK_LCORES=1 # List of cores to use for DPDK (every unique interface used requires one lcore)
 )
 
 set(SWIFT_NET_INTERNAL_TESTING ON) # Only used when debugging the library itself
