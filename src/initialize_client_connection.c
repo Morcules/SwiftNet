@@ -33,17 +33,17 @@ struct RequestServerInformationArgs {
 };
 
 void* request_server_information(void* restrict const request_server_information_args_void) {
-    const struct RequestServerInformationArgs* restrict const request_server_information_args = request_server_information_args_void;
+    struct RequestServerInformationArgs* request_server_information_args;
 
     struct timeval tv;
     uint32_t start;
     uint32_t end;
 
+    request_server_information_args = request_server_information_args_void;
+
     gettimeofday(&tv, NULL);
 
     start = (uint32_t)tv.tv_sec * 1000 + (uint32_t)tv.tv_usec / 1000;
-
-    goto init_connection_request;
 
 
 init_connection_request:
@@ -63,7 +63,7 @@ init_connection_request:
         }
     #endif
 
-    SWIFTNET_SEND_INTERNAL_PACKET(request_server_information_args->network_data, request_server_information_args->data, request_server_information_args->size);
+    SWIFTNET_SEND_INTERNAL_PACKET(request_server_information_args->network_data, request_server_information_args->data, 0, true);
 
     usleep(250000);
 
@@ -75,33 +75,29 @@ exit:
 }
 
 static inline struct SwiftNetClientConnection* construct_client_connection(const bool loopback, const uint16_t destination_port, const in_addr_t server_address) {
-    struct SwiftNetClientConnection* const new_connection = allocator_allocate(&client_connection_memory_allocator);
+    struct SwiftNetClientConnection* new_connection;
 
-    struct ether_header eth_header = {
-        .ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff},
-        .ether_type = htons(0x0800)
-    };
-
-
-    memcpy(eth_header.ether_shost, mac_address, sizeof(eth_header.ether_shost));
+    new_connection = allocator_allocate(&client_connection_memory_allocator);
 
     *new_connection = (struct SwiftNetClientConnection){
-        .eth_header = eth_header,
+        .eth_header = {
+            .ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff},
+            .ether_type = htons(0x0800)
+        },
         .port_info = (struct SwiftNetPortInfo){.source_port = (uint16_t)rand(), .destination_port = destination_port},
         .server_addr.s_addr = server_address,
         .packet_handler = NULL,
         .loopback = loopback,
-        .pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 40 * SWIFT_NET_MEMORY_USAGE),
-        .packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 40 * SWIFT_NET_MEMORY_USAGE),
-        .packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 40 * SWIFT_NET_MEMORY_USAGE),
         .packets_completed = hashmap_create(&packet_completed_key_allocator),
-        .packets_sending = hashmap_create(&uint16_memory_allocator),
+        .packets_sending = hashmap_create(&packet_sending_key_allocator),
         .pending_messages = hashmap_create(&pending_message_key_allocator),
         .packet_queue = (struct SwiftNetPacketQueue){
             .first_node = NULL,
             .last_node = NULL
         },
     };
+
+    memcpy(new_connection->eth_header.ether_shost, mac_address, sizeof(new_connection->eth_header.ether_shost));
 
     UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_queue.locked);
     UNLOCK_ATOMIC_DATA_TYPE(&new_connection->packet_callback_queue.locked);
@@ -130,18 +126,15 @@ struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_add
     uint32_t ip;
     bool loopback;
     struct SwiftNetClientConnection* new_connection;
-    struct SwiftNetPacketInfo request_server_information_packet_info;
+    struct SwiftNetChunkMetadata request_server_information_chunk_metadata;
+    struct SwiftNetPacketMetadata request_server_information_packet_metadata;
     struct ip request_server_info_ip_header;
     pthread_t send_request_thread;
     struct RequestServerInformationArgs thread_args;
     struct Listener* listener;
-    struct SwiftNetNetworkData net_data;
+    struct SwiftNetNetworkData network_data;
 
 
-    goto init_connection;
-
-
-init_connection:
     inet_aton(ip_address, &addr);
 
     ip = ntohl(addr.s_addr);
@@ -150,33 +143,30 @@ init_connection:
 
     new_connection = construct_client_connection(loopback, port, addr.s_addr);
 
-    listener = check_existing_listener(loopback ? CLIENT_LOOPBACK_INTERFACE_NAME : default_network_interface, new_connection, CONNECTION_TYPE_CLIENT, loopback);
+    listener = check_existing_listener(new_connection, CONNECTION_TYPE_CLIENT, loopback);
     
-    net_data = listener->network_data;
+    network_data = listener->network_data;
 
-    new_connection->network_data = net_data;
-
-    goto request_initialization;
+    new_connection->network_data = network_data;
 
 
-request_initialization:
     // Request the server information, and proccess it
-    request_server_information_packet_info = construct_packet_info(
-        0x00,
+    request_server_information_chunk_metadata = construct_chunk_metadata(
         REQUEST_INFORMATION,
-        1,
         0,
         new_connection->port_info
     );
 
-    request_server_info_ip_header = construct_ip_header(new_connection->server_addr, PACKET_HEADER_SIZE, (uint16_t)rand());
+    request_server_information_packet_metadata = construct_packet_metadata(0x00, 1);
 
-    HANDLE_PACKET_CONSTRUCTION(&request_server_info_ip_header, &request_server_information_packet_info, &net_data, &new_connection->eth_header, PACKET_HEADER_SIZE + GET_PREPEND_SIZE(&new_connection->network_data), request_server_info_buffer);
+    request_server_info_ip_header = construct_ip_header(new_connection->server_addr, PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata), (uint16_t)rand());
 
-    HANDLE_CHECKSUM(request_server_info_buffer + sizeof(struct ip) + net_data.prepend_size, (uint32_t)sizeof(request_server_info_buffer) - net_data.prepend_size - sizeof(struct ip), &net_data);
+    HANDLE_PACKET_CONSTRUCTION(&request_server_info_ip_header, &request_server_information_chunk_metadata, &request_server_information_packet_metadata, &network_data, &new_connection->eth_header, 0, request_server_info_buffer);
+
+    HANDLE_CHECKSUM(request_server_info_buffer, 0, &network_data, true);
 
     thread_args = (struct RequestServerInformationArgs){
-        .network_data = &net_data,
+        .network_data = &network_data,
         .data = request_server_info_buffer,
         .size = (uint32_t)sizeof(request_server_info_buffer),
         .server_addr = addr,
@@ -191,7 +181,7 @@ request_initialization:
 
     pthread_join(send_request_thread, NULL);
 
-    if (atomic_load_explicit(&new_connection->initialized, memory_order_acquire) == false) {
+    if (unlikely(atomic_load_explicit(&new_connection->initialized, memory_order_acquire) == false)) {
         atomic_store_explicit(&new_connection->closing, true, memory_order_release);
 
         SWIFTNET_CLOSE_CONNECTION(&new_connection->network_data);
@@ -220,3 +210,4 @@ request_initialization:
 
     return new_connection;
 }
+

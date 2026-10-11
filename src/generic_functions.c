@@ -1,5 +1,4 @@
 #include "internal/internal.h"
-#include "internal/networking.h"
 #include "swift_net.h"
 #include <stdatomic.h>
 #include <stdio.h>
@@ -59,28 +58,33 @@ void* swiftnet_server_read_packet(struct SwiftNetServerPacketData* restrict cons
     return ptr;
 }
 
-void swiftnet_client_destroy_packet_data(struct SwiftNetClientPacketData* restrict const packet_data, struct SwiftNetClientConnection* const client_conn) {
+void swiftnet_client_destroy_packet_data(struct SwiftNetClientPacketData* restrict const packet_data, MAYBE_UNUSED struct SwiftNetClientConnection* const client_conn) {
     if(packet_data->internal_pending_message != NULL) {
         free(packet_data->internal_pending_message->chunks_received);
         
-        allocator_free(&client_conn->pending_messages_memory_allocator, packet_data->internal_pending_message);
+        allocator_free(&pending_message_memory_allocator, packet_data->internal_pending_message);
 
         free(packet_data->data);
+
+        allocator_free(&client_packet_data_memory_allocator, packet_data);
     } else {
-        allocator_free(&packet_buffer_memory_allocator, packet_data->data - PACKET_HEADER_SIZE - GET_PREPEND_SIZE(&client_conn->network_data));
+        allocator_free(&packet_buffer_memory_allocator, packet_data->buffer_start);
         allocator_free(&client_packet_data_memory_allocator, packet_data);
     }
 }
 
-void swiftnet_server_destroy_packet_data(struct SwiftNetServerPacketData* restrict const packet_data, struct SwiftNetServer* const server) {
+void swiftnet_server_destroy_packet_data(struct SwiftNetServerPacketData* restrict const packet_data, MAYBE_UNUSED struct SwiftNetServer* const server) {
     if(packet_data->internal_pending_message != NULL) {
         free(packet_data->internal_pending_message->chunks_received);
 
-        allocator_free(&server->pending_messages_memory_allocator, packet_data->internal_pending_message);
+        allocator_free(&pending_message_memory_allocator, packet_data->internal_pending_message);
 
         free(packet_data->data);
+
+        allocator_free(&server_packet_data_memory_allocator, packet_data);
     } else {
-        allocator_free(&packet_buffer_memory_allocator, packet_data->data - PACKET_HEADER_SIZE - GET_PREPEND_SIZE(&server->network_data));
+        allocator_free(&packet_buffer_memory_allocator, packet_data->buffer_start);
         allocator_free(&server_packet_data_memory_allocator, packet_data);
     }
 }
+

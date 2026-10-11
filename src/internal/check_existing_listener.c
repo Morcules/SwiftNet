@@ -8,7 +8,8 @@
 uint32_t lcores_used[] = {DPDK_LCORES};
 #endif
            
-void* check_existing_listener(const char* restrict const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback) {
+void* check_existing_listener(void* const connection, const enum ConnectionType connection_type, const bool loopback) {
+    char* restrict interface_name;
     uint32_t interface_len;
     struct Listener* existing_listener;
     struct Listener* new_listener;
@@ -16,9 +17,10 @@ void* check_existing_listener(const char* restrict const interface_name, void* c
     char* listener_key;
 
 
-    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
-
+    interface_name = GET_INTERFACE_NAME(loopback, connection_type);
     interface_len = (uint32_t)(strlen(interface_name));
+
+    LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
 
     existing_listener = hashmap_get(interface_name, interface_len, &listeners);
 
@@ -53,7 +55,7 @@ void* check_existing_listener(const char* restrict const interface_name, void* c
         .servers = hashmap_create(&uint16_memory_allocator),
         .client_connections = hashmap_create(&uint16_memory_allocator),
         .network_data = swiftnet_initialize_networking(interface_name),
-        .loopback = loopback
+        .loopback = loopback,
     };
 
     new_listener->addr_type = GET_ADDR_TYPE(&new_listener->network_data);
@@ -108,3 +110,4 @@ void* check_existing_listener(const char* restrict const interface_name, void* c
 
     return new_listener;
 }
+

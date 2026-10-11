@@ -80,7 +80,7 @@ static inline void hashmap_resize(struct SwiftNetHashMap* const hashmap) {
             byte = (uint32_t)(new_key / 32);
             bit = (uint8_t)(new_key % 32);
 
-            *(hashmap->item_occupation + byte) |= 1 << bit;
+            *(hashmap->item_occupation + byte) |= 1U << bit;
 
             if(new_mem_hashmap_item->value != NULL) {
                 while(new_mem_hashmap_item->next != NULL) {
@@ -129,10 +129,8 @@ void* hashmap_get(const void* const key_data, const uint32_t data_size, struct S
 
     current_item = hashmap->items + key;
 
-    goto loop;
-
 loop:
-    if(current_item == NULL) {
+    if(current_item == NULL || current_item->value == NULL) {
         goto exit;
     }
 
@@ -187,7 +185,7 @@ void hashmap_insert(void* const key_data, const uint32_t data_size, void* const 
     byte = (uint32_t)(key / 32);
     bit = (uint8_t)(key % 32);
 
-    *(hashmap->item_occupation + byte) |= (uint32_t)(0 << bit);
+    *(hashmap->item_occupation + byte) |= (uint32_t)(1U << bit);
 
     if(hashmap->size >= hashmap->capacity) {
         hashmap_resize(hashmap);
@@ -216,11 +214,11 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
     previous_target_item = hashmap->items + key;
     current_target_item = hashmap->items + key;
 
-    if(current_target_item->next == NULL) {
+    if(current_target_item != NULL && current_target_item->next == NULL) {
         byte = (uint32_t)(key / 32);
         bit = (uint8_t)(key % 32);
 
-        *(hashmap->item_occupation + byte) &= (uint32_t)(~(0 << bit));
+        *(hashmap->item_occupation + byte) &= ~(1U << bit);
     }
 
     goto find_item;
@@ -228,6 +226,7 @@ void hashmap_remove(void* const key_data, const uint32_t data_size, struct Swift
 
 find_item:
     if(current_target_item == NULL) {
+        PRINT_ERROR("NULL OBJECT PROVIDED TO HASHMAP REMOVE");
         goto exit;
     }
 
@@ -256,6 +255,8 @@ remove_item:
             next->next = NULL;
 
             allocator_free(&hashmap_item_memory_allocator, next);
+        } else {
+            free_hashmap_item_key(hashmap, current_target_item);
         }
     } else {
         previous_target_item->next = current_target_item->next;
@@ -303,3 +304,4 @@ void hashmap_destroy(struct SwiftNetHashMap* const hashmap) {
 
     free(hashmap->items);
 }
+

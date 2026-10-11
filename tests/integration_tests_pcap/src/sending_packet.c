@@ -68,7 +68,7 @@ static void on_client_packet(struct SwiftNetClientPacketData* packet, void* cons
     for (uint32_t i = 0; i < packet->metadata.data_length; i++) {
         uint8_t received_byte = *(uint8_t*)swiftnet_client_read_packet(packet, 1);
         if (data[i] != received_byte) {
-            PRINT_ERROR("Client received invalid data");
+            PRINT_ERROR("Client received invalid data at byte: %d", i);
 
             swiftnet_client_destroy_packet_data(packet, client_conn);
 
@@ -106,7 +106,7 @@ static void on_server_packet(struct SwiftNetServerPacketData* packet, void* cons
     for (uint32_t i = 0; i < packet->metadata.data_length; i++) {
         uint8_t byte_received = *(uint8_t*)swiftnet_server_read_packet(packet, 1);
         if (data[i] != byte_received) {
-            PRINT_ERROR("Server received invalid data");
+            PRINT_ERROR("Server received invalid data at byte: %d", i);
 
             swiftnet_server_destroy_packet_data(packet, server);
 
@@ -146,7 +146,7 @@ int test_sending_packet(const union Args* args_ptr) {
 
     swiftnet_server_set_message_handler(server, on_server_packet, NULL);
 
-    struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 1000);
+    struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 10000);
     if (client_conn == NULL) {
         PRINT_ERROR("Failed to create client connection");
         return -1;

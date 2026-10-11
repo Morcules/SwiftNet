@@ -9,3 +9,4 @@ void swiftnet_remove_debug_flags(const SwiftNetDebugFlags flags) {
   debugger.flags &= ~flags;
 }
 #endif
+

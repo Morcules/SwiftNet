@@ -11,27 +11,24 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include "internal/internal.h"
-#include "internal/networking.h"
 #include "swift_net.h"
 
 static inline struct SwiftNetServer* construct_server(const bool loopback, const uint16_t server_port) {
     struct SwiftNetServer* restrict new_server;
-    struct ether_header eth_header;
 
     new_server = allocator_allocate(&server_memory_allocator);
-    eth_header = DEFAULT_MAC_ADDRESS_STRUCT;
-
-    memcpy(eth_header.ether_shost, mac_address, sizeof(eth_header.ether_shost));
 
     *new_server = (struct SwiftNetServer){
-        .eth_header = eth_header,
         .server_port = server_port,
         .loopback = loopback,
         .packet_queue = (struct SwiftNetPacketQueue){
             .first_node = NULL,
             .last_node = NULL
         },
+        .eth_header = DEFAULT_MAC_ADDRESS_STRUCT
     };
+
+    memcpy(new_server->eth_header.ether_shost, mac_address, sizeof(new_server->eth_header.ether_shost));
 
     memset(&new_server->packet_callback_queue, 0x00, sizeof(struct SwiftNetPacketCallbackQueue));
 
@@ -44,19 +41,15 @@ static inline struct SwiftNetServer* construct_server(const bool loopback, const
     atomic_store_explicit(&new_server->packet_handler_user_arg, NULL, memory_order_release);
     atomic_store_explicit(&new_server->closing, false, memory_order_release);
 
-    new_server->pending_messages_memory_allocator = allocator_create(sizeof(struct SwiftNetPendingMessage), 40 * SWIFT_NET_MEMORY_USAGE);
-    new_server->packets_sending_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketSending), 40 * SWIFT_NET_MEMORY_USAGE);
-    new_server->packets_completed_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCompleted), 40 * SWIFT_NET_MEMORY_USAGE);
-
     new_server->packets_completed = hashmap_create(&packet_completed_key_allocator);
-    new_server->packets_sending = hashmap_create(&uint16_memory_allocator);
+    new_server->packets_sending = hashmap_create(&packet_sending_key_allocator);
     new_server->pending_messages = hashmap_create(&pending_message_key_allocator);
 
     return new_server;
 }
 
 struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool loopback) {
-    struct SwiftNetServer* restrict new_server;
+    struct SwiftNetServer* new_server;
 
 
     new_server = construct_server(loopback, port);
@@ -66,7 +59,7 @@ struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool lo
     }
 
     // Create a new thread that will handle all packets received
-    struct Listener* const new_listener = check_existing_listener(loopback ? SERVER_LOOPBACK_INTERFACE_NAME : default_network_interface, new_server, CONNECTION_TYPE_SERVER, loopback);
+    struct Listener* const new_listener = check_existing_listener(new_server, CONNECTION_TYPE_SERVER, loopback);
 
     new_server->network_data = new_listener->network_data;
 
@@ -87,3 +80,4 @@ struct SwiftNetServer* swiftnet_create_server(const uint16_t port, const bool lo
 
     return new_server;
 }
+

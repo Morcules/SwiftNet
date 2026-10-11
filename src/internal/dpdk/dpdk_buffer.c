@@ -1,3 +1,4 @@
+#ifdef SWIFT_NET_BACKEND_DPDK
 #include "../internal.h"
 #include "../networking.h"
 #include "../../swift_net.h"
@@ -9,7 +10,7 @@
 #include <string.h>
 
 static inline ALWAYS_INLINE uint16_t mbuf_size_for_data(const uint16_t data_size, const uint8_t prepend_size) {
-    return data_size + PACKET_HEADER_SIZE + prepend_size;
+    return data_size + PACKET_HEADER_SIZE + prepend_size + sizeof(struct SwiftNetPacketMetadata);
 }
 
 static inline ALWAYS_INLINE uint16_t mbuf_size_for_full_chunk(const uint8_t prepend_size) {
@@ -25,7 +26,7 @@ static inline struct SwiftNetPacketBuffer create_packet_buffer(const uint32_t bu
     data_len_per_packet = (uint16_t)(maximum_transmission_unit - PACKET_HEADER_SIZE);
 
     remaining_data = (uint16_t)(buffer_size % data_len_per_packet);
-    chunk_amount = buffer_size / data_len_per_packet;
+    chunk_amount = calculate_chunk_amount(buffer_size, maximum_transmission_unit);
 
     buffers = malloc(sizeof(void*) * (chunk_amount + 1));
 
@@ -97,7 +98,7 @@ static inline void resize_packet_buffer(uint32_t new_buffer_size, struct SwiftNe
         rte_pktmbuf_append(last_packet, data_len_per_packet - last_packet_data_size);
         data_size_change -= data_len_per_packet - last_packet_data_size;
 
-        chunk_amount = data_size_change / data_len_per_packet;
+        chunk_amount = calculate_chunk_amount(new_buffer_size, maximum_transmission_unit);
         remainder = (uint16_t)(data_size_change % data_len_per_packet);
         new_slots = chunk_amount + (remainder != 0 ? 1 : 0);
 
@@ -195,8 +196,8 @@ static inline void write_packet_buffer(const uint32_t byte_offset, struct SwiftN
     uint32_t current_offset;
     uint32_t bytes_remaining;
 
-    chunk_num_start = byte_offset / packet_buffer->data_len_per_packet;
-    current_offset = byte_offset % packet_buffer->data_len_per_packet;
+    chunk_num_start = byte_offset < packet_buffer->data_len_per_packet - sizeof(struct SwiftNetPacketMetadata) ? 0 : ((byte_offset - packet_buffer->data_len_per_packet - sizeof(struct SwiftNetPacketMetadata) / packet_buffer->data_len_per_packet)) + 1;
+    current_offset = byte_offset == 0 ? 0 : chunk_num_start == 0 ? byte_offset : (byte_offset - sizeof(struct SwiftNetPacketMetadata)) % packet_buffer->data_len_per_packet;
     bytes_remaining = data_size;
 
     while (bytes_remaining > 0) {
@@ -208,10 +209,10 @@ static inline void write_packet_buffer(const uint32_t byte_offset, struct SwiftN
 
         current_buf = packet_buffer->dpdk_buffers[chunk_num_start];
 
-        reserved_header = maximum_transmission_unit - packet_buffer->data_len_per_packet + sizeof(struct ether_header);
+        reserved_header = maximum_transmission_unit - packet_buffer->data_len_per_packet + sizeof(struct ether_header) + (chunk_num_start == 0 ? sizeof(struct SwiftNetPacketMetadata) : 0);
         real_offset = reserved_header + current_offset;
 
-        bytes_this_chunk = MIN(packet_buffer->data_len_per_packet - current_offset, bytes_remaining);
+        bytes_this_chunk = MIN(maximum_transmission_unit + sizeof(struct ether_header) - real_offset, bytes_remaining);
 
         buf_addr = rte_pktmbuf_mtod(current_buf, uint8_t*);
 
@@ -261,3 +262,4 @@ void swiftnet_client_destroy_packet_buffer(const struct SwiftNetPacketBuffer* re
 void swiftnet_server_destroy_packet_buffer(const struct SwiftNetPacketBuffer* restrict const packet, MAYBE_UNUSED const struct SwiftNetServer* const server) {
     destroy_packet_buffer(packet);
 }
+#endif

@@ -19,3 +19,4 @@ int swiftnet_pcap_send(pcap_t* const pcap, const uint8_t* restrict const data, c
 
     return 0;
 }
+

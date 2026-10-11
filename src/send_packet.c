@@ -18,28 +18,50 @@
 #include "internal/internal.h"
 #include <netinet/in.h>
 
+PCAP_ONLY static inline ALWAYS_INLINE void prepare_packet_for_send(uint8_t* const dest_hdr_location, uint8_t* const temp_data_buffer, uint8_t* const prepend_buffer, const uint32_t data_exchange_size, const struct SwiftNetNetworkData* const network_data, const uint32_t chunk_index) {
+    if(temp_data_buffer != NULL) memcpy(temp_data_buffer, dest_hdr_location, data_exchange_size);
+
+    memcpy(dest_hdr_location, prepend_buffer, data_exchange_size);
+
+    memcpy(CHUNK_METADATA_LOCATION(dest_hdr_location, network_data) + offsetof(struct SwiftNetChunkMetadata, chunk_index), &chunk_index, SIZEOF_FIELD(struct SwiftNetChunkMetadata, chunk_index));
+    
+    memset(CHUNK_METADATA_LOCATION(dest_hdr_location, network_data) + offsetof(struct SwiftNetChunkMetadata, checksum), 0x00, SIZEOF_FIELD(struct SwiftNetChunkMetadata, checksum));
+}
+
+PCAP_ONLY static inline ALWAYS_INLINE uint32_t calculate_pcap_offset(const uint32_t chunk_index, const uint32_t mtu) {
+    return (chunk_index == 0 ? 0 : ((chunk_index-1) * (mtu - PACKET_HEADER_SIZE)) + mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata));
+}
+
+DPDK_ONLY static inline ALWAYS_INLINE uint32_t calculate_dpdk_offset(const uint32_t chunk_index, const uint32_t mtu) {
+    return (chunk_index == 0 ? 0 : ((chunk_index-1) * (mtu - PACKET_HEADER_SIZE)) + mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata));
+}
+
+PCAP_ONLY static inline ALWAYS_INLINE uint32_t calculate_exchange_size(const uint8_t prepend_size, const uint32_t chunk_index) {
+    return prepend_size + PACKET_HEADER_SIZE + (chunk_index == 0 ? sizeof(struct SwiftNetPacketMetadata) : 0);
+}
+
+PCAP_ONLY static inline ALWAYS_INLINE void cleanup_sent_packet(uint8_t* const dest_hdr_location, uint8_t* const temp_data_buffer, const uint32_t data_exchange_size) {
+    memcpy(dest_hdr_location, temp_data_buffer, data_exchange_size);
+}
+
 static inline enum RequestLostPacketsReturnType request_lost_packets_bitarray(const struct SwiftNetNetworkData* restrict const network_data, struct SwiftNetPacketSending* const packet_sending 
 #ifdef SWIFT_NET_BACKEND_DPDK
     , struct rte_mbuf* restrict const raw_data_internal_mem_buf
 #elif defined(SWIFT_NET_BACKEND_PCAP)
     , const uint8_t* restrict const raw_data
-    , const uint32_t data_size
 #endif 
         ) {
     uint8_t times_checked;
     enum SwiftNetPacketSendingUpdated status;
-    
-
-    goto request_lost_packets;
 
 request_lost_packets:
     if(check_debug_flag(SWIFTNET_DEBUG_LOST_PACKETS)) {
         send_debug_message("Requested list of lost packets: {\"packet_id\": %d}\n", htons(packet_sending->packet_id));
     }
 
-    SWIFTNET_SEND_INTERNAL_PACKET(network_data, raw_data, data_size);
+    SWIFTNET_SEND_INTERNAL_PACKET(network_data, raw_data, 0, true);
 
-    for(times_checked = 0; times_checked < 0xFF; times_checked++) {
+   for(times_checked = 0; times_checked < 0xFF; times_checked++) {
         status = atomic_load_explicit(&packet_sending->updated, memory_order_acquire);
 
         switch (status) {
@@ -58,6 +80,8 @@ request_lost_packets:
     }
 
     goto request_lost_packets;
+
+    return 0xFF; // Unreachable
 }
 
 static inline ALWAYS_INLINE void handle_lost_packets(
@@ -67,82 +91,86 @@ static inline ALWAYS_INLINE void handle_lost_packets(
     const struct in_addr* restrict const destination_address,
     const uint16_t source_port,
     const uint16_t destination_port,
-    struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     struct SwiftNetHashMap* const packets_sending,
     const struct SwiftNetNetworkData* restrict const network_data,
     const uint32_t packet_length,
-    PCAP_ONLY const uint16_t mtu,
-    PCAP_ONLY uint32_t chunk_amount
+    struct SwiftNetPacketMetadata* const packet_metadata,
+    PCAP_ONLY const uint16_t mtu
     #ifndef SWIFT_NET_DISABLE_REQUESTS
         , PCAP_ONLY const uint8_t packet_type
     #endif
 ) {
     uint8_t prepend_size = GET_PREPEND_SIZE(network_data);
+    uint32_t chunk_amount;
     struct SwiftNetPortInfo port_info;
     struct ip request_lost_packets_ip_header;
-    struct SwiftNetPacketInfo request_lost_packets_bit_array;
+    struct SwiftNetChunkMetadata request_chunk_metadata;
+    struct SwiftNetPacketMetadata request_packet_metadata;
     enum RequestLostPacketsReturnType request_lost_packets_bitarray_response;
 
     DPDK_ONLY struct rte_mbuf* restrict current_buf;
     DPDK_ONLY uint8_t* buf_data;
 
     PCAP_ONLY struct ip resend_chunk_ip_header;
-    PCAP_ONLY struct SwiftNetPacketInfo resend_chunk_packet_info;
-    PCAP_ONLY uint8_t temp_data_buffer[prepend_size + PACKET_HEADER_SIZE];
+    PCAP_ONLY struct SwiftNetChunkMetadata resend_chunk_metadata;
+    PCAP_ONLY uint8_t temp_data_buffer[prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata)];
 
+    chunk_amount = packet_metadata->chunk_amount;
 
     port_info = (struct SwiftNetPortInfo){
         .source_port = source_port,
         .destination_port = destination_port
     };
 
-    request_lost_packets_ip_header = construct_ip_header(*destination_address, PACKET_HEADER_SIZE, packet_sending->packet_id);
+    request_lost_packets_ip_header = construct_ip_header(*destination_address, PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata), packet_sending->packet_id);
 
-    request_lost_packets_bit_array = construct_packet_info(
-        0x00,
+    request_chunk_metadata = construct_chunk_metadata(
         SEND_LOST_PACKETS_REQUEST,
-        1,
         0,
         port_info
     );
 
-    HANDLE_PACKET_CONSTRUCTION(&request_lost_packets_ip_header, &request_lost_packets_bit_array, network_data, &eth_hdr, PACKET_HEADER_SIZE + prepend_size, request_lost_packets_buffer);
+    request_packet_metadata = construct_packet_metadata(0, 1);
 
-    HANDLE_CHECKSUM(request_lost_packets_buffer + prepend_size + sizeof(struct ip), sizeof(struct SwiftNetPacketInfo), network_data);
+    HANDLE_PACKET_CONSTRUCTION(&request_lost_packets_ip_header, &request_chunk_metadata, &request_packet_metadata, network_data, &eth_hdr, 0, request_lost_packets_buffer);
+
+    HANDLE_CHECKSUM(request_lost_packets_buffer, 0, network_data, true);
  
     #ifdef SWIFT_NET_BACKEND_PCAP
-    resend_chunk_packet_info = construct_packet_info(
-        packet_length,
+    resend_chunk_metadata = construct_chunk_metadata(
         #ifndef SWIFT_NET_DISABLE_REQUESTS
         packet_type,
         #else
         MESSAGE,
         #endif
-        chunk_amount,
         0,
         port_info
     );
- 
+
     resend_chunk_ip_header = construct_ip_header(*destination_address, mtu, packet_sending->packet_id);
 
-    HANDLE_PACKET_CONSTRUCTION(&resend_chunk_ip_header, &resend_chunk_packet_info, network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE, prepend_buffer);
-    #elif defined(SWIFT_NET_BACKEND_PCAP)
+    HANDLE_PACKET_CONSTRUCTION(&resend_chunk_ip_header, &resend_chunk_metadata, packet_metadata, network_data, &eth_hdr, 0, prepend_buffer);
+    
+    #elif defined(SWIFT_NET_BACKEND_DPDK)
     #endif
 
     while(1) {
         uint32_t i;
         uint32_t lost_chunk_index;
         uint32_t current_offset;
+        uint32_t chunk_data_size;
+        struct PacketSendingKey packet_sending_key;
 
+        PCAP_ONLY uint32_t exchange_size;
         PCAP_ONLY uint8_t* restrict current_buffer_header_ptr;
 
+        chunk_data_size = mtu - PACKET_HEADER_SIZE;
 
         request_lost_packets_bitarray_response = request_lost_packets_bitarray(network_data, packet_sending
             #ifdef SWIFT_NET_BACKEND_DPDK
                 , request_lost_packets_buffer_internal_mem_buf
             #elif defined(SWIFT_NET_BACKEND_PCAP)
                 , request_lost_packets_buffer
-                , PACKET_HEADER_SIZE + prepend_size
             #endif
         );
 
@@ -152,13 +180,15 @@ static inline ALWAYS_INLINE void handle_lost_packets(
             case REQUEST_LOST_PACKETS_RETURN_UPDATED_BIT_ARRAY:
                 break;
             case REQUEST_LOST_PACKETS_RETURN_COMPLETED_PACKET:
+                packet_sending_key = (struct PacketSendingKey){.packet_id = packet_sending->packet_id};
+
                 free((void*)packet_sending->lost_chunks);
 
-                hashmap_remove(&packet_sending->packet_id, sizeof(packet_sending->packet_id), packets_sending);
+                hashmap_remove(&packet_sending_key, sizeof(struct PacketSendingKey), packets_sending);
 
                 UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
-                allocator_free(packets_sending_memory_allocator, packet_sending);
+                allocator_free(&packet_sending_memory_allocator, packet_sending);
 
                 return;
         }
@@ -167,23 +197,21 @@ static inline ALWAYS_INLINE void handle_lost_packets(
         for(i = 0; i < packet_sending->lost_chunks_size; i++) {
             lost_chunk_index = packet_sending->lost_chunks[i];
 
-            current_offset = lost_chunk_index * (mtu - PACKET_HEADER_SIZE);
+            current_offset = calculate_pcap_offset(lost_chunk_index, mtu);
 
-            current_buffer_header_ptr = packet->packet_data_start + current_offset - prepend_size - PACKET_HEADER_SIZE;
+            exchange_size = calculate_exchange_size(prepend_size, lost_chunk_index);
 
-            memcpy(temp_data_buffer, current_buffer_header_ptr, prepend_size + PACKET_HEADER_SIZE);
-
-            memcpy(current_buffer_header_ptr, prepend_buffer, prepend_size + PACKET_HEADER_SIZE);
+            current_buffer_header_ptr = packet->packet_data_start + current_offset - exchange_size;
 
             if (check_debug_flag(SWIFTNET_DEBUG_LOST_PACKETS) == true) {
                 send_debug_message("Packet lost: {\"packet_id\": %d, \"chunk index\": %d}\n", packet_sending->packet_id, lost_chunk_index);
             }
     
-            memcpy(current_buffer_header_ptr + sizeof(struct ip) + prepend_size + offsetof(struct SwiftNetPacketInfo, chunk_index), &lost_chunk_index, SIZEOF_FIELD(struct SwiftNetPacketInfo, chunk_index));
-    
-            memset(current_buffer_header_ptr + prepend_size + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, checksum), 0x00, SIZEOF_FIELD(struct SwiftNetPacketInfo, checksum));
+            prepare_packet_for_send(current_buffer_header_ptr, temp_data_buffer, prepend_buffer, exchange_size, network_data, lost_chunk_index);
 
-            if(current_offset + mtu - PACKET_HEADER_SIZE >= packet_length) {
+            // CONTINUE
+            // ADD ALL CONDITIONS
+            if(unlikely(lost_chunk_index == chunk_amount - 1)) {
                 uint16_t bytes_to_complete;
                 uint16_t new_ip_len;
 
@@ -193,39 +221,47 @@ static inline ALWAYS_INLINE void handle_lost_packets(
                 new_ip_len = htons(bytes_to_complete + PACKET_HEADER_SIZE);
                 memcpy(current_buffer_header_ptr + offsetof(struct ip, ip_len), &new_ip_len, SIZEOF_FIELD(struct ip, ip_len));
                 
-                HANDLE_CHECKSUM(current_buffer_header_ptr + prepend_size + sizeof(struct ip), bytes_to_complete + sizeof(struct SwiftNetPacketInfo), network_data);
+                HANDLE_CHECKSUM(current_buffer_header_ptr, bytes_to_complete, network_data, false);
     
-                SWIFTNET_SEND_PACKET(network_data, current_buffer_header_ptr, (uint32_t)(bytes_to_complete + PACKET_HEADER_SIZE + prepend_size));
-            } else {
-                HANDLE_CHECKSUM(current_buffer_header_ptr + prepend_size + sizeof(struct ip), mtu - sizeof(struct ip), network_data);
+                SWIFTNET_SEND_PACKET(network_data, current_buffer_header_ptr, bytes_to_complete, false);
 
-                SWIFTNET_SEND_PACKET(network_data, current_buffer_header_ptr, mtu + prepend_size);
+                memcpy(current_buffer_header_ptr + offsetof(struct ip, ip_len), &mtu, SIZEOF_FIELD(struct ip, ip_len));
+            } else {
+                bool send_packet_metadata;
+
+                send_packet_metadata = lost_chunk_index == 0;
+
+                HANDLE_CHECKSUM(current_buffer_header_ptr, chunk_data_size, network_data, send_packet_metadata);
+
+                SWIFTNET_SEND_PACKET(network_data, current_buffer_header_ptr, chunk_data_size, send_packet_metadata);
             }
 
-            memcpy(current_buffer_header_ptr, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE);
+            memcpy(current_buffer_header_ptr, temp_data_buffer, exchange_size);
         }
         #elif defined(SWIFT_NET_BACKEND_DPDK)
         for(i = 0; i < packet_sending->lost_chunks_size; i++) {
             lost_chunk_index = packet_sending->lost_chunks[i];
 
-            current_buf = packet->dpdk_buffers[i];
-            buf_data = current_buf->buf_addr;
+            current_buf = packet->dpdk_buffers[lost_chunk_index];
+            buf_data = rte_pktmbuf_mtod(current_buf, uint8_t*);;
 
-            current_offset = lost_chunk_index * (packet->data_len_per_packet);
+            current_offset = calculate_dpdk_offset(lost_chunk_index, mtu);
 
             if (check_debug_flag(SWIFTNET_DEBUG_LOST_PACKETS) == true) {
                 send_debug_message("Packet lost: {\"packet_id\": %d, \"chunk index\": %d}\n", packet_sending->packet_id, lost_chunk_index);
             }
     
-            memset(buf_data + sizeof(struct ether_header) + sizeof(struct ip) + offsetof(struct SwiftNetPacketInfo, checksum), 0x00, SIZEOF_FIELD(struct SwiftNetPacketInfo, checksum));
-
-            if((current_offset + packet->data_len_per_packet) < packet->data_len_per_packet && current_offset + current_buf->data_len != packet_length) {
+            memset(CHUNK_METADATA_LOCATION(buf_data, network_data) + offsetof(struct SwiftNetChunkMetadata, checksum), 0x00, SIZEOF_FIELD(struct SwiftNetChunkMetadata, checksum));
+            
+            if(lost_chunk_index + 1 == chunk_amount) {
                 uint16_t bytes_to_complete;
+                uint16_t data_complete_size;
                 uint16_t new_ip_len;
                 uint16_t old_len;
 
 
-                bytes_to_complete = (uint16_t)(packet_length - current_offset + PACKET_HEADER_SIZE + sizeof(struct ether_header));
+                data_complete_size = (uint16_t)(packet_length - current_offset);
+                bytes_to_complete = (uint16_t)(data_complete_size + PACKET_HEADER_SIZE + sizeof(struct ether_header));
                 
                 old_len = current_buf->data_len;
 
@@ -233,24 +269,34 @@ static inline ALWAYS_INLINE void handle_lost_packets(
                 current_buf->pkt_len = bytes_to_complete;
 
                 new_ip_len = htons(bytes_to_complete);
-                memcpy(buf_data + sizeof(struct ether_header) + offsetof(struct ip, ip_len), &new_ip_len, SIZEOF_FIELD(struct ip, ip_len));
+                memcpy(IP_HEADER_LOCATION(buf_data, network_data) + offsetof(struct ip, ip_len), &new_ip_len, SIZEOF_FIELD(struct ip, ip_len));
                 
-                HANDLE_CHECKSUM(buf_data + prepend_size + sizeof(struct ip), bytes_to_complete - prepend_size - sizeof(struct ip), network_data);
+                HANDLE_CHECKSUM(buf_data, data_complete_size, network_data, false);
     
-                SWIFTNET_SEND_PACKET(network_data, current_buf);
+                SWIFTNET_SEND_PACKET(network_data, current_buf, data_complete_size, false);
 
                 current_buf->data_len = old_len;
                 current_buf->pkt_len = old_len;
             } else {
-                HANDLE_CHECKSUM(buf_data + prepend_size + sizeof(struct ip), current_buf->data_len - sizeof(struct ip) - prepend_size, network_data);
+                bool send_packet_metadata;
 
-                SWIFTNET_SEND_PACKET(network_data, current_buf);
+                send_packet_metadata = lost_chunk_index == 0;
+
+                HANDLE_CHECKSUM(buf_data, chunk_data_size, network_data, send_packet_metadata);
+
+                SWIFTNET_SEND_PACKET(network_data, current_buf, chunk_data_size, send_packet_metadata);
             }
         }
         #endif
 
         UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
     }
+
+    FREE_PACKET_CONSTRUCTION(request_lost_packets_buffer, network_data);
+
+    #ifdef SWIFT_NET_BACKEND_PCAP
+    FREE_PACKET_CONSTRUCTION(prepend_buffer, network_data);
+    #endif
 }
 
 void swiftnet_send_packet(
@@ -260,7 +306,6 @@ void swiftnet_send_packet(
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
     struct SwiftNetHashMap* const packets_sending,
-    struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     const struct ether_header eth_hdr,
     const struct SwiftNetNetworkData network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS
@@ -272,6 +317,7 @@ void swiftnet_send_packet(
     uint16_t mtu;
     uint32_t chunk_amount;
     uint16_t packet_id;
+    uint8_t prepend_size;
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     uint8_t packet_type;
     #endif
@@ -293,17 +339,17 @@ void swiftnet_send_packet(
         }
 
         if (request_sent != NULL) {
-            uint16_t* hashmap_key_mem;
+            struct RequestSentKey* hashmap_key_mem;
 
 
             request_sent->packet_id = packet_id;
 
             LOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
 
-            hashmap_key_mem = allocator_allocate(&uint16_memory_allocator);
-            *hashmap_key_mem = packet_id;
+            hashmap_key_mem = allocator_allocate(&request_sent_key_allocator);
+            *hashmap_key_mem = (struct RequestSentKey){.packet_id = packet_id};
 
-            hashmap_insert(hashmap_key_mem, sizeof(uint16_t), request_sent, &requests_sent);
+            hashmap_insert(hashmap_key_mem, sizeof(struct RequestSentKey), request_sent, &requests_sent);
 
             UNLOCK_ATOMIC_DATA_TYPE(&requests_sent.atomic_lock);
         }
@@ -312,47 +358,55 @@ void swiftnet_send_packet(
     #endif
 
     #ifndef SWIFT_NET_DISABLE_REQUESTS
-    packet_type = response ? RESPONSE : request_sent == NULL ? MESSAGE : REQUEST;
+    packet_type = (response ? RESPONSE : request_sent == NULL ? MESSAGE : REQUEST);
     #endif
 
-    chunk_amount = (packet_length + (mtu - PACKET_HEADER_SIZE) - 1) / (mtu - PACKET_HEADER_SIZE);
+    chunk_amount = calculate_chunk_amount(packet_length, mtu);
 
-    const uint8_t prepend_size = GET_PREPEND_SIZE(&network_data);
+    prepend_size = GET_PREPEND_SIZE(&network_data);
 
-    if(packet_length > mtu) {
-        struct SwiftNetPacketInfo packet_info;
+    if(chunk_amount > 1) {
+        struct SwiftNetChunkMetadata chunk_metadata;
+        struct SwiftNetPacketMetadata packet_metadata;
         struct ip ip_header;
         uint16_t net_order_len;
         struct SwiftNetPacketSending* new_packet_sending;
-        uint16_t* key_data_mem;
+        struct PacketSendingKey* key_data_mem;
         uint32_t current_offset;
+        uint32_t chunk_data_size;
         uint16_t bytes_to_send;
         uint16_t bytes_to_send_net_order;
 
+
+        PCAP_ONLY uint32_t data_exchange_size;
         PCAP_ONLY uint8_t* buffer_header_location;
-        PCAP_ONLY uint8_t temp_data_buffer[prepend_size + PACKET_HEADER_SIZE];
+        PCAP_ONLY uint8_t temp_data_buffer[prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata)];
 
         DPDK_ONLY struct rte_mbuf* restrict current_buffer;
 
-
-        packet_info = construct_packet_info(
+        packet_metadata = construct_packet_metadata(
             packet_length,
+            chunk_amount
+        );
+
+        chunk_metadata = construct_chunk_metadata(
             #ifndef SWIFT_NET_DISABLE_REQUESTS
             packet_type,
             #else
             MESSAGE,
             #endif
-            chunk_amount,
             0,
             port_info
         );
 
+        chunk_data_size = mtu - PACKET_HEADER_SIZE;
+
         ip_header = construct_ip_header(*target_addr, mtu, packet_id);
 
-        net_order_len = htons(mtu + prepend_size);
+        net_order_len = htons(mtu);
         ip_header.ip_len = net_order_len;
 
-        new_packet_sending = allocator_allocate(packets_sending_memory_allocator);
+        new_packet_sending = allocator_allocate(&packet_sending_memory_allocator);
         if(unlikely(new_packet_sending == NULL)) {
             PRINT_ERROR("Failed to send a packet: exceeded maximum amount of sending packets at the same time");
             return;
@@ -360,8 +414,8 @@ void swiftnet_send_packet(
 
         LOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
 
-        key_data_mem = allocator_allocate(&uint16_memory_allocator);
-        *key_data_mem = packet_id;
+        key_data_mem = allocator_allocate(&packet_sending_key_allocator);
+        *key_data_mem = (struct PacketSendingKey){.packet_id = packet_id};
 
         *new_packet_sending = (struct SwiftNetPacketSending){
             .locked = false,
@@ -375,16 +429,30 @@ void swiftnet_send_packet(
         #endif
         atomic_store_explicit(&new_packet_sending->updated, NO_UPDATE, memory_order_release);
 
-        hashmap_insert(key_data_mem, sizeof(uint16_t), new_packet_sending, packets_sending);
+        hashmap_insert(key_data_mem, sizeof(struct PacketSendingKey), new_packet_sending, packets_sending);
 
         UNLOCK_ATOMIC_DATA_TYPE(&packets_sending->atomic_lock);
         
 
         #ifdef SWIFT_NET_BACKEND_PCAP
-        HANDLE_PACKET_CONSTRUCTION(&ip_header, &packet_info, &network_data, &eth_hdr, prepend_size + PACKET_HEADER_SIZE, prepend_buffer);
+        HANDLE_PACKET_CONSTRUCTION(&ip_header, &chunk_metadata, &packet_metadata, &network_data, &eth_hdr, 0, prepend_buffer);
+
+        data_exchange_size = prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata);
+
+        buffer_header_location = packet->packet_data_start - data_exchange_size;
+
+        prepare_packet_for_send(buffer_header_location, temp_data_buffer, prepend_buffer, data_exchange_size, &network_data, 0);
+
+        HANDLE_CHECKSUM(buffer_header_location, chunk_data_size - sizeof(struct SwiftNetPacketMetadata), &network_data, true);
+
+        SWIFTNET_SEND_PACKET(&network_data, buffer_header_location, chunk_data_size - sizeof(struct SwiftNetPacketMetadata), true);
+
+        cleanup_sent_packet(buffer_header_location, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata));
+
+        data_exchange_size = prepend_size + PACKET_HEADER_SIZE;
         
-        for(uint32_t i = 0; ; i++) {
-            current_offset = i * (mtu - PACKET_HEADER_SIZE);
+        for(uint32_t i = 1; ; i++) {
+            current_offset = ((i-1) * (chunk_data_size)) + chunk_data_size - sizeof(struct SwiftNetPacketMetadata);
 
             #ifndef SWIFT_NET_DISABLE_DEBUGGING
                 if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_SENDING)) {
@@ -392,30 +460,24 @@ void swiftnet_send_packet(
                 }
             #endif
 
-            buffer_header_location = packet->packet_data_start + current_offset - prepend_size - PACKET_HEADER_SIZE;
+            buffer_header_location = packet->packet_data_start + current_offset - data_exchange_size;
 
-            memcpy(temp_data_buffer, buffer_header_location, prepend_size + PACKET_HEADER_SIZE);
+            prepare_packet_for_send(buffer_header_location, temp_data_buffer, prepend_buffer, data_exchange_size, &network_data, i);
 
-            memcpy(buffer_header_location, prepend_buffer, prepend_size + PACKET_HEADER_SIZE);
-
-            memcpy(buffer_header_location + sizeof(struct ip) + prepend_size + offsetof(struct SwiftNetPacketInfo, chunk_index), &i, SIZEOF_FIELD(struct SwiftNetPacketInfo, chunk_index));
-            
-            memset(buffer_header_location + sizeof(struct ip) + prepend_size + offsetof(struct SwiftNetPacketInfo, checksum), 0x00, SIZEOF_FIELD(struct SwiftNetPacketInfo, checksum));
-            
-            if(current_offset + (mtu - PACKET_HEADER_SIZE) >= packet_info.packet_length) {
-                bytes_to_send = (uint16_t)(packet_length - current_offset + PACKET_HEADER_SIZE + prepend_size);
+            if(i+1 == chunk_amount) {
+                bytes_to_send = (uint16_t)(packet_length - current_offset + data_exchange_size);
 
                 bytes_to_send_net_order = htons(bytes_to_send - prepend_size);
 
-                memcpy(buffer_header_location + prepend_size + offsetof(struct ip, ip_len), &bytes_to_send_net_order, SIZEOF_FIELD(struct ip, ip_len));
+                memcpy(IP_HEADER_LOCATION(buffer_header_location, &network_data) + offsetof(struct ip, ip_len), &bytes_to_send_net_order, SIZEOF_FIELD(struct ip, ip_len));
 
-                HANDLE_CHECKSUM(buffer_header_location + prepend_size + sizeof(struct ip), bytes_to_send - prepend_size - sizeof(struct ip), &network_data);
+                HANDLE_CHECKSUM(buffer_header_location, packet_length - current_offset, &network_data, false);
 
-                SWIFTNET_SEND_PACKET(&network_data, buffer_header_location, bytes_to_send);
+                SWIFTNET_SEND_PACKET(&network_data, buffer_header_location, packet_length - current_offset, false);
 
-                memcpy(buffer_header_location, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE);
+                cleanup_sent_packet(buffer_header_location, temp_data_buffer, data_exchange_size);
 
-                handle_lost_packets(new_packet_sending, packet, eth_hdr, target_addr, port_info.source_port, port_info.destination_port, packets_sending_memory_allocator, packets_sending, &network_data, packet_length, mtu, chunk_amount
+                handle_lost_packets(new_packet_sending, packet, eth_hdr, target_addr, port_info.source_port, port_info.destination_port, packets_sending, &network_data, packet_length, &packet_metadata, mtu
                 #ifndef SWIFT_NET_DISABLE_REQUESTS
                     , packet_type
                 #endif
@@ -423,13 +485,11 @@ void swiftnet_send_packet(
                 
                 break;
             } else {
-                bytes_to_send = prepend_size + mtu;
-                
-                HANDLE_CHECKSUM(buffer_header_location + prepend_size + sizeof(struct ip), bytes_to_send - prepend_size - sizeof(struct ip), &network_data);
+                HANDLE_CHECKSUM(buffer_header_location, chunk_data_size, &network_data, false);
 
-                SWIFTNET_SEND_PACKET(&network_data, buffer_header_location, bytes_to_send);
+                SWIFTNET_SEND_PACKET(&network_data, buffer_header_location, chunk_data_size, false);
 
-                memcpy(buffer_header_location, temp_data_buffer, prepend_size + PACKET_HEADER_SIZE);
+                cleanup_sent_packet(buffer_header_location, temp_data_buffer, data_exchange_size);
 
                 #ifndef DISABLE_DYNAMIC_RATE_LIMITING
                 usleep(atomic_load_explicit(&new_packet_sending->current_send_delay, memory_order_acquire));
@@ -437,126 +497,128 @@ void swiftnet_send_packet(
             }
         }
         #elif defined(SWIFT_NET_BACKEND_DPDK)
-            for (uint32_t i = 0; i < packet->buf_amount; i++) {
+            {
                 uint8_t* buf_addr;
 
-                current_offset = i * packet->data_len_per_packet;
-
-                #ifndef SWIFT_NET_DISABLE_DEBUGGING
-                    if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_SENDING)) {
-                        send_debug_message("Sent chunk: {\"chunk_index\": %d}\n", i);
-                    }
-                #endif
-
-                current_buffer = packet->dpdk_buffers[i];
+                current_buffer = packet->dpdk_buffers[0];
                 buf_addr = rte_pktmbuf_mtod(current_buffer, uint8_t*);
 
-                packet_info.chunk_index = i;
-                packet_info.checksum = 0;
-
                 memcpy(buf_addr, &eth_hdr, sizeof(eth_hdr));
-                memcpy(buf_addr + sizeof(eth_hdr), &ip_header, sizeof(ip_header));
-                memcpy(buf_addr + sizeof(eth_hdr) + sizeof(struct ip), &packet_info, sizeof(packet_info));
+                memcpy(IP_HEADER_LOCATION(buf_addr, &network_data), &ip_header, sizeof(ip_header));
+                memcpy(CHUNK_METADATA_LOCATION(buf_addr, &network_data), &chunk_metadata, sizeof(chunk_metadata));
+                memcpy(PACKET_METADATA_LOCATION(buf_addr, &network_data), &packet_metadata, sizeof(packet_metadata));
 
-                if (current_offset + packet->data_len_per_packet > packet_length) {
-                    uint16_t old_len;
+                HANDLE_CHECKSUM(buf_addr, chunk_data_size - sizeof(struct SwiftNetPacketMetadata), &network_data, true);
 
-                    bytes_to_send = (uint16_t)(packet_length - current_offset + PACKET_HEADER_SIZE);
+                SWIFTNET_SEND_PACKET(&network_data, current_buffer, chunk_data_size - sizeof(struct SwiftNetPacketMetadata), true);
 
-                    bytes_to_send_net_order = htons(bytes_to_send);
+                for (uint32_t i = 1; i < packet->buf_amount; i++) {
+                    current_offset = calculate_dpdk_offset(i, mtu);
 
-                    old_len = current_buffer->data_len;
-
-                    memcpy((uint8_t*)current_buffer->buf_addr + sizeof(eth_hdr) + offsetof(struct ip, ip_len), &bytes_to_send_net_order, sizeof(bytes_to_send_net_order));
-
-                    current_buffer->data_len = bytes_to_send + prepend_size;
-                    current_buffer->pkt_len = bytes_to_send + prepend_size;
-
-                    HANDLE_CHECKSUM(buf_addr + prepend_size + sizeof(struct ip), current_buffer->data_len - prepend_size - sizeof(struct ip), &network_data);
-
-                    SWIFTNET_SEND_PACKET(&network_data, current_buffer);
-
-                    current_buffer->data_len = old_len;
-                    current_buffer->pkt_len = old_len;
-
-                    handle_lost_packets(new_packet_sending, packet, eth_hdr, target_addr, port_info.source_port, port_info.destination_port, packets_sending_memory_allocator, packets_sending, &network_data, packet_length, mtu, chunk_amount
-                    #ifndef SWIFT_NET_DISABLE_REQUESTS
-                        , packet_type
+                    #ifndef SWIFT_NET_DISABLE_DEBUGGING
+                        if (check_debug_flag(SWIFTNET_DEBUG_PACKETS_SENDING)) {
+                            send_debug_message("Sent chunk: {\"chunk_index\": %d}\n", i);
+                        }
                     #endif
-                    );
+
+                    current_buffer = packet->dpdk_buffers[i];
+                    buf_addr = rte_pktmbuf_mtod(current_buffer, uint8_t*);
+
+                    chunk_metadata.chunk_index = i;
+                    chunk_metadata.checksum = 0;
+
+                    memcpy(buf_addr, &eth_hdr, sizeof(eth_hdr));
+                    memcpy(IP_HEADER_LOCATION(buf_addr, &network_data), &ip_header, sizeof(ip_header));
+                    memcpy(CHUNK_METADATA_LOCATION(buf_addr, &network_data), &chunk_metadata, sizeof(chunk_metadata));
+
+                    if (current_offset + packet->data_len_per_packet > packet_length) {
+                        uint16_t old_len;
+
+                        bytes_to_send = (uint16_t)(packet_length - current_offset + PACKET_HEADER_SIZE);
+
+                        bytes_to_send_net_order = htons(bytes_to_send);
+
+                        old_len = current_buffer->data_len;
+
+                        memcpy(IP_HEADER_LOCATION(buf_addr, &network_data) + offsetof(struct ip, ip_len), &bytes_to_send_net_order, sizeof(bytes_to_send_net_order));
+
+                        current_buffer->data_len = bytes_to_send + prepend_size;
+                        current_buffer->pkt_len = bytes_to_send + prepend_size;
+
+                        HANDLE_CHECKSUM(buf_addr, bytes_to_send - PACKET_HEADER_SIZE, &network_data, false);
+
+                        SWIFTNET_SEND_PACKET(&network_data, current_buffer, bytes_to_send - PACKET_HEADER_SIZE, false);
+
+                        current_buffer->data_len = old_len;
+                        current_buffer->pkt_len = old_len;
+
+                        handle_lost_packets(new_packet_sending, packet, eth_hdr, target_addr, port_info.source_port, port_info.destination_port, packets_sending, &network_data, packet_length, &packet_metadata, mtu
+                        #ifndef SWIFT_NET_DISABLE_REQUESTS
+                            , packet_type
+                        #endif
+                        );
 
 
-                    break;
+                        break;
+                    }
+
+                    HANDLE_CHECKSUM(buf_addr, chunk_data_size, &network_data, false);
+
+                    SWIFTNET_SEND_PACKET(&network_data, current_buffer, chunk_data_size, false);
+
+                    #ifndef DISABLE_DYNAMIC_RATE_LIMITING
+                    usleep(atomic_load_explicit(&new_packet_sending->current_send_delay, memory_order_acquire));
+                    #endif
                 }
-
-                HANDLE_CHECKSUM(buf_addr + prepend_size + sizeof(struct ip), current_buffer->data_len - prepend_size - sizeof(struct ip), &network_data);
-
-                SWIFTNET_SEND_PACKET(&network_data, current_buffer);
-
-                #ifndef DISABLE_DYNAMIC_RATE_LIMITING
-                usleep(atomic_load_explicit(&new_packet_sending->current_send_delay, memory_order_acquire));
-                #endif
             }
         #endif
     } else {
         uint16_t final_packet_size;
-        struct SwiftNetPacketInfo packet_info;
+        struct SwiftNetChunkMetadata chunk_metadata;
+        struct SwiftNetPacketMetadata packet_metadata;
         struct ip ip_header;
-        #ifdef SWIFT_NET_BACKEND_DPDK
-        uint8_t* buf_ptr;
-        struct rte_mbuf* restrict buffer;
-        #endif
 
+        DPDK_ONLY uint8_t* buf_ptr;
+        DPDK_ONLY struct rte_mbuf* restrict buffer;
 
-        final_packet_size = (uint16_t)(prepend_size + PACKET_HEADER_SIZE + packet_length);
+        PCAP_ONLY uint32_t data_exchange_size;
 
-        packet_info = construct_packet_info(
-            packet_length,
+        data_exchange_size = prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata);
+
+        final_packet_size = (uint16_t)(prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata) + packet_length);
+
+        chunk_metadata = construct_chunk_metadata(
             #ifndef SWIFT_NET_DISABLE_REQUESTS
             packet_type,
             #else
             MESSAGE,
             #endif
-            1,
             0,
             port_info
         );
 
+        packet_metadata = construct_packet_metadata(packet_length, 1);
+
         ip_header = construct_ip_header(*target_addr, final_packet_size - prepend_size, packet_id);
 
         #ifdef SWIFT_NET_BACKEND_PCAP
-        if(GET_ADDR_TYPE(&network_data) == DLT_NULL) {
-            uint32_t family = PF_INET;
+        HANDLE_PACKET_CONSTRUCTION(&ip_header, &chunk_metadata, &packet_metadata, &network_data, &eth_hdr, data_exchange_size, prepend_buffer);
 
-            memcpy(packet->packet_buffer_start + sizeof(struct ether_header) - sizeof(family), &family, sizeof(family));
-            memcpy(packet->packet_buffer_start + sizeof(struct ether_header), &ip_header, sizeof(ip_header));
-            memcpy(packet->packet_buffer_start + sizeof(struct ether_header) + sizeof(struct ip), &packet_info, sizeof(packet_info));
+        prepare_packet_for_send(packet->packet_data_start - data_exchange_size, NULL, prepend_buffer, data_exchange_size, &network_data, 0);
 
-            memcpy(packet->packet_buffer_start + PACKET_HEADER_SIZE + sizeof(struct ether_header), packet->packet_data_start, packet_length);
+        HANDLE_CHECKSUM(packet->packet_data_start - data_exchange_size, packet_length, &network_data, &packet_metadata);
 
-            HANDLE_CHECKSUM(packet->packet_data_start - sizeof(struct SwiftNetPacketInfo), packet_length + sizeof(struct SwiftNetPacketInfo), &network_data);
-
-            SWIFTNET_SEND_PACKET(&network_data, packet->packet_buffer_start + sizeof(struct ether_header) - sizeof(family), final_packet_size);
-        } else if(GET_ADDR_TYPE(&network_data) == DLT_EN10MB) {
-            memcpy(packet->packet_buffer_start, &eth_hdr, sizeof(eth_hdr));
-            memcpy(packet->packet_buffer_start + sizeof(eth_hdr), &ip_header, sizeof(ip_header));
-            memcpy(packet->packet_buffer_start + sizeof(eth_hdr) + sizeof(ip_header), &packet_info, sizeof(packet_info));
-
-            memcpy(packet->packet_buffer_start + PACKET_HEADER_SIZE + sizeof(struct ether_header), packet->packet_data_start, packet_length);
-
-            HANDLE_CHECKSUM(packet->packet_data_start - sizeof(struct SwiftNetPacketInfo), packet_length + sizeof(struct SwiftNetPacketInfo), &network_data);
-
-            SWIFTNET_SEND_PACKET(&network_data, packet->packet_buffer_start, final_packet_size);
-        }
+        SWIFTNET_SEND_PACKET(&network_data, packet->packet_data_start - data_exchange_size, packet_length, &packet_metadata);
         #elif defined(SWIFT_NET_BACKEND_DPDK)
             buffer = packet->dpdk_buffers[0];
             buf_ptr = rte_pktmbuf_mtod(buffer, uint8_t*);
 
             memcpy(buf_ptr, &eth_hdr, sizeof(eth_hdr));
-            memcpy(buf_ptr + sizeof(eth_hdr), &ip_header, sizeof(ip_header));
-            memcpy(buf_ptr + sizeof(eth_hdr) + sizeof(ip_header), &packet_info, sizeof(packet_info));
+            memcpy(IP_HEADER_LOCATION(buf_ptr, &network_data), &ip_header, sizeof(ip_header));
+            memcpy(CHUNK_METADATA_LOCATION(buf_ptr, &network_data), &chunk_metadata, sizeof(chunk_metadata));
+            memcpy(PACKET_METADATA_LOCATION(buf_ptr, &network_data), &packet_metadata, sizeof(packet_metadata));
 
-            HANDLE_CHECKSUM(buf_ptr + sizeof(eth_hdr) + sizeof(struct ip), packet_length + sizeof(struct SwiftNetPacketInfo), &network_data);
+            HANDLE_CHECKSUM(buf_ptr, packet_length, &network_data, true);
 
             if(final_packet_size != buffer->data_len) {
                 uint16_t old_len;
@@ -566,19 +628,19 @@ void swiftnet_send_packet(
                 buffer->pkt_len = final_packet_size;
                 buffer->data_len = final_packet_size;
 
-                SWIFTNET_SEND_PACKET(&network_data, buffer);
+                SWIFTNET_SEND_PACKET(&network_data, buffer, packet_length, true);
 
                 buffer->pkt_len = old_len;
                 buffer->data_len = old_len;
             } else {
-                SWIFTNET_SEND_PACKET(&network_data, buffer);
+                SWIFTNET_SEND_PACKET(&network_data, buffer, packet_length, true);
             }
         #endif
     }
 }
 
 void swiftnet_client_send_packet(struct SwiftNetClientConnection* const client, struct SwiftNetPacketBuffer* restrict const packet, const uint32_t bytes_to_send) {
-    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, bytes_to_send, &client->server_addr, &client->packets_sending, &client->packets_sending_memory_allocator, client->eth_header, client->network_data
+    swiftnet_send_packet(client->maximum_transmission_unit, client->port_info, packet, bytes_to_send, &client->server_addr, &client->packets_sending, client->eth_header, client->network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS
         , NULL, false, 0
     #endif
@@ -597,9 +659,10 @@ void swiftnet_server_send_packet(struct SwiftNetServer* const server, struct Swi
     memcpy(&eth_hdr, &server->eth_header, sizeof(eth_hdr));
     memcpy(&eth_hdr.ether_dhost, &target.mac_address, sizeof(eth_hdr.ether_dhost));
 
-    swiftnet_send_packet(target.maximum_transmission_unit, port_info, packet, bytes_to_send, &target.sender_address, &server->packets_sending, &server->packets_sending_memory_allocator, eth_hdr, server->network_data
+    swiftnet_send_packet(target.maximum_transmission_unit, port_info, packet, bytes_to_send, &target.sender_address, &server->packets_sending, eth_hdr, server->network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS
         , NULL, false, 0
     #endif
     );
 }
+

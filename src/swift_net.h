@@ -10,6 +10,8 @@
 #include <netinet/ip.h>
 #include <stdbool.h>
 
+//#define SWIFT_NET_BACKEND_PCAP
+
 #ifdef SWIFT_NET_BACKEND_PCAP
 #include <pcap/pcap.h>
 #endif
@@ -27,6 +29,7 @@ extern "C" {
 #endif
 
 #define SWIFT_NET_ALIGNED(bytes) __attribute__((aligned(bytes)))
+#define SWIFT_NET_PACKED __attribute__((packed))
 
 // Multiplication of memory pre allocated.
 // More memory = better performance
@@ -51,16 +54,16 @@ struct SwiftNetNetworkData {
 
 enum PacketType : uint8_t {
     MESSAGE = 0x01,
-    REQUEST_INFORMATION = 0x02,
-    SEND_LOST_PACKETS_REQUEST = 0x03,
-    SEND_LOST_PACKETS_RESPONSE = 0x04,
-    SUCCESSFULLY_RECEIVED_PACKET = 0x05,   
-    #ifndef DISABLE_DYNAMIC_RATE_LIMITING 
-    PACKET_DELAY_UPDATE = 0x06,
-    #endif
     #ifndef SWIFT_NET_DISABLE_REQUESTS
-    REQUEST = 0x07,
-    RESPONSE = 0x08,
+    REQUEST = 0x02,
+    RESPONSE = 0x03,
+    #endif
+    REQUEST_INFORMATION = 0x04,
+    SEND_LOST_PACKETS_REQUEST = 0x05,
+    SEND_LOST_PACKETS_RESPONSE = 0x06,
+    SUCCESSFULLY_RECEIVED_PACKET = 0x07,   
+    #ifndef DISABLE_DYNAMIC_RATE_LIMITING 
+    PACKET_DELAY_UPDATE = 0x08,
     #endif
 };
 
@@ -71,7 +74,7 @@ enum SwiftNetPacketDelayUpdateStatus : uint8_t {
 };
 #endif
 
-#define PACKET_INFO_ID_NONE 0xFFFF
+#define PACKET_INFO_ID_NONE UINT16_C(0xFFFF)
 
 #ifndef likely
 #define unlikely(x) __builtin_expect((x), 0x00)
@@ -112,18 +115,27 @@ struct SwiftNetPacketClientMetadata {
     #endif
 } SWIFT_NET_ALIGNED(4);
 
-struct SwiftNetPacketInfo {
+struct SwiftNetPacketMetadata {
     uint32_t packet_length;
     uint32_t chunk_amount;
+    uint16_t maximum_transmission_unit;
+} SWIFT_NET_PACKED;
+
+struct SwiftNetChunkMetadata {
     uint32_t chunk_index;
     uint32_t checksum;
     struct SwiftNetPortInfo port_info;
-    uint16_t maximum_transmission_unit;
     uint8_t packet_type;
-} SWIFT_NET_ALIGNED(4);
+} SWIFT_NET_PACKED;
+
+struct SwiftNetPendingMessageCache {
+    struct SwiftNetPacketQueueNode* cache[0xFF];
+    uint32_t cache_size;
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetPendingMessage {
-    struct SwiftNetPacketInfo packet_info;
+    struct SwiftNetPendingMessageCache cache;
+    struct SwiftNetPacketMetadata packet_metadata;
     uint8_t* chunks_received;
     uint8_t* packet_data_start;
     uint32_t chunks_received_length;
@@ -135,6 +147,8 @@ struct SwiftNetPendingMessage {
     uint16_t source_port;
     uint16_t packet_id;
     bool sending_lost_packets;
+    bool marked_cleanup;
+    uint32_t bg_last_chunks_received;
 } SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetPacketServerMetadata {
@@ -210,6 +224,7 @@ struct SwiftNetPacketCallbackQueueNode {
 struct SwiftNetServerPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
+    uint8_t* buffer_start;
     uint8_t* current_pointer;
     struct SwiftNetPacketServerMetadata metadata;
 } SWIFT_NET_ALIGNED(8);
@@ -217,6 +232,7 @@ struct SwiftNetServerPacketData {
 struct SwiftNetClientPacketData {
     struct SwiftNetPendingMessage* internal_pending_message; // Do not use!!
     uint8_t* data;
+    uint8_t* buffer_start;
     uint8_t* current_pointer;
     struct SwiftNetPacketClientMetadata metadata;
 } SWIFT_NET_ALIGNED(8);
@@ -288,9 +304,6 @@ struct SwiftNetClientConnection {
     struct SwiftNetHashMap packets_completed;
     struct SwiftNetHashMap pending_messages;
     struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetNetworkData network_data;
     struct SwiftNetPacketQueue packet_queue;
     struct SwiftNetPacketCallbackQueue packet_callback_queue;
@@ -311,15 +324,12 @@ struct SwiftNetClientConnection {
     _Atomic bool executing_packets;
     _Atomic bool closing;
     _Atomic bool initialized;
-};
+} SWIFT_NET_ALIGNED(8);
 
 struct SwiftNetServer {
     struct SwiftNetHashMap packets_completed;
     struct SwiftNetHashMap pending_messages;
     struct SwiftNetHashMap packets_sending;
-    struct SwiftNetMemoryAllocator packets_completed_memory_allocator;
-    struct SwiftNetMemoryAllocator pending_messages_memory_allocator;
-    struct SwiftNetMemoryAllocator packets_sending_memory_allocator;
     struct SwiftNetNetworkData network_data;
     struct SwiftNetPacketQueue packet_queue;
     struct SwiftNetPacketCallbackQueue packet_callback_queue;
@@ -444,30 +454,34 @@ extern void swiftnet_cleanup();
 // Make a request from a client and wait for a response.
 extern struct SwiftNetClientPacketData* swiftnet_client_make_request(
     struct SwiftNetClientConnection* const client,
-    struct SwiftNetPacketBuffer* restrict const packet,
-    const uint32_t timeout_ms
+    struct SwiftNetPacketBuffer* const packet,
+    const uint32_t timeout_ms,
+    const uint32_t bytes_to_send
 );
 
 // Make a request from the server to a specific client and wait for response.
 extern struct SwiftNetServerPacketData* swiftnet_server_make_request(
     struct SwiftNetServer* const server,
-    struct SwiftNetPacketBuffer* restrict const packet,
+    struct SwiftNetPacketBuffer* const packet,
     const struct SwiftNetClientAddrData addr_data,
-    const uint32_t timeout_ms
+    const uint32_t timeout_ms,
+    const uint32_t bytes_to_send
 );
 
 // Send a response from a client.
 extern void swiftnet_client_make_response(
     struct SwiftNetClientConnection* const client,
     struct SwiftNetClientPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* restrict const buffer
+    struct SwiftNetPacketBuffer* const buffer,
+    const uint32_t bytes_to_send
 );
 
 // Send a response from the server.
 extern void swiftnet_server_make_response(
     struct SwiftNetServer* const server,
     struct SwiftNetServerPacketData* const packet_data,
-    struct SwiftNetPacketBuffer* restrict const buffer
+    struct SwiftNetPacketBuffer* const buffer,
+    const uint32_t bytes_to_send
 );
 #endif
 
@@ -482,3 +496,4 @@ extern void swiftnet_remove_debug_flags(const SwiftNetDebugFlags flags);
 #ifdef __cplusplus
 }
 #endif
+

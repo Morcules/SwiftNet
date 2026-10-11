@@ -61,14 +61,12 @@ void execute_packet_callback(
 ) {
     void (*packet_handler_loaded)(void *const, void *const);
 
-    struct SwiftNetPacketCallbackQueueNode* restrict current_node;
+    struct SwiftNetPacketCallbackQueueNode* current_node;
 
     uint8_t idle_stage;
 
 
     idle_stage = 0;
-
-    goto check_packet;
 
 
 check_packet:
@@ -116,10 +114,7 @@ check_packet:
         remove_pending_message_from_hashmap(pending_messages, current_node->pending_message);
     }
 
-    goto execute_callback;
 
-
-execute_callback:
     if (unlikely(packet_handler_loaded == NULL)) {
         if (connection_type == CONNECTION_TYPE_CLIENT) {
             swiftnet_client_destroy_packet_data(current_node->packet_data, connection);
@@ -131,9 +126,6 @@ execute_callback:
     }
 
     (*packet_handler_loaded)(current_node->packet_data, atomic_load_explicit(user_data, memory_order_acquire));
-
-    goto next;
-
 
 next:
     allocator_free(&packet_callback_queue_node_memory_allocator, current_node);
@@ -176,3 +168,4 @@ void* execute_packet_callback_server(void* const void_server) {
 
     return NULL;
 }
+

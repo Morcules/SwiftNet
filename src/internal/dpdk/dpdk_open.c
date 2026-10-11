@@ -2,6 +2,7 @@
 
 #include "../networking.h"
 
+#ifdef SWIFT_NET_BACKEND_DPDK
 void swiftnet_dpdk_open_port(const uint16_t port, struct SwiftNetNetworkData* const network_data) {
     struct rte_eth_conf port_conf = {0};
     char name[32];
@@ -29,3 +30,4 @@ void swiftnet_dpdk_open_port(const uint16_t port, struct SwiftNetNetworkData* co
 
     rte_eth_promiscuous_enable(port);
 }
+#endif

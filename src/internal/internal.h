@@ -13,6 +13,17 @@
 #include <net/if.h>
 #include "../swift_net.h"
 
+#ifdef __SANITIZE_ADDRESS__
+#include <sanitizer/asan_interface.h>
+    #define ASAN_UNPOISON(addr, size) __asan_unpoison_memory_region((addr), (size))
+    #define ASAN_POISON(addr, size)   __asan_poison_memory_region((addr), (size))
+#else
+    #define ASAN_UNPOISON(addr, size) ((void)(addr), (void)(size))
+    #define ASAN_POISON(addr, size)   ((void)(addr), (void)(size))
+#endif
+
+#define IS_NET_MESSAGE(packet_type) (packet_type >= REQUEST_INFORMATION)
+
 #ifdef __APPLE__
     #include <sys/_endian.h>
 #elif __linux__
@@ -51,9 +62,18 @@ extern uint32_t lcores_used[];
 #define SERVER_LOOPBACK_INTERFACE_NAME "net_ring0\0"
 #endif
 
+#define GET_INTERFACE_NAME(loopback, connection_type) \
+    (connection_type == CONNECTION_TYPE_CLIENT ? (loopback ? CLIENT_LOOPBACK_INTERFACE_NAME : default_network_interface) : (loopback ? SERVER_LOOPBACK_INTERFACE_NAME : default_network_interface))
+
+#define IP_HEADER_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data))
+#define CHUNK_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip))
+#define PACKET_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
+#define DATA_LOCATION(buffer, network_data, packet_metadata_present) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata_present ? sizeof(struct SwiftNetPacketMetadata) : 0))
+
 #ifdef SWIFT_NET_INTERNAL_TESTING
     #define ENABLE_INTERNAL_CHECK , 0
-    #define DISABLE_INTERNAL_CHECK , 1
+    //#define DISABLE_INTERNAL_CHECK , 1
+    #define DISABLE_INTERNAL_CHECK , 0
 #else
     #define ENABLE_INTERNAL_CHECK
     #define DISABLE_INTERNAL_CHECK
@@ -73,19 +93,27 @@ struct ReceiverPacketData {
 // in body use variables "hashmap_item" and "hashmap_data"
 // "hashmap_item" contains pointer to current struct SwiftNetHashMapItem 
 // "hashmap_data" contains data stored inside struct SwiftNetHashMapItem
-#define LOOP_HASHMAP(hashmap, loop_body) \
+#define LOOP_HASHMAP(hashmap, data_cast, loop_body) \
     for(uint32_t i = 0; i < ((hashmap)->capacity + 31) / 32; i++) { \
         uint32_t current_index = *((hashmap)->item_occupation + i); \
-        if(current_index == 0x00) { \
-            continue; \
-        } \
-        uint32_t inverted = ~(current_index); \
-        while(inverted != UINT32_MAX) { \
-            uint32_t bit_index = (uint32_t)(__builtin_ctzl(inverted)); \
-            inverted |= 1 << bit_index; \
-            for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; hashmap_item = hashmap_item->next) { \
-                void* const hashmap_data = hashmap_item->value; \
+        while(current_index != 0) { \
+            uint32_t bit_index = (uint32_t)(__builtin_ctz(current_index)); \
+            void* next_value; \
+            current_index &= ~(1 << bit_index); \
+            for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; ) { \
+                if(hashmap_item->next != NULL) { \
+                    next_value = hashmap_item->next->value; \
+                } else { next_value = NULL; } \
+                MAYBE_UNUSED data_cast const hashmap_data = hashmap_item->value; \
                 loop_body \
+                if(hashmap_item->value == NULL) {break;} else { \
+                    if(hashmap_item->value == next_value) { \
+                        continue; \
+                    } else { \
+                        hashmap_item = hashmap_item->next; \
+                        continue; \
+                    } \
+                } \
             } \
         } \
     }
@@ -106,9 +134,9 @@ struct ReceiverPacketData {
 #ifdef SWIFT_NET_BACKEND_DPDK
 #define PACKET_PREPEND_SIZE(addr_type) sizeof(struct ether_header)
 #elif defined(SWIFT_NET_BACKEND_PCAP)
-#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? sizeof(uint32_t) : addr_type == DLT_EN10MB ? sizeof(struct ether_header) : 0)
+#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? (uint8_t)sizeof(uint32_t) : addr_type == DLT_EN10MB ? (uint8_t)sizeof(struct ether_header) : (uint8_t)0)
 #endif
-#define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetPacketInfo))
+#define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
 
 #define DEFAULT_MAC_ADDRESS_STRUCT (struct ether_header){.ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff}, .ether_type = htons(0x0800)}
 
@@ -146,6 +174,12 @@ inline void swiftnet_reallocate_memory(const uint32_t new_size, const void* rest
 }
 */
 
+static inline ALWAYS_INLINE uint32_t calculate_chunk_amount(const uint32_t packet_length, const uint32_t mtu) {
+    const uint32_t first_packet_len = mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata);
+
+    return packet_length > first_packet_len ? ((packet_length - (mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata)) - 1) / (mtu - PACKET_HEADER_SIZE)) + 2 : 1;
+}
+
 static inline ALWAYS_INLINE uint32_t crc32(const uint8_t* const data, const uint32_t length) {
     const uint8_t* ptr = data;
     uint32_t remaining = length;
@@ -181,6 +215,14 @@ struct PacketCompletedKey {
     uint16_t packet_id;
 };
 
+struct RequestSentKey {
+    uint16_t packet_id;
+};
+
+struct PacketSendingKey {
+    uint16_t packet_id;
+};
+
 struct Listener {
     struct SwiftNetNetworkData network_data;
     #ifdef SWIFT_NET_BACKEND_PCAP
@@ -208,6 +250,11 @@ extern struct SwiftNetHashMap listeners;
 extern struct SwiftNetMemoryAllocator pending_message_key_allocator;
 extern struct SwiftNetMemoryAllocator packet_completed_key_allocator;
 
+#ifndef SWIFT_NET_DISABLE_REQUESTS
+extern struct SwiftNetMemoryAllocator request_sent_key_allocator;
+#endif
+extern struct SwiftNetMemoryAllocator packet_sending_key_allocator;
+
 extern pthread_t memory_cleanup_thread;
 extern _Atomic bool swiftnet_closing;
 
@@ -226,7 +273,7 @@ extern struct in_addr private_ip_address;
 extern uint8_t mac_address[6];
 extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
 
-extern void* check_existing_listener(const char* restrict const interface_name, void* const connection, const enum ConnectionType connection_type, const bool loopback);
+extern void* check_existing_listener(void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
 extern uint32_t bytes_leaked;
@@ -288,6 +335,9 @@ extern struct SwiftNetMemoryAllocator server_memory_allocator;
 extern struct SwiftNetMemoryAllocator client_connection_memory_allocator;
 extern struct SwiftNetMemoryAllocator listener_memory_allocator;
 extern struct SwiftNetMemoryAllocator hashmap_item_memory_allocator;
+extern struct SwiftNetMemoryAllocator pending_message_memory_allocator;
+extern struct SwiftNetMemoryAllocator packet_completed_memory_allocator;
+extern struct SwiftNetMemoryAllocator packet_sending_memory_allocator;
 
 extern void* interface_start_listening_pcap(void* const listener_void);
 extern int interface_start_listening_dpdk(void* const listener_void);
@@ -327,7 +377,6 @@ extern void swiftnet_send_packet(
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
     struct SwiftNetHashMap* const packets_sending,
-    struct SwiftNetMemoryAllocator* const packets_sending_memory_allocator,
     const struct ether_header eth_hdr,
     const struct SwiftNetNetworkData network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS
@@ -337,15 +386,20 @@ extern void swiftnet_send_packet(
     #endif
 );
 
-static inline ALWAYS_INLINE struct SwiftNetPacketInfo construct_packet_info(const uint32_t packet_length, const uint8_t packet_type, const uint32_t chunk_amount, const uint32_t chunk_index, const struct SwiftNetPortInfo port_info) {
-    return (struct SwiftNetPacketInfo){
-        .packet_length = packet_length,
-        .chunk_amount = chunk_amount,
+static inline ALWAYS_INLINE struct SwiftNetChunkMetadata construct_chunk_metadata(const uint8_t packet_type, const uint32_t chunk_index, const struct SwiftNetPortInfo port_info) {
+    return (struct SwiftNetChunkMetadata){
         .chunk_index = chunk_index,
-        .maximum_transmission_unit = maximum_transmission_unit,
         .checksum = 0x00,
         .port_info = port_info,
         .packet_type = packet_type
+    };
+}
+
+static inline ALWAYS_INLINE struct SwiftNetPacketMetadata construct_packet_metadata(const uint32_t packet_length, const uint32_t chunk_amount) {
+    return (struct SwiftNetPacketMetadata){
+        .packet_length = packet_length,
+        .chunk_amount = chunk_amount,
+        .maximum_transmission_unit = maximum_transmission_unit
     };
 }
 
@@ -369,3 +423,4 @@ static inline ALWAYS_INLINE struct ip construct_ip_header(const struct in_addr d
 
     return ip_header;
 }
+
