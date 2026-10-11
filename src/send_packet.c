@@ -61,7 +61,7 @@ request_lost_packets:
 
     SWIFTNET_SEND_INTERNAL_PACKET(network_data, raw_data, 0, true);
 
-    for(times_checked = 0; times_checked < 0xFF; times_checked++) {
+   for(times_checked = 0; times_checked < 0xFF; times_checked++) {
         status = atomic_load_explicit(&packet_sending->updated, memory_order_acquire);
 
         switch (status) {
@@ -581,6 +581,9 @@ void swiftnet_send_packet(
         DPDK_ONLY uint8_t* buf_ptr;
         DPDK_ONLY struct rte_mbuf* restrict buffer;
 
+        PCAP_ONLY uint32_t data_exchange_size;
+
+        data_exchange_size = prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata);
 
         final_packet_size = (uint16_t)(prepend_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetPacketMetadata) + packet_length);
 
