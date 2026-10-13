@@ -1,4 +1,4 @@
-name: Run all tests inside repo/tests
+name: Run Integration Tests
 
 on:
   push:
@@ -8,16 +8,38 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-latest
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+          - name: macos-arm64
+            os: macos-latest
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: install_dependencies
+    - name: show_arch
+      run: |
+        uname -m
+        cc -dumpmachine
+
+    - name: install_dependencies_linux
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential cmake libpcap-dev clang
+
+    - name: install_dependencies_macos
+      if: runner.os == 'macOS'
+      run: brew install cmake clang
 
     - name: build
       run: |
