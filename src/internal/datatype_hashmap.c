@@ -302,5 +302,6 @@ void hashmap_destroy(struct SwiftNetHashMap* const hashmap) {
     }
 
     free(hashmap->items);
+    free(hashmap->item_occupation);
 }
 

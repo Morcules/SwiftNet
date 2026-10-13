@@ -8,15 +8,15 @@
 #include "../../shared.h"
 
 struct TestSendingPacketArgs {
-    const char* ip_address;
-    const bool loopback;
+    char* ip_address;
+    bool loopback;
     const uint32_t client_data_len;
     const uint32_t server_data_len;
 };
 
 struct TestMakingRequestArgs {
-    const char* ip_address;
-    const bool loopback;
+    char* ip_address;
+    bool loopback;
     const enum ConnectionType receiver;
     const uint32_t request_data_len;
     const uint32_t response_data_len;
@@ -29,7 +29,7 @@ union Args {
 
 struct Test {
     int (*function)(const union Args*);
-    const union Args args;
+    union Args args;
     const char* test_name;
 };
 

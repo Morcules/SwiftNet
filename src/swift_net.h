@@ -45,6 +45,7 @@ struct SwiftNetNetworkData {
     #endif
     #ifdef SWIFT_NET_BACKEND_PCAP
     pcap_t* pcap;
+    struct bpf_program fp;
     uint16_t addr_type;
     uint8_t prepend_size;
     #endif
