@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "internal.h"
-#include <arm_neon.h>
 #include <string.h>
 #include <sys/types.h>
 

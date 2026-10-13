@@ -66,7 +66,7 @@ endif()
 
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    add_compile_options(-march=armv8-a+crc)
+    add_compile_options(-march=armv8-a)
 endif()
 
 add_library(swiftnet STATIC ${SOURCE_FILES})

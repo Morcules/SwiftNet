@@ -2,7 +2,6 @@
 
 #include <arpa/inet.h>
 #include <stdint.h>
-#include <arm_acle.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <stdatomic.h>
@@ -28,6 +27,14 @@
     #include <sys/_endian.h>
 #elif __linux__
     #include <endian.h>
+#endif
+
+#ifdef __x86_64__
+    #include <nmmintrin.h>
+    #define CRC_TARGET __attribute__((target("sse4.2,crc32")))
+#else
+    #include <arm_acle.h>
+    #define CRC_TARGET __attribute__((target("crc")))
 #endif
 
 #define STRINGIFY(...) #__VA_ARGS__
@@ -99,7 +106,7 @@ struct ReceiverPacketData {
         while(current_index != 0) { \
             uint32_t bit_index = (uint32_t)(__builtin_ctz(current_index)); \
             void* next_value; \
-            current_index &= ~(1 << bit_index); \
+            current_index &= ~(UINT32_C(1) << bit_index); \
             for(struct SwiftNetHashMapItem* hashmap_item = (hashmap)->items + ((i * 32) + bit_index); hashmap_item != NULL; ) { \
                 if(hashmap_item->next != NULL) { \
                     next_value = hashmap_item->next->value; \
@@ -180,26 +187,41 @@ static inline ALWAYS_INLINE uint32_t calculate_chunk_amount(const uint32_t packe
     return packet_length > first_packet_len ? ((packet_length - (mtu - PACKET_HEADER_SIZE - sizeof(struct SwiftNetPacketMetadata)) - 1) / (mtu - PACKET_HEADER_SIZE)) + 2 : 1;
 }
 
-static inline ALWAYS_INLINE uint32_t crc32(const uint8_t* const data, const uint32_t length) {
+CRC_TARGET static inline ALWAYS_INLINE uint32_t sn_crc32_d(const uint32_t crc, const uint8_t* restrict const ptr) {
+    #ifdef __x86_64__
+	return (uint32_t)_mm_crc32_u64(crc, *(uint64_t*)ptr);
+    #else
+	return (uint32_t)__crc32d(crc, *(uint64_t*)ptr);
+    #endif
+}
+
+CRC_TARGET static inline ALWAYS_INLINE uint32_t sn_crc32_b(const uint32_t crc, const uint8_t* restrict const ptr) {
+    #ifdef __x86_64__
+	return (uint32_t)_mm_crc32_u8(crc, *ptr);
+    #else
+	return (uint32_t)__crc32b(crc, *ptr);
+    #endif
+}
+
+CRC_TARGET MAYBE_UNUSED static uint32_t crc32(const uint8_t* const data, const uint32_t length) {
     const uint8_t* ptr = data;
     uint32_t remaining = length;
     uint32_t crc = 0xFFFFFFFF;
     
     while (remaining >= 8) {
-        crc = __crc32d(crc, *(const uint64_t*)ptr);
+        crc = sn_crc32_d(crc, ptr);
         ptr += 8;
         remaining -= 8;
     }
 
     while (remaining > 0) {
-        crc = __crc32b(crc, *ptr);
+        crc = sn_crc32_b(crc, ptr);
         ptr++;
         remaining--;
     }
 
     return ~crc;
 }
-
 enum StackCreatingState {
     STACK_CREATING_LOCKED = 0,
     STACK_CREATING_UNLOCKED = 1
