@@ -39,7 +39,7 @@ jobs:
 
     - name: install_dependencies_macos
       if: runner.os == 'macOS'
-      run: brew install cmake clang
+      run: brew install cmake
 
     - name: build
       run: |
