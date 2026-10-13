@@ -39,12 +39,13 @@
 
     #define FREE_PACKET_CONSTRUCTION(buffer_name, network_data)
 
-    extern pcap_t* swiftnet_pcap_open(const char* const restrict interface);
+    extern void swiftnet_pcap_open(const char* const restrict interface, struct SwiftNetNetworkData* const network_data);
     extern int swiftnet_pcap_send(pcap_t *pcap, const uint8_t *data, const uint32_t len);
 
     inline static struct SwiftNetNetworkData swiftnet_initialize_networking(const char* const restrict interface) {
-        pcap_t* pcap = swiftnet_pcap_open(interface);
-        if (unlikely(pcap == NULL)) {
+        struct SwiftNetNetworkData network_data;
+        swiftnet_pcap_open(interface, &network_data);
+        if (unlikely(network_data.pcap == NULL)) {
             PRINT_ERROR("Failed to open pcap");
 
             struct SwiftNetNetworkData net_data_null;
@@ -53,13 +54,10 @@
             return net_data_null;
         }
 
-        const uint8_t addr_type = (uint8_t)pcap_datalink(pcap);
+        const uint8_t addr_type = (uint8_t)pcap_datalink(network_data.pcap);
         
-        struct SwiftNetNetworkData network_data = {
-            .pcap = pcap,
-            .addr_type = addr_type,
-            .prepend_size = PACKET_PREPEND_SIZE(addr_type)
-        };
+        network_data.addr_type = addr_type;
+        network_data.prepend_size = PACKET_PREPEND_SIZE(addr_type);
 
         return network_data;
     }
@@ -71,7 +69,8 @@
         pcap_loop((network_data)->pcap, 0, pcap_packet_handle, (void*)listener);
 
     #define SWIFTNET_CLOSE_CONNECTION(network_data) \
-        pcap_close((network_data)->pcap);
+        pcap_close((network_data)->pcap); \
+        pcap_freecode(&(network_data)->fp);
 
     #define SWIFTNET_SEND_PACKET(network_data, buffer, len, packet_metadata) \
 	while(swiftnet_pcap_send((network_data)->pcap, buffer, len + GET_PREPEND_SIZE(network_data) + PACKET_HEADER_SIZE + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)) == -2) { \
