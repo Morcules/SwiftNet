@@ -18,7 +18,7 @@ char private_ip_address_testing[INET_ADDRSTRLEN];
 int main(void) {
     get_private_ip_from_socket();
 
-    const struct Test tests[] = {
+    struct Test tests[] = {
         // Loopback tests
         {
             .function = test_sending_packet,
@@ -116,103 +116,6 @@ int main(void) {
             }},
             .test_name = "Test server making large response"
         },
-        // local default interface test
-        {
-            .function = test_sending_packet,
-            .args = {.test_sending_packet_args = {
-                .client_data_len = 50,
-                .server_data_len = 50,
-                .ip_address = private_ip_address_testing,
-                .loopback = false
-            }},
-            .test_name = "Test sending small packets"
-        },
-        {
-            .function = test_sending_packet,
-            .args = {.test_sending_packet_args = {
-                .client_data_len = 0,
-                .server_data_len = 10000,
-                .ip_address = private_ip_address_testing,
-                .loopback = false
-            }},
-            .test_name = "Test client sending large packet"
-        },
-        {
-            .function = test_sending_packet,
-            .args = {.test_sending_packet_args = {
-                .client_data_len = 10000,
-                .server_data_len = 10,
-                .ip_address = private_ip_address_testing,
-                .loopback = false
-            }},
-            .test_name = "Test server sending large packet"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Server,
-                .request_data_len = 100,
-                .response_data_len = 100
-            }},
-            .test_name = "Test client making small request"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Client,
-                .request_data_len = 100,
-                .response_data_len = 100
-            }},
-            .test_name = "Test server making small request"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Client,
-                .request_data_len = 10000,
-                .response_data_len = 100
-            }},
-            .test_name = "Test server making large request"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Server,
-                .request_data_len = 10000,
-                .response_data_len = 100
-            }},
-            .test_name = "Test client making large request"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Client,
-                .request_data_len = 100,
-                .response_data_len = 10000
-            }},
-            .test_name = "Test client making large response"
-        },
-        {
-            .function = test_making_request,
-            .args = {.test_making_request_args = {
-                .ip_address = private_ip_address_testing,
-                .loopback = false,
-                .receiver = Server,
-                .request_data_len = 100,
-                .response_data_len = 10000
-            }},
-            .test_name = "Test server making large response"
-        },
     };
 
     swiftnet_initialize();
@@ -235,6 +138,34 @@ int main(void) {
 
         continue;
     }
+
+
+    // Test default network interface only on macos, because it works without any setup
+    #ifdef __APPLE__
+    for (uint16_t i = 0; i < sizeof(tests) / sizeof(struct Test); i++) {
+        struct Test* current_test = &tests[i];
+        if (current_test->function == test_making_request) {
+            current_test->args.test_making_request_args.loopback = false;
+            current_test->args.test_making_request_args.ip_address = private_ip_address_testing;
+        } else if (current_test->function == test_sending_packet) {
+            current_test->args.test_sending_packet_args.loopback = false;
+            current_test->args.test_sending_packet_args.ip_address = private_ip_address_testing;
+        }
+
+        int result = current_test->function(&current_test->args);
+        if (result != 0) {
+            PRINT_ERROR("Failed test: %s", current_test->test_name);
+
+            swiftnet_cleanup();
+
+            return -1;
+        }
+
+        PRINT_SUCCESS("Successfully completed test: %s", current_test->test_name);
+
+        continue;
+    }
+    #endif
 
     swiftnet_cleanup();
 
