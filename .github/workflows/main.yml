@@ -1,0 +1,36 @@
+name: Run all tests inside repo/tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: install_dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake libpcap-dev clang
+
+    - name: build
+      run: |
+        cp profiles/pcap_profile.cmake profile.cmake
+        ./build.sh
+      working-directory: build
+
+    - name: build_integration_tests
+      run: |
+        ./build_tests.sh
+      working-directory: tests/integration_tests_pcap/build
+
+    - name: run_integration_tests
+      run: |
+        sudo ./run_tests
+      working-directory: tests/integration_tests_pcap/output
