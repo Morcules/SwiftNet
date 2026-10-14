@@ -1,7 +1,5 @@
 #pragma once
 
-#define SWIFT_NET_BACKEND_PCAP
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>

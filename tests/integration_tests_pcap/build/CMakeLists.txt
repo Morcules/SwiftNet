@@ -29,7 +29,20 @@ file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/../src/*.c")
 
 add_executable(run_tests ${SRC_FILES})
 
-target_link_libraries(run_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a -lpcap)
+if(BACKEND STREQUAL "pcap")
+target_link_libraries(run_tests PRIVATE -lpcap)
+elseif(BACKEND STREQUAL "dpdk")
+target_link_libraries(swiftnet INTERFACE
+    rte_eal
+    rte_ethdev
+    rte_mbuf
+    rte_mempool
+    rte_ring
+    rte_net
+)
+endif()
+
+target_link_libraries(run_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a)
 target_link_options(run_tests PRIVATE -g -O0)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

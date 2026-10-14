@@ -49,7 +49,7 @@ jobs:
 
     - name: build_integration_tests
       run: |
-        ./build_tests.sh
+        ./build_pcap_tests.sh
       working-directory: tests/integration_tests_pcap/build
 
     - name: run_integration_tests
