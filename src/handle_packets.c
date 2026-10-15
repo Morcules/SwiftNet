@@ -1,6 +1,5 @@
 #include "internal/networking.h"
 #include "swift_net.h"
-#include <_stdlib.h>
 #include <arpa/inet.h>
 #include <stdatomic.h>
 #include <stdint.h>
