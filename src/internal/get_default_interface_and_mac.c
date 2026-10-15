@@ -122,6 +122,8 @@ int get_default_interface_and_mac(char* restrict interface_name, const uint32_t 
         return -1;
     }
 
+    printf("Found interface: %s\n", interface_name);
+
     return 0;
 }
 

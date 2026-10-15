@@ -15,8 +15,6 @@
 #endif
 
 #ifdef SWIFT_NET_BACKEND_DPDK
-#include <rte_mbuf.h>
-
 #define DPDK_BURST_SIZE 32
 #endif
 
