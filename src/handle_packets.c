@@ -57,6 +57,10 @@ static inline struct SwiftNetPacketQueueNode* construct_node(const uint32_t data
     return node;
 }
 
+static inline bool valid_ip_header(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
+    return ip_checksum(packet_data->data + GET_PREPEND_SIZE(network_data)) == 0;
+}
+
 static inline void swiftnet_handle_packets(
 	struct SwiftNetPacketQueue* const packet_queue,
     pthread_mutex_t* const process_packets_mtx,
@@ -72,6 +76,10 @@ static inline void swiftnet_handle_packets(
 
 
     addr_type = GET_ADDR_TYPE(network_data);
+
+    if (!valid_ip_header(network_data, &packet_data)) {
+        goto exit;   
+    }
 
     if (unlikely(packet_data.data_len == 0)) {
         goto exit;
