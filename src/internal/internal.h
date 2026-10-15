@@ -230,6 +230,20 @@ CRC_TARGET MAYBE_UNUSED static uint32_t crc32(const uint8_t* const data, const u
 
     return ~crc;
 }
+
+static uint16_t ip_checksum(const uint8_t* header) {
+    uint32_t sum = 0;
+
+    for(uint16_t i = 0; i < 20; i+=2) {
+        sum += (uint16_t)((header[0] << 8u) | header[1]);   // big-endian 16-bit word
+        header += 2;
+    }
+
+    while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+
+    return (uint16_t)~sum;
+}
+
 enum StackCreatingState {
     STACK_CREATING_LOCKED = 0,
     STACK_CREATING_UNLOCKED = 1
