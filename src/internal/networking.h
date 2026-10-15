@@ -93,8 +93,10 @@
 
     #define HANDLE_CHECKSUM(buffer, size, network_data, packet_metadata) \
         { \
+            const uint16_t ip_sum = htons(ip_checksum(buffer + GET_PREPEND_SIZE(network_data))); \
             const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
             memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
+            memcpy(buffer + GET_PREPEND_SIZE(network_data) + offsetof(struct ip, ip_sum), &ip_sum, SIZEOF_FIELD(struct ip, ip_sum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type
