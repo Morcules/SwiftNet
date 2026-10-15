@@ -35,24 +35,34 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake libpcap-dev clang
+        sudo apt-get install -y build-essential cmake libpcap-dev clang libdpdk-dev
 
     - name: install_dependencies_macos
       if: runner.os == 'macOS'
       run: brew install cmake
 
-    - name: build
+    - name: build_integration_tests_pcap
       run: |
-        cp profiles/pcap_profile.cmake profile.cmake
-        ./build.sh
-      working-directory: build
+        ./build_pcap_tests.sh
+      working-directory: tests/integration_tests/build
 
-    - name: build_integration_tests
-      run: |
-        ./build_tests.sh
-      working-directory: tests/integration_tests_pcap/build
-
-    - name: run_integration_tests
+    - name: run_integration_tests_pcap
       run: |
         sudo ./run_tests
-      working-directory: tests/integration_tests_pcap/output
+      working-directory: tests/integration_tests/output
+
+    - name: enable_hugepages
+      if: runner.os == 'Linux'
+      run: sudo sysctl -w vm.nr_hugepages=128
+
+    - name: build_integration_tests_dpdk
+      if: runner.os == 'Linux'
+      run: |
+        ./build_dpdk_tests.sh
+      working-directory: tests/integration_tests/build
+
+    - name: run_integration_tests_dpdk
+      if: runner.os == 'Linux'
+      run: |
+        sudo ./run_tests
+      working-directory: tests/integration_tests/output

@@ -12,6 +12,14 @@
 #include <net/if.h>
 #include "../swift_net.h"
 
+#ifdef SWIFT_NET_BACKEND_PCAP
+#include <pcap/pcap.h>
+#endif
+
+#ifdef SWIFT_NET_BACKEND_DPDK
+#include <rte_mbuf.h>
+#endif
+
 #ifdef __SANITIZE_ADDRESS__
 #include <sanitizer/asan_interface.h>
     #define ASAN_UNPOISON(addr, size) __asan_unpoison_memory_region((addr), (size))
