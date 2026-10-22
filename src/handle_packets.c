@@ -57,8 +57,39 @@ static inline struct SwiftNetPacketQueueNode* construct_node(const uint32_t data
     return node;
 }
 
+static inline bool valid_chunk_metadata(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
+    struct SwiftNetChunkMetadata* restrict chunk_metadata;
+
+    chunk_metadata = (struct SwiftNetChunkMetadata*)(packet_data->data + GET_PREPEND_SIZE(network_data) + sizeof(struct ip));
+
+    if(chunk_metadata->packet_type <= PACKET_TYPE_END) return true;
+
+    return false;
+}
+
 static inline bool valid_ip_header(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
-    return ip_checksum(packet_data->data + GET_PREPEND_SIZE(network_data)) == 0;
+    struct ip* restrict ip_header;
+    bool valid_const_fields;
+
+
+    ip_header = (struct ip*)(packet_data->data + GET_PREPEND_SIZE(network_data));
+
+    valid_const_fields = (
+        ip_header->ip_hl == 5 &&
+        ip_header->ip_v == 4 &&
+        ip_header->ip_tos == 0 &&
+        ip_header->ip_off == htons(0) &&
+        ip_header->ip_ttl == 64
+    );
+
+    return valid_const_fields && ip_checksum((uint8_t*)ip_header) == 0;
+}
+
+static inline bool valid_packet(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
+    if(!valid_ip_header(network_data, packet_data)) return false;
+    if(!valid_chunk_metadata(network_data, packet_data)) return false;
+
+    return true;
 }
 
 static inline void swiftnet_handle_packets(
@@ -77,7 +108,7 @@ static inline void swiftnet_handle_packets(
 
     addr_type = GET_ADDR_TYPE(network_data);
 
-    if (!valid_ip_header(network_data, &packet_data)) {
+    if (!valid_packet(network_data, &packet_data)) {
         goto exit;   
     }
 
