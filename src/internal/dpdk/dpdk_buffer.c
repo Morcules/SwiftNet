@@ -34,7 +34,7 @@ static inline struct SwiftNetPacketBuffer create_packet_buffer(const uint32_t bu
         rte_pktmbuf_alloc_bulk(network_data->mem_pool, buffers, chunk_amount);
 
         for(uint32_t i = 0; i < chunk_amount; i++) {
-            struct rte_mbuf* restrict current_buffer;
+            struct rte_mbuf* current_buffer;
             
 
             current_buffer = buffers[i];
