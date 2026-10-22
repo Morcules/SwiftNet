@@ -12,6 +12,8 @@ Makefile
 !/build/profile_template.cmake
 !/build/profiles/*
 
+**/*.trace
+
 **/diff.git
 
 !/build/cmake

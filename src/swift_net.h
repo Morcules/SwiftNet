@@ -62,6 +62,7 @@ enum PacketType : uint8_t {
     #ifndef DISABLE_DYNAMIC_RATE_LIMITING 
     PACKET_DELAY_UPDATE = 0x08,
     #endif
+    PACKET_TYPE_END = 0x08 // Invalid packet type, last number valid
 };
 
 #ifndef DISABLE_DYNAMIC_RATE_LIMITING
