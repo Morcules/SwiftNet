@@ -1,12 +1,10 @@
 #include "../internal.h"
-#include "../../swift_net.h"
-#include <net/ethernet.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 static inline struct SwiftNetPacketBuffer create_packet_buffer(const uint32_t buffer_size) {
-    uint8_t* restrict const mem = malloc(buffer_size + PACKET_HEADER_SIZE + sizeof(struct ether_header) + sizeof(struct SwiftNetPacketMetadata));
-    uint8_t* restrict const data_pointer = mem + PACKET_HEADER_SIZE + sizeof(struct ether_header) + sizeof(struct SwiftNetPacketMetadata);
+    uint8_t* restrict const mem = malloc(buffer_size + PACKET_HEADER_SIZE + sizeof(struct SwiftNetEtherHeader) + sizeof(struct SwiftNetPacketMetadata));
+    uint8_t* restrict const data_pointer = mem + PACKET_HEADER_SIZE + sizeof(struct SwiftNetEtherHeader) + sizeof(struct SwiftNetPacketMetadata);
 
     return (struct SwiftNetPacketBuffer){
         .packet_buffer_start = mem,
@@ -30,7 +28,7 @@ static inline void resize_packet_buffer(uint32_t new_buffer_size, struct SwiftNe
     const uint32_t current_offset = (uint32_t)(packet_buffer->packet_append_pointer - packet_buffer->packet_data_start);
 
 
-    new_buffer_size += PACKET_HEADER_SIZE + sizeof(struct ether_header) + sizeof(struct SwiftNetPacketMetadata);
+    new_buffer_size += PACKET_HEADER_SIZE + sizeof(struct SwiftNetEtherHeader) + sizeof(struct SwiftNetPacketMetadata);
 
     new_ptr = realloc(packet_buffer->packet_buffer_start, new_buffer_size);
     if (unlikely(new_ptr == NULL)) {
@@ -38,7 +36,7 @@ static inline void resize_packet_buffer(uint32_t new_buffer_size, struct SwiftNe
         exit(EXIT_FAILURE);
     }
 
-    data_start = new_ptr + PACKET_HEADER_SIZE + sizeof(struct ether_header);
+    data_start = new_ptr + PACKET_HEADER_SIZE + sizeof(struct SwiftNetEtherHeader);
 
     *packet_buffer = (struct SwiftNetPacketBuffer){
         .packet_buffer_start = new_ptr,

@@ -2,23 +2,21 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 #include <sys/types.h>
-#include <netinet/ip.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include "internal/internal.h"
 #include "swift_net.h"
 #include <fcntl.h>
 #include <stddef.h>
 #include <sys/time.h>
-#include <net/ethernet.h>
 #include "internal/networking.h"
+
+#if defined(__APPLE__) || defined(__linux__)
+#include <stdio.h>
+#endif
 
 struct RequestServerInformationArgs {
     uint32_t size;
@@ -74,7 +72,7 @@ exit:
     return NULL;
 }
 
-static inline struct SwiftNetClientConnection* construct_client_connection(const bool loopback, const uint16_t destination_port, const in_addr_t server_address) {
+static inline struct SwiftNetClientConnection* construct_client_connection(const bool loopback, const uint16_t destination_port, const SwiftNetAddrIpv4 server_address) {
     struct SwiftNetClientConnection* new_connection;
 
     new_connection = allocator_allocate(&client_connection_memory_allocator);
@@ -122,26 +120,25 @@ static inline void remove_con_from_listener(struct SwiftNetClientConnection* con
 }
 
 struct SwiftNetClientConnection* swiftnet_create_client(const char* const ip_address, const uint16_t port, const uint32_t timeout_ms) {
-    struct in_addr addr;
+    SwiftNetAddrIpv4 addr;
     uint32_t ip;
     bool loopback;
     struct SwiftNetClientConnection* new_connection;
     struct SwiftNetChunkMetadata request_server_information_chunk_metadata;
     struct SwiftNetPacketMetadata request_server_information_packet_metadata;
-    struct ip request_server_info_ip_header;
+    struct SwiftNetIp request_server_info_ip_header;
     pthread_t send_request_thread;
     struct RequestServerInformationArgs thread_args;
     struct Listener* listener;
     struct SwiftNetNetworkData network_data;
 
+    addr_ipv4_from_string(ip_address, &addr);
 
-    inet_aton(ip_address, &addr);
-
-    ip = ntohl(addr.s_addr);
+    ip = ntohl(addr);
 
     loopback = (ip >> 24) == 127;
 
-    new_connection = construct_client_connection(loopback, port, addr.s_addr);
+    new_connection = construct_client_connection(loopback, port, addr);
 
     listener = check_existing_listener(new_connection, CONNECTION_TYPE_CLIENT, loopback);
     

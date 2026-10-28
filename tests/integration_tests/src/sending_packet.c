@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "../../../src/swift_net.h"
 #include <stdatomic.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include "run_tests.h"
@@ -144,6 +145,7 @@ int test_sending_packet(const union Args* args_ptr) {
         return -1;
     }
 
+    printf("Creating client on ip: %s\n", args.ip_address);
     swiftnet_server_set_message_handler(server, on_server_packet, NULL);
 
     struct SwiftNetClientConnection* const client_conn = swiftnet_create_client(args.ip_address, 8080, 10000);

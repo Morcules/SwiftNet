@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <winsock2.h>
 
 static inline void close_listeners(void) {
     LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);
@@ -83,5 +84,8 @@ void swiftnet_cleanup(void) {
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);
     #endif
-}
 
+    #ifdef _WIN32
+    WSACleanup();
+    #endif
+}

@@ -1,22 +1,26 @@
 #include "internal.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
-#include <ifaddrs.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <winnt.h>
 
 #ifdef __linux__
 #include <netpacket/packet.h>
 #include <net/if.h>
+
+#include <ifaddrs.h>
 #elif defined(__APPLE__)
 #include <net/if_dl.h>
+
+#include <ifaddrs.h>
+#elif defined(_WIN32)
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <iptypes.h>
 #endif
 
+#if defined(__linux__) || defined(__APPLE__)
 int get_default_interface_and_mac(char* restrict interface_name, const uint32_t interface_name_length, uint8_t* restrict mac_out, const int sockfd) {
     struct sockaddr_in local_addr;
     socklen_t addr_len;
@@ -126,4 +130,111 @@ int get_default_interface_and_mac(char* restrict interface_name, const uint32_t 
 
     return 0;
 }
+#elif defined(_WIN32)
+int get_default_interface_and_mac(
+    char* restrict interface_name,
+    const uint32_t interface_name_length,
+    uint8_t* restrict mac_out,
+    const int sockfd
+) {
+    struct sockaddr_in local_addr;
+    uint32_t addr_len;
+    uint32_t buffer_size;
+    uint64_t result;
+    IP_ADAPTER_ADDRESSES* adapters;
+    IP_ADAPTER_ADDRESSES* adapter;
+    IP_ADAPTER_ADDRESSES* match;
 
+    addr_len = sizeof(local_addr);
+
+    if (getsockname((SOCKET)sockfd, (struct sockaddr*)&local_addr, (int*)&addr_len) == SOCKET_ERROR) {
+        PRINT_ERROR("getsockname failed: %d", WSAGetLastError());
+        return -1;
+    }
+
+    buffer_size = 15000;
+    adapters = NULL;
+
+    for (;;) {
+        adapters = malloc(buffer_size);
+
+        if (!adapters) {
+            return -1;
+        }
+
+        result = GetAdaptersAddresses(
+            AF_INET,
+            GAA_FLAG_SKIP_ANYCAST |
+            GAA_FLAG_SKIP_MULTICAST |
+            GAA_FLAG_SKIP_DNS_SERVER,
+            NULL,
+            adapters,
+            (unsigned long*)&buffer_size
+        );
+
+        if (result != ERROR_BUFFER_OVERFLOW) {
+            break;
+        }
+
+        free(adapters);
+        adapters = NULL;
+    }
+
+    if (result != NO_ERROR) {
+        PRINT_ERROR("GetAdaptersAddresses failed: %lu", (unsigned long)result);
+        free(adapters);
+        return -1;
+    }
+
+    match = NULL;
+
+    for (adapter = adapters; adapter != NULL; adapter = adapter->Next) {
+        IP_ADAPTER_UNICAST_ADDRESS* unicast;
+
+
+        for (unicast = adapter->FirstUnicastAddress; unicast != NULL; unicast = unicast->Next) {
+
+            struct sockaddr_in* sin;
+
+            if (unicast->Address.lpSockaddr == NULL ||
+                unicast->Address.lpSockaddr->sa_family != AF_INET) {
+                continue;
+            }
+
+            sin = (struct sockaddr_in*)unicast->Address.lpSockaddr;
+
+            if (sin->sin_addr.s_addr == local_addr.sin_addr.s_addr) {
+                match = adapter;
+                break;
+            }
+        }
+
+        if (match != NULL) {
+            break;
+        }
+    }
+
+    if (match == NULL) {
+        PRINT_ERROR("No matching interface found for socket IPv4 address");
+        free(adapters);
+        return -1;
+    }
+
+    snprintf(interface_name, interface_name_length, "\\Device\\NPF_%s", match->AdapterName);
+
+    if (match->PhysicalAddressLength != 6) {
+        PRINT_ERROR("Invalid mac adress size");
+        free(adapters);
+        return -1;
+    }
+
+    memcpy(mac_out, match->PhysicalAddress, 6);
+
+    printf("Found interface: %s\n", interface_name);
+
+    free(adapters);
+    return 0;
+}
+#endif
+
+// TODO windows version

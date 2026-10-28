@@ -11,7 +11,10 @@ Makefile
 *.cache
 !/build/profile_template.cmake
 !/build/profiles/*
+.vscode
 
+**/*.dll
+**/*.a
 **/*.trace
 
 **/diff.git

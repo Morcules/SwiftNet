@@ -7,15 +7,22 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <ifaddrs.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "../../shared.h"
 
 char private_ip_address_testing[INET_ADDRSTRLEN];
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <ifaddrs.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#elif defined(_WIN32)
+#endif
+
 int main(void) {
+    swiftnet_initialize();
+    swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(SWIFTNET_DEBUG_PACKETS_SENDING | SWIFTNET_DEBUG_PACKETS_RECEIVING | SWIFTNET_DEBUG_INITIALIZATION | SWIFTNET_DEBUG_LOST_PACKETS));
+
     get_private_ip_from_socket();
 
     struct Test tests[] = {
@@ -118,10 +125,6 @@ int main(void) {
         },
     };
 
-    swiftnet_initialize();
-
-    swiftnet_add_debug_flags(SWIFTNET_DEBUG_FLAGS(SWIFTNET_DEBUG_PACKETS_SENDING | SWIFTNET_DEBUG_PACKETS_RECEIVING | SWIFTNET_DEBUG_INITIALIZATION | SWIFTNET_DEBUG_LOST_PACKETS));
-
     for (uint16_t i = 0; i < sizeof(tests) / sizeof(struct Test); i++) {
         const struct Test* current_test = &tests[i];
 
@@ -141,7 +144,7 @@ int main(void) {
 
 
     // Test default network interface only on macos, because it works without any setup
-    #ifdef __APPLE__
+    #if defined(__APPLE__) || defined(_WIN32)
     for (uint16_t i = 0; i < sizeof(tests) / sizeof(struct Test); i++) {
         struct Test* current_test = &tests[i];
         if (current_test->function == test_making_request) {

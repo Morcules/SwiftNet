@@ -28,31 +28,80 @@ file(GLOB SRC_FILES "${CMAKE_SOURCE_DIR}/../src/*.c")
 add_executable(run_tests ${SRC_FILES})
 
 if(BACKEND STREQUAL "pcap")
-add_compile_definitions(SWIFT_NET_BACKEND_PCAP)
+    add_compile_definitions(SWIFT_NET_BACKEND_PCAP)
 
-target_link_libraries(run_tests PRIVATE -lpcap)
+    if(WIN32)
+        find_path(NPCAP_INCLUDE_DIR
+            NAMES pcap.h
+            PATH_SUFFIXES Include include
+            PATHS
+                "C:/Npcap"
+        )
 
-target_link_libraries(run_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a)
+        find_library(NPCAP_WPCAP_LIBRARY
+            NAMES wpcap
+            PATHS
+                "C:/Npcap/Lib/ARM64"
+                "C:/Npcap/Lib"
+        )
+
+        find_library(NPCAP_PACKET_LIBRARY
+            NAMES Packet
+            PATHS
+                "C:/Npcap/Lib/ARM64"
+                "C:/Npcap/Lib"
+        )
+
+        if(NOT NPCAP_INCLUDE_DIR OR
+        NOT NPCAP_WPCAP_LIBRARY OR
+        NOT NPCAP_PACKET_LIBRARY)
+            message(FATAL_ERROR "Npcap SDK not found")
+        endif()
+
+        target_include_directories(run_tests PRIVATE
+            "${NPCAP_INCLUDE_DIR}"
+        )
+
+        target_link_libraries(run_tests PRIVATE
+            "${NPCAP_WPCAP_LIBRARY}"
+            "${NPCAP_PACKET_LIBRARY}"
+        )
+
+        target_link_libraries(run_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a)
+    else()
+        target_link_libraries(run_tests PRIVATE -lpcap)
+
+        target_link_libraries(run_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a)
+    endif()
 elseif(BACKEND STREQUAL "dpdk")
-add_compile_definitions(SWIFT_NET_BACKEND_DPDK)
+    add_compile_definitions(SWIFT_NET_BACKEND_DPDK)
 
-add_library(swiftnet STATIC IMPORTED)
+    add_library(swiftnet STATIC IMPORTED)
 
-set_target_properties(swiftnet PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a"
-)
+    set_target_properties(swiftnet PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../../../build/output/libswiftnet.a"
+    )
 
-target_link_libraries(swiftnet INTERFACE
-    rte_eal
-    rte_ethdev
-    rte_mbuf
-    rte_mempool
-    rte_ring
-    rte_net
-)
+    target_link_libraries(swiftnet INTERFACE
+        rte_eal
+        rte_ethdev
+        rte_mbuf
+        rte_mempool
+        rte_ring
+        rte_net
+    )
 
-target_link_libraries(run_tests PRIVATE swiftnet)
+    target_link_libraries(run_tests PRIVATE swiftnet)
 endif()
+
+if(WIN32)
+    target_link_libraries(run_tests PRIVATE
+        ws2_32
+        iphlpapi
+        pthread
+    )
+endif()
+
 
 target_link_options(run_tests PRIVATE -g -O0)
 
