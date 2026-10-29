@@ -1,6 +1,5 @@
 #include "run_tests.h"
 #include "../../../src/swift_net.h"
-#include "../../../src/internal/internal.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdio.h>

@@ -4,17 +4,30 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "../src/internal/internal.h"
 
 #ifdef __linux__
 #include <netpacket/packet.h>
 #include <net/if.h>
+
+#define MAX_INTERFACE_LEN 16
 #elif defined(__APPLE__)
 #include <net/if_dl.h>
+
+#define MAX_INTERFACE_LEN 16
 #elif defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#define MAX_INTERFACE_LEN 128
 #endif
+
+enum ConnectionType {
+    CONNECTION_TYPE_SERVER,
+    CONNECTION_TYPE_CLIENT
+};
+
+#define PRINT_ERROR(error, ...) \
+    printf("\033[31m" error "\033[0m\n", ##__VA_ARGS__);
 
 #define PRINT_SUCCESS(error, ...) \
     printf("\033[32m" error "\033[0m\n", ##__VA_ARGS__);
