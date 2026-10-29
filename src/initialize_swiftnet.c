@@ -180,7 +180,11 @@ extract_network_data:
         exit(EXIT_FAILURE);
     }
 
+    #if defined(_WIN32)
     maximum_transmission_unit = get_mtu(default_network_interface + 12, temp_socket);
+    #elif defined(__APPLE__) || defined(__linux__)
+    maximum_transmission_unit = get_mtu(default_network_interface, temp_socket);
+    #endif
     if(unlikely(maximum_transmission_unit == 0)) {
         PRINT_ERROR("Failed to get the maximum transmission unit");
         close(temp_socket);

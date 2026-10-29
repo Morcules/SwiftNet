@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include "../src/internal/internal.h"
 
 #ifdef __linux__
 #include <netpacket/packet.h>
@@ -15,18 +16,10 @@
 #include <ws2tcpip.h>
 #endif
 
-#define PRINT_ERROR(error, ...) \
-    printf("\033[31m" error "\033[0m\n", ##__VA_ARGS__)
-
 #define PRINT_SUCCESS(error, ...) \
     printf("\033[32m" error "\033[0m\n", ##__VA_ARGS__);
 
-enum ConnectionType {
-    Server,
-    Client
-};
-
-extern char private_ip_address_testing[INET_ADDRSTRLEN];
+extern char private_ip_address_testing[MAX_INTERFACE_LEN];
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <ifaddrs.h>

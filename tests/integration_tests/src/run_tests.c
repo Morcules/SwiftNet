@@ -1,5 +1,6 @@
 #include "run_tests.h"
 #include "../../../src/swift_net.h"
+#include "../../../src/internal/internal.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdio.h>
@@ -62,7 +63,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Server,
+                .receiver = CONNECTION_TYPE_SERVER,
                 .request_data_len = 100,
                 .response_data_len = 100
             }},
@@ -73,7 +74,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Client,
+                .receiver = CONNECTION_TYPE_CLIENT,
                 .request_data_len = 100,
                 .response_data_len = 100
             }},
@@ -84,7 +85,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Client,
+                .receiver = CONNECTION_TYPE_CLIENT,
                 .request_data_len = 10000,
                 .response_data_len = 100
             }},
@@ -95,7 +96,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Server,
+                .receiver = CONNECTION_TYPE_SERVER,
                 .request_data_len = 10000,
                 .response_data_len = 100
             }},
@@ -106,7 +107,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Client,
+                .receiver = CONNECTION_TYPE_CLIENT,
                 .request_data_len = 100,
                 .response_data_len = 10000
             }},
@@ -117,7 +118,7 @@ int main(void) {
             .args = {.test_making_request_args = {
                 .ip_address = "127.0.0.1",
                 .loopback = true,
-                .receiver = Server,
+                .receiver = CONNECTION_TYPE_SERVER,
                 .request_data_len = 100,
                 .response_data_len = 10000
             }},

@@ -34,7 +34,11 @@
     #define ASAN_POISON(addr, size)   ((void)(addr), (void)(size))
 #endif
 
+#if defined (_WIN32)
 #define MAX_INTERFACE_LEN 128
+#elif defined(__APPLE__) || defined(__linux__)
+#define MAX_INTERFACE_LEN 16
+#endif
 #define IS_NET_MESSAGE(packet_type) (packet_type >= REQUEST_INFORMATION)
 #define ETH_TYPE_IP UINT16_C(0x0800)
 
@@ -258,7 +262,7 @@ MAYBE_UNUSED static inline ALWAYS_INLINE void addr_ipv4_from_string(const char* 
     #if defined(_WIN32)
         InetPtonA(AF_INET, address, target);
     #elif defined(__APPLE__) || defined(__linux__)
-        inet_aton(ip_address, &addr);
+        inet_aton(address, (struct in_addr*)target);
     #endif
 }
 

@@ -4,7 +4,6 @@
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <winsock2.h>
 
 static inline void close_listeners(void) {
     LOCK_ATOMIC_DATA_TYPE(&listeners.atomic_lock);

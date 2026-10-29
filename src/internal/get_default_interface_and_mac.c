@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <winnt.h>
 
 #ifdef __linux__
 #include <netpacket/packet.h>
@@ -15,6 +14,7 @@
 
 #include <ifaddrs.h>
 #elif defined(_WIN32)
+#include <winnt.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <iptypes.h>
