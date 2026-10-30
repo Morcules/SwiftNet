@@ -18,6 +18,8 @@ jobs:
             os: ubuntu-24.04-arm
           - name: macos-arm64
             os: macos-latest
+          - name: windows-arm64
+            os: windows-11-arm
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -25,11 +27,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: show_arch
-      run: |
-        uname -m
-        cc -dumpmachine
 
     - name: install_dependencies_linux
       if: runner.os == 'Linux'
@@ -41,14 +38,61 @@ jobs:
       if: runner.os == 'macOS'
       run: brew install cmake
 
+    - name: install_dependencies_windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install llvm cmake make -y --no-progress
+
+        $sdk = "$env:RUNNER_TEMP\npcap-sdk.zip"
+        $dest = "$env:RUNNER_TEMP\npcap-sdk"
+
+        Invoke-WebRequest `
+          -Uri "https://npcap.com/dist/npcap-sdk-1.17.zip" `
+          -OutFile $sdk
+
+        Expand-Archive -Path $sdk -DestinationPath $dest -Force
+
+        $header = Get-ChildItem $dest -Filter pcap.h -Recurse Select-Object -First 1
+
+        if (!$header) {
+          throw "Npcap SDK headers not found"
+        }
+
+        $sdkRoot = $header.Directory.Parent.FullName
+
+        if (!(Test-Path "$sdkRoot\Lib\ARM64\wpcap.lib")) {
+          throw "ARM64 wpcap.lib missing"
+        }
+
+        if (!(Test-Path "$sdkRoot\Lib\ARM64\Packet.lib")) {
+          throw "ARM64 Packet.lib missing"
+        }
+
+        "NPCAP_SDK=$sdkRoot" >> $env:GITHUB_ENV
+
     - name: build_integration_tests_pcap
+      if: runner.os == 'Linux' || runner.os == 'macOS'
       run: |
         ./build_pcap_tests.sh
       working-directory: tests/integration_tests/build
 
     - name: run_integration_tests_pcap
+      if: runner.os == 'Linux' || runner.os == 'macOS'
       run: |
         sudo ./run_tests
+      working-directory: tests/integration_tests/output
+
+    - name: build_integration_tests_pcap_win
+      if: runner.os == 'Windows'
+      run: |
+        ./build_pcap_tests.bat
+      working-directory: tests/integration_tests/build
+
+    - name: run_integration_tests_pcap_win
+      if: runner.os == 'Windows'
+      run: |
+        ./run_tests.exe
       working-directory: tests/integration_tests/output
 
     - name: enable_hugepages

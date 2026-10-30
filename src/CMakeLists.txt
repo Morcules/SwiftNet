@@ -153,20 +153,21 @@ if(BACKEND STREQUAL "pcap")
                 PATH_SUFFIXES Include include
                 PATHS
                     "C:/Npcap"
+                    "$NPCAP_SDK"
             )
 
             find_library(NPCAP_WPCAP_LIBRARY
                 NAMES wpcap
                 PATHS
                     "C:/Npcap/Lib/ARM64"
-                    "C:/Npcap/Lib"
+                    "$NPCAP_SDK/Lib/ARM64"
             )
 
             find_library(NPCAP_PACKET_LIBRARY
                 NAMES Packet
                 PATHS
                     "C:/Npcap/Lib/ARM64"
-                    "C:/Npcap/Lib"
+                    "$NPCAP_SDK/Lib/ARM64"
             )
 
             if(NOT NPCAP_INCLUDE_DIR OR
