@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include "../../shared.h"
 
-char private_ip_address_testing[INET_ADDRSTRLEN];
+char private_ip_address_testing[MAX_INTERFACE_LEN];
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <ifaddrs.h>
