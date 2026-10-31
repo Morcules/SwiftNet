@@ -1,14 +1,19 @@
 #pragma once
 
 #include <stdint.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdbool.h>
+
+#if defined(__linux__) || defined(__APPLE__)
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <net/ethernet.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <netinet/ip.h>
-#include <stdbool.h>
+#elif defined(_WIN32)
+#include <winsock2.h>
+#endif
 
 #ifdef SWIFT_NET_BACKEND_PCAP
 #include <pcap/pcap.h>
@@ -32,6 +37,30 @@ extern "C" {
 #ifndef SWIFT_NET_MEMORY_USAGE
 #define SWIFT_NET_MEMORY_USAGE 5
 #endif
+
+typedef uint32_t SwiftNetAddrIpv4;
+
+struct SwiftNetEtherHeader {
+    uint8_t ether_dhost[6];
+    uint8_t ether_shost[6];
+    uint16_t ether_type;
+} SWIFT_NET_PACKED;
+
+struct SwiftNetIp {
+#if BYTE_ORDER == LITTLE_ENDIAN
+   uint8_t ip_hl:4, ip_v:4;
+#elif BYTE_ORDER == BIG_ENDIAN
+   uint8_t ip_v:4, ip_hl:4;
+#endif
+   uint8_t ip_tos;
+   uint16_t ip_len;
+   uint16_t ip_id;
+   uint16_t ip_off;
+   uint8_t ip_ttl;
+   uint8_t ip_p;
+   uint16_t ip_sum;
+   struct in_addr ip_src, ip_dst;
+} SWIFT_NET_PACKED;
 
 struct SwiftNetNetworkData {
     #ifdef SWIFT_NET_BACKEND_DPDK
@@ -314,7 +343,7 @@ struct SwiftNetClientConnection {
     pthread_t process_packets_thread;
     pthread_t execute_callback_thread;
     struct SwiftNetPortInfo port_info;
-    struct ether_header eth_header; 
+    struct SwiftNetEtherHeader eth_header; 
     uint16_t maximum_transmission_unit;
     struct in_addr server_addr;
     bool loopback;
@@ -339,7 +368,7 @@ struct SwiftNetServer {
     pthread_cond_t execute_callback_cond;
     pthread_t process_packets_thread;
     pthread_t execute_callback_thread;
-    struct ether_header eth_header; 
+    struct SwiftNetEtherHeader eth_header; 
     uint16_t server_port;        
     bool loopback;
     _Atomic bool processing_packets;

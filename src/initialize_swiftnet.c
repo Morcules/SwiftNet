@@ -1,13 +1,16 @@
-#include <netinet/in.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <time.h>
-#include <stdio.h>
 #include "swift_net.h"
 #include "internal/internal.h"
 #include <unistd.h>
+
+#if defined(__linux__) || defined(__APPLE__)
+#include <time.h>
+#include <stdio.h>
+#elif defined(_WIN32)
+    WSADATA wsaData;
+#endif
 
 #ifndef SWIFT_NET_DISABLE_DEBUGGING
     struct SwiftNetDebugger debugger = {.flags = 0};
@@ -23,7 +26,7 @@ uint32_t semaphore_counter = 0x00;
 uint16_t maximum_transmission_unit = 0x00;
 struct in_addr private_ip_address;
 uint8_t mac_address[6];
-char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
+char default_network_interface[MAX_INTERFACE_LEN];
 
 struct SwiftNetMemoryAllocator packet_queue_node_memory_allocator;
 struct SwiftNetMemoryAllocator packet_callback_queue_node_memory_allocator;
@@ -60,7 +63,7 @@ static inline void initialize_allocators(void) {
     packet_callback_queue_node_memory_allocator = allocator_create(sizeof(struct SwiftNetPacketCallbackQueueNode), 40 * SWIFT_NET_MEMORY_USAGE);
     server_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetServerPacketData), 40 * SWIFT_NET_MEMORY_USAGE);
     client_packet_data_memory_allocator = allocator_create(sizeof(struct SwiftNetClientPacketData), 40 * SWIFT_NET_MEMORY_USAGE);
-    packet_buffer_memory_allocator = allocator_create(maximum_transmission_unit + sizeof(struct ether_header), 40 * SWIFT_NET_MEMORY_USAGE);
+    packet_buffer_memory_allocator = allocator_create(maximum_transmission_unit + sizeof(struct SwiftNetEtherHeader), 40 * SWIFT_NET_MEMORY_USAGE);
     server_memory_allocator = allocator_create(sizeof(struct SwiftNetServer), 10);
     client_connection_memory_allocator = allocator_create(sizeof(struct SwiftNetClientConnection), 10);
     listener_memory_allocator = allocator_create(sizeof(struct Listener), 40 * SWIFT_NET_MEMORY_USAGE);
@@ -123,6 +126,13 @@ void swiftnet_initialize(void) {
     if (rte_eal_init(argc, argv) < 0) rte_exit(EXIT_FAILURE, "EAL init failed\n");
     #endif
 
+    #ifdef _WIN32
+    if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
+        PRINT_ERROR("WSAStartup failed\n");
+        exit(EXIT_FAILURE);
+    }
+    #endif
+
     int temp_socket;
     struct sockaddr_in remote = {0};
     struct sockaddr private_sockaddr;
@@ -170,7 +180,11 @@ extract_network_data:
         exit(EXIT_FAILURE);
     }
 
+    #if defined(_WIN32)
+    maximum_transmission_unit = get_mtu(default_network_interface + 12, temp_socket);
+    #elif defined(__APPLE__) || defined(__linux__)
     maximum_transmission_unit = get_mtu(default_network_interface, temp_socket);
+    #endif
     if(unlikely(maximum_transmission_unit == 0)) {
         PRINT_ERROR("Failed to get the maximum transmission unit");
         close(temp_socket);

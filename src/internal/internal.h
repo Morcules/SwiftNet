@@ -1,16 +1,21 @@
 #pragma once
 
-#include <arpa/inet.h>
 #include <stdint.h>
-#include <string.h>
-#include <netinet/in.h>
 #include <stdatomic.h>
-#include <stdlib.h>
-#include <sys/socket.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <net/if.h>
 #include "../swift_net.h"
+
+#if defined(__linux__) || defined(__APPLE__)
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <string.h>
+#include <stdlib.h>
+#elif defined(_WIN32)
+#include <winsock2.h>
+#endif
 
 #ifdef SWIFT_NET_BACKEND_PCAP
 #include <pcap/pcap.h>
@@ -29,7 +34,13 @@
     #define ASAN_POISON(addr, size)   ((void)(addr), (void)(size))
 #endif
 
+#if defined (_WIN32)
+#define MAX_INTERFACE_LEN 128
+#elif defined(__APPLE__) || defined(__linux__)
+#define MAX_INTERFACE_LEN 16
+#endif
 #define IS_NET_MESSAGE(packet_type) (packet_type >= REQUEST_INFORMATION)
+#define ETH_TYPE_IP UINT16_C(0x0800)
 
 #ifdef __APPLE__
     #include <sys/_endian.h>
@@ -71,6 +82,9 @@ extern uint32_t lcores_used[];
 #elif defined(__APPLE__)
 #define CLIENT_LOOPBACK_INTERFACE_NAME "lo0\0"
 #define SERVER_LOOPBACK_INTERFACE_NAME "lo0\0"
+#elif defined(_WIN32)
+#define CLIENT_LOOPBACK_INTERFACE_NAME "\\Device\\NPF_Loopback\0"
+#define SERVER_LOOPBACK_INTERFACE_NAME "\\Device\\NPF_Loopback\0"
 #endif
 #elif defined(SWIFT_NET_BACKEND_DPDK)
 #define CLIENT_LOOPBACK_INTERFACE_NAME "net_ring0\0"
@@ -81,9 +95,9 @@ extern uint32_t lcores_used[];
     (connection_type == CONNECTION_TYPE_CLIENT ? (loopback ? CLIENT_LOOPBACK_INTERFACE_NAME : default_network_interface) : (loopback ? SERVER_LOOPBACK_INTERFACE_NAME : default_network_interface))
 
 #define IP_HEADER_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data))
-#define CHUNK_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip))
-#define PACKET_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
-#define DATA_LOCATION(buffer, network_data, packet_metadata_present) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata_present ? sizeof(struct SwiftNetPacketMetadata) : 0))
+#define CHUNK_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp))
+#define PACKET_METADATA_LOCATION(buffer, network_data) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp) + sizeof(struct SwiftNetChunkMetadata))
+#define DATA_LOCATION(buffer, network_data, packet_metadata_present) (buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp) + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata_present ? sizeof(struct SwiftNetPacketMetadata) : 0))
 
 #ifdef SWIFT_NET_INTERNAL_TESTING
     #define ENABLE_INTERNAL_CHECK , 0
@@ -147,13 +161,13 @@ struct ReceiverPacketData {
 // Size of memory allocated before ip header.
 // Memory should contain either an eth hdr or any specific data depending on addr type (loopback or real interface)
 #ifdef SWIFT_NET_BACKEND_DPDK
-#define PACKET_PREPEND_SIZE(addr_type) sizeof(struct ether_header)
+#define PACKET_PREPEND_SIZE(addr_type) sizeof(struct SwiftNetEtherHeader)
 #elif defined(SWIFT_NET_BACKEND_PCAP)
-#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? (uint8_t)sizeof(uint32_t) : addr_type == DLT_EN10MB ? (uint8_t)sizeof(struct ether_header) : (uint8_t)0)
+#define PACKET_PREPEND_SIZE(addr_type) ((addr_type == DLT_NULL) ? (uint8_t)sizeof(uint32_t) : addr_type == DLT_EN10MB ? (uint8_t)sizeof(struct SwiftNetEtherHeader) : (uint8_t)0)
 #endif
-#define PACKET_HEADER_SIZE (sizeof(struct ip) + sizeof(struct SwiftNetChunkMetadata))
+#define PACKET_HEADER_SIZE (sizeof(struct SwiftNetIp) + sizeof(struct SwiftNetChunkMetadata))
 
-#define DEFAULT_MAC_ADDRESS_STRUCT (struct ether_header){.ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff}, .ether_type = htons(0x0800)}
+#define DEFAULT_MAC_ADDRESS_STRUCT (struct SwiftNetEtherHeader){.ether_dhost = {0xff,0xff,0xff,0xff,0xff,0xff}, .ether_type = htons(0x0800)}
 
 // Number used in ip.proto
 #define PROT_NUMBER 253
@@ -244,6 +258,14 @@ static uint16_t ip_checksum(const uint8_t* header) {
     return (uint16_t)~sum;
 }
 
+MAYBE_UNUSED static inline ALWAYS_INLINE void addr_ipv4_from_string(const char* const restrict address, SwiftNetAddrIpv4* restrict const target) {
+    #if defined(_WIN32)
+        InetPtonA(AF_INET, address, target);
+    #elif defined(__APPLE__) || defined(__linux__)
+        inet_aton(address, (struct in_addr*)target);
+    #endif
+}
+
 enum StackCreatingState {
     STACK_CREATING_LOCKED = 0,
     STACK_CREATING_UNLOCKED = 1
@@ -277,7 +299,7 @@ struct Listener {
     #endif
     struct SwiftNetHashMap servers;
     struct SwiftNetHashMap client_connections;
-    char interface_name[IFNAMSIZ];
+    char interface_name[MAX_INTERFACE_LEN];
     uint16_t addr_type;
     bool loopback;
 };
@@ -305,7 +327,7 @@ extern _Atomic bool swiftnet_closing;
 extern void* memory_cleanup_background_service(void* user);
 
 extern int get_default_interface_and_mac(char* restrict interface_name, const uint32_t interface_name_length, uint8_t* restrict mac_out, const int sockfd);
-extern uint16_t get_mtu(const char* restrict const interface, const int sockfd);
+extern uint16_t get_mtu(const char* restrict const net_interface, const int sockfd);
 
 extern void* swiftnet_server_process_packets(void* const void_server);
 extern void* swiftnet_client_process_packets(void* const void_client);
@@ -315,7 +337,7 @@ extern void* execute_packet_callback_server(void* const void_server);
 
 extern struct in_addr private_ip_address;
 extern uint8_t mac_address[6];
-extern char default_network_interface[SIZEOF_FIELD(struct ifreq, ifr_name)];
+extern char default_network_interface[MAX_INTERFACE_LEN];
 
 extern void* check_existing_listener(void* const connection, const enum ConnectionType connection_type, const bool loopback);
 
@@ -421,7 +443,7 @@ extern void swiftnet_send_packet(
     const uint32_t packet_length,
     const struct in_addr* const target_addr,
     struct SwiftNetHashMap* const packets_sending,
-    const struct ether_header eth_hdr,
+    const struct SwiftNetEtherHeader eth_hdr,
     const struct SwiftNetNetworkData network_data
     #ifndef SWIFT_NET_DISABLE_REQUESTS
     , struct RequestSent* const request_sent
@@ -447,11 +469,11 @@ static inline ALWAYS_INLINE struct SwiftNetPacketMetadata construct_packet_metad
     };
 }
 
-static inline ALWAYS_INLINE struct ip construct_ip_header(const struct in_addr destination_addr, const uint16_t packet_size, const uint16_t packet_id) {
-    struct ip ip_header;
+static inline ALWAYS_INLINE struct SwiftNetIp construct_ip_header(const struct in_addr destination_addr, const uint16_t packet_size, const uint16_t packet_id) {
+    struct SwiftNetIp ip_header;
 
 
-    ip_header = (struct ip){
+    ip_header = (struct SwiftNetIp){
         .ip_hl = 5,
         .ip_v = 4,
         .ip_tos = 0,

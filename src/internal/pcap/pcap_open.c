@@ -1,17 +1,16 @@
 #include "../internal.h"
 #include <pcap/pcap.h>
 
-void swiftnet_pcap_open(const char* const restrict interface, struct SwiftNetNetworkData* const network_data) {
+void swiftnet_pcap_open(const char* const restrict net_interface, struct SwiftNetNetworkData* const network_data) {
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t* p;
     char filter_exp[] = "ip proto 253";
     bpf_u_int32 net;
 
-
     net = 0;
 
     p = pcap_open_live(
-        interface,
+        net_interface,
         65535,
         1,
         25,

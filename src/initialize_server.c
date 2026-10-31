@@ -1,13 +1,8 @@
 #include <stdatomic.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/ip.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include "internal/internal.h"

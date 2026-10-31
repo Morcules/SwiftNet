@@ -83,5 +83,8 @@ void swiftnet_cleanup(void) {
     #ifdef SWIFT_NET_INTERNAL_TESTING
     printf("Bytes leaked: %d\nItems leaked: %d\n", bytes_leaked, items_leaked);
     #endif
-}
 
+    #ifdef _WIN32
+    WSACleanup();
+    #endif
+}

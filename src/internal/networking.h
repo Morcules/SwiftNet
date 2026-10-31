@@ -16,9 +16,9 @@
     #define HANDLE_CHECKSUM(buffer, size, network_data, packet_metadata) \
         { \
         const uint16_t ip_sum = htons(ip_checksum(buffer + GET_PREPEND_SIZE(network_data))); \
-        const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
-        memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
-        memcpy(buffer + GET_PREPEND_SIZE(network_data) + offsetof(struct ip, ip_sum), &ip_sum, SIZEOF_FIELD(struct ip, ip_sum)); \
+        const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
+        memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
+        memcpy(buffer + GET_PREPEND_SIZE(network_data) + offsetof(struct SwiftNetIp, ip_sum), &ip_sum, SIZEOF_FIELD(struct SwiftNetIp, ip_sum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type
@@ -41,12 +41,12 @@
 
     #define FREE_PACKET_CONSTRUCTION(buffer_name, network_data)
 
-    extern void swiftnet_pcap_open(const char* const restrict interface, struct SwiftNetNetworkData* const network_data);
+    extern void swiftnet_pcap_open(const char* const restrict net_interface, struct SwiftNetNetworkData* const network_data);
     extern int swiftnet_pcap_send(pcap_t *pcap, const uint8_t *data, const uint32_t len);
 
-    inline static struct SwiftNetNetworkData swiftnet_initialize_networking(const char* const restrict interface) {
+    inline static struct SwiftNetNetworkData swiftnet_initialize_networking(const char* const restrict net_interface) {
         struct SwiftNetNetworkData network_data;
-        swiftnet_pcap_open(interface, &network_data);
+        swiftnet_pcap_open(net_interface, &network_data);
         if (unlikely(network_data.pcap == NULL)) {
             PRINT_ERROR("Failed to open pcap");
 
@@ -94,9 +94,9 @@
     #define HANDLE_CHECKSUM(buffer, size, network_data, packet_metadata) \
         { \
             const uint16_t ip_sum = htons(ip_checksum(buffer + GET_PREPEND_SIZE(network_data))); \
-            const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
-            memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
-            memcpy(buffer + GET_PREPEND_SIZE(network_data) + offsetof(struct ip, ip_sum), &ip_sum, SIZEOF_FIELD(struct ip, ip_sum)); \
+            const uint32_t checksum = crc32(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp), size + sizeof(struct SwiftNetChunkMetadata) + (packet_metadata ? sizeof(struct SwiftNetPacketMetadata) : 0)); \
+            memcpy(buffer + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp) + offsetof(struct SwiftNetChunkMetadata, checksum), &checksum, sizeof(checksum)); \
+            memcpy(buffer + GET_PREPEND_SIZE(network_data) + offsetof(struct SwiftNetIp, ip_sum), &ip_sum, SIZEOF_FIELD(struct ip, ip_sum)); \
         }
 
     #define GET_ADDR_TYPE(network_data) (network_data)->addr_type

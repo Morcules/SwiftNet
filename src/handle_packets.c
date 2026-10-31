@@ -1,15 +1,16 @@
 #include "internal/networking.h"
 #include "swift_net.h"
-#include <arpa/inet.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdlib.h>
-#include <netinet/ip.h>
 #include "internal/internal.h"
 #include <stddef.h>
+
+#if defined (__APPLE__) || defined(__linux__)
+#include <stdlib.h>
+#endif
 
 static inline void insert_queue_node(
     struct SwiftNetPacketQueueNode* const new_node,
@@ -60,7 +61,7 @@ static inline struct SwiftNetPacketQueueNode* construct_node(const uint32_t data
 static inline bool valid_chunk_metadata(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
     struct SwiftNetChunkMetadata* restrict chunk_metadata;
 
-    chunk_metadata = (struct SwiftNetChunkMetadata*)(packet_data->data + GET_PREPEND_SIZE(network_data) + sizeof(struct ip));
+    chunk_metadata = (struct SwiftNetChunkMetadata*)(packet_data->data + GET_PREPEND_SIZE(network_data) + sizeof(struct SwiftNetIp));
 
     if(chunk_metadata->packet_type <= PACKET_TYPE_END) return true;
 
@@ -68,11 +69,11 @@ static inline bool valid_chunk_metadata(const struct SwiftNetNetworkData* restri
 }
 
 static inline bool valid_ip_header(const struct SwiftNetNetworkData* restrict const network_data, const struct ReceiverPacketData* const restrict packet_data) {
-    struct ip* restrict ip_header;
+    struct SwiftNetIp* restrict ip_header;
     bool valid_const_fields;
 
 
-    ip_header = (struct ip*)(packet_data->data + GET_PREPEND_SIZE(network_data));
+    ip_header = (struct SwiftNetIp*)(packet_data->data + GET_PREPEND_SIZE(network_data));
 
     valid_const_fields = (
         ip_header->ip_hl == 5 &&
@@ -127,8 +128,8 @@ static inline void swiftnet_handle_packets(
     sender_address = 0;
 
     if (addr_type != 0) {
-        if (ntohs(((struct ether_header *)packet_buffer)->ether_type) == ETHERTYPE_IP) {
-            sender_address = ((struct ip *)(packet_buffer + sizeof(struct ether_header)))->ip_src.s_addr;
+        if (ntohs(((struct SwiftNetEtherHeader *)packet_buffer)->ether_type) == ETH_TYPE_IP) {
+            sender_address = ((struct SwiftNetIp *)(packet_buffer + sizeof(struct SwiftNetEtherHeader)))->ip_src.s_addr;
             
         } else {
             allocator_free(&packet_buffer_memory_allocator, packet_buffer);
@@ -195,7 +196,7 @@ static void handle_client_init(struct SwiftNetClientConnection* const client_con
     }
 
     if (addr_type != 0) {
-        memcpy(client_connection->eth_header.ether_dhost, ((struct ether_header*)buffer)->ether_shost, sizeof(client_connection->eth_header.ether_dhost));
+        memcpy(client_connection->eth_header.ether_dhost, ((struct SwiftNetEtherHeader*)buffer)->ether_shost, sizeof(client_connection->eth_header.ether_dhost));
     }
 
 
@@ -205,7 +206,7 @@ static void handle_client_init(struct SwiftNetClientConnection* const client_con
     if(chunk_metadata->port_info.destination_port != client_connection->port_info.source_port || chunk_metadata->port_info.source_port != client_connection->port_info.destination_port) {
         #ifndef SWIFT_NET_DISABLE_DEBUGGING
             if (check_debug_flag(SWIFTNET_DEBUG_INITIALIZATION)) {
-                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", chunk_metadata->port_info.destination_port, chunk_metadata->port_info.source_port, inet_ntoa(((struct ip*)(buffer + prepend_size))->ip_src));
+                send_debug_message("Port info does not match: {\"destination_port\": %d, \"source_port\": %d, \"source_ip_address\": \"%s\"}\n", chunk_metadata->port_info.destination_port, chunk_metadata->port_info.source_port, inet_ntoa(((struct SwiftNetIp*)(buffer + prepend_size))->ip_src));
             }
         #endif
 
@@ -264,6 +265,8 @@ static inline uint8_t handle_correct_receiver(const enum ConnectionType connecti
 
         LOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
 
+        printf("dest port: %d\n", port_info->destination_port);
+
         server = hashmap_get(&port_info->destination_port, sizeof(uint16_t), &listener->servers);
 
         UNLOCK_ATOMIC_DATA_TYPE(&listener->servers.atomic_lock);
@@ -285,7 +288,7 @@ static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* re
 
     listener = (struct Listener*)user;
 
-    port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, port_info));
+    port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct SwiftNetIp) + offsetof(struct SwiftNetChunkMetadata, port_info));
 
     struct ReceiverPacketData packet_data = (struct ReceiverPacketData){.data = packet, .data_len = hdr->caplen};
 
@@ -293,7 +296,7 @@ static void pcap_packet_handle(uint8_t* const user, const struct pcap_pkthdr* re
 }
 #elif defined(SWIFT_NET_BACKEND_DPDK)
 static void dpdk_packet_handle(struct Listener* const listener, struct rte_mbuf* const restrict dpdk_buf, uint8_t* restrict const packet) {
-    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct ip) + offsetof(struct SwiftNetChunkMetadata, port_info));
+    struct SwiftNetPortInfo* restrict const port_info = (struct SwiftNetPortInfo*)(packet + PACKET_PREPEND_SIZE(listener->addr_type) + sizeof(struct SwiftNetIp) + offsetof(struct SwiftNetChunkMetadata, port_info));
     struct ReceiverPacketData packet_data = (struct ReceiverPacketData){.data = packet, .data_len = dpdk_buf->data_len, .dpdk_buf = dpdk_buf};
 
     if(handle_correct_receiver(CONNECTION_TYPE_CLIENT, listener, port_info, &packet_data) == 0) handle_correct_receiver(CONNECTION_TYPE_SERVER, listener, port_info, &packet_data);

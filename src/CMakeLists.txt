@@ -147,10 +147,58 @@ if(BACKEND STREQUAL "pcap")
             message(WARNING "libpcap not found!!!")
         endif()
     else()
-        target_link_options(swiftnet PRIVATE -lpcap)
-        target_link_options(swiftnet_shared PRIVATE -lpcap)
+        if(WIN32)
+            find_path(NPCAP_INCLUDE_DIR
+                NAMES pcap.h
+                PATH_SUFFIXES Include include
+                PATHS
+                    "C:/Npcap"
+                    "$ENV{NPCAP_SDK}"
+            )
 
-        message("using linking option: -lpcap")
+            find_library(NPCAP_WPCAP_LIBRARY
+                NAMES wpcap
+                PATHS
+                    "C:/Npcap/Lib/ARM64"
+                    "$ENV{NPCAP_SDK}/Lib/ARM64"
+            )
+
+            find_library(NPCAP_PACKET_LIBRARY
+                NAMES Packet
+                PATHS
+                    "C:/Npcap/Lib/ARM64"
+                    "$ENV{NPCAP_SDK}/Lib/ARM64"
+            )
+
+            if(NOT NPCAP_INCLUDE_DIR OR
+            NOT NPCAP_WPCAP_LIBRARY OR
+            NOT NPCAP_PACKET_LIBRARY)
+                message(FATAL_ERROR "Npcap SDK not found")
+            endif()
+
+            target_include_directories(swiftnet PRIVATE
+                "${NPCAP_INCLUDE_DIR}"
+            )
+
+            target_link_libraries(swiftnet PRIVATE
+                "${NPCAP_WPCAP_LIBRARY}"
+                "${NPCAP_PACKET_LIBRARY}"
+            )
+
+            target_include_directories(swiftnet_shared PRIVATE
+                "${NPCAP_INCLUDE_DIR}"
+            )
+
+            target_link_libraries(swiftnet_shared PRIVATE
+                "${NPCAP_WPCAP_LIBRARY}"
+                "${NPCAP_PACKET_LIBRARY}"
+            )
+        else()
+            target_link_options(swiftnet PRIVATE -lpcap)
+            target_link_options(swiftnet_shared PRIVATE -lpcap)
+
+            message("using linking option: -lpcap")
+        endif()
     endif()
 elseif(BACKEND STREQUAL "dpdk")
     find_package(PkgConfig REQUIRED)
@@ -170,6 +218,20 @@ elseif(BACKEND STREQUAL "dpdk")
     target_link_libraries(swiftnet PUBLIC -static ${DPDK_LIBRARIES})
     target_link_libraries(swiftnet_shared PUBLIC ${DPDK_LIBRARIES})
     message(STATUS "DPDK backend selected")
+endif()
+
+if(WIN32)
+    target_link_libraries(swiftnet PRIVATE
+        ws2_32
+        iphlpapi
+        pthread
+    )
+
+    target_link_libraries(swiftnet_shared PRIVATE
+        ws2_32
+        iphlpapi
+        pthread
+    )
 endif()
 
 set_target_properties(swiftnet PROPERTIES
