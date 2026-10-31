@@ -53,8 +53,7 @@ jobs:
 
         Expand-Archive -Path $sdk -DestinationPath $dest -Force
 
-        $header = Get-ChildItem $dest -Filter pcap.h -Recurse Select-Object -First 1
-
+        $header = Get-ChildItem $dest -Filter pcap.h -Recurse | Select-Object -First 1
         if (!$header) {
           throw "Npcap SDK headers not found"
         }
