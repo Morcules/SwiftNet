@@ -42,7 +42,16 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
+        $ErrorActionPreference = "Stop"
+
+        Write-Host "Installing dependencies"
         choco install llvm cmake make -y --no-progress
+
+        if ($LASTEXITCODE -ne 0) {
+          throw "Chocolatey installation failed: $LASTEXITCODE"
+        }
+
+        Write-Host "Downloading Npcap SDK"
 
         $sdk = "$env:RUNNER_TEMP\npcap-sdk.zip"
         $dest = "$env:RUNNER_TEMP\npcap-sdk"
@@ -51,24 +60,33 @@ jobs:
           -Uri "https://npcap.com/dist/npcap-sdk-1.17.zip" `
           -OutFile $sdk
 
+        Write-Host "Extracting SDK"
+
         Expand-Archive -Path $sdk -DestinationPath $dest -Force
 
+        Write-Host "Finding headers"
+
         $header = Get-ChildItem $dest -Filter pcap.h -Recurse | Select-Object -First 1
+
         if (!$header) {
           throw "Npcap SDK headers not found"
         }
 
         $sdkRoot = $header.Directory.Parent.FullName
 
-        if (!(Test-Path "$sdkRoot\Lib\ARM64\wpcap.lib")) {
-          throw "ARM64 wpcap.lib missing"
+        Write-Host "SDK root: $sdkRoot"
+
+        if (!(Test-Path "$sdkRoot\Lib\x64\wpcap.lib")) {
+          throw "x64 wpcap.lib missing"
         }
 
-        if (!(Test-Path "$sdkRoot\Lib\ARM64\Packet.lib")) {
-          throw "ARM64 Packet.lib missing"
+        if (!(Test-Path "$sdkRoot\Lib\x64\Packet.lib")) {
+          throw "x64 Packet.lib missing"
         }
 
         "NPCAP_SDK=$sdkRoot" >> $env:GITHUB_ENV
+
+        Write-Host "Npcap SDK installed successfully"
 
     - name: build_integration_tests_pcap
       if: runner.os == 'Linux' || runner.os == 'macOS'
